@@ -3,7 +3,7 @@
 Suppose you want to calculate the ground state energy of the hydrogen anion in the rest-frame of the proton. 
 
 ```@example example1
-using FewBodyPhysics
+using FewBodyECG
 using LinearAlgebra
 using Plots
 

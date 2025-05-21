@@ -1,8 +1,8 @@
-# FewBodyPhysics
+# FewBodyECG
 
-[![Documentation](https://img.shields.io/badge/docs-dev-blue.svg)](https://martinmikkelsen.github.io/FewBodyPhysics.jl/dev/)
+[![Documentation](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliafewbody.github.io/FewBodyECG.jl/)
 
-Welcome to FewBodyPhysics.jl, a Julia package dedicated to the study and simulation of quantum mechanical few-body systems using explicitly correlated Gaussian methods. This package offers a powerful computational framework to model and analyze various quantum systems, from atoms and molecules to light nuclei and quantum dots.
+Welcome to FewBodyECG.jl, a Julia package dedicated to the study and simulation of quantum mechanical few-body systems using explicitly correlated Gaussian methods. This package offers a powerful computational framework to model and analyze various quantum systems, from atoms and molecules to light nuclei and quantum dots.
 
 
 ## Features
@@ -14,9 +14,9 @@ Correlated Gaussian Basis Functions: Employs explicitly correlated Gaussian func
 
 ## Install
 
-To install FewBodyPhysics.jl, use the Julia package manager:
+To install FewBodyECG.jl, use the Julia package manager:
 
 ```julia
 using Pkg
-Pkg.add("FewBodyPhysics")
+Pkg.add("FewBodyECG")
 ```

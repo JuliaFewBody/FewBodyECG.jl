@@ -1,5 +1,5 @@
 # API 
 
 ```@autodocs
-Modules = [FewBodyPhysics.Utils, FewBodyPhysics.Sampling, FewBodyPhysics.Coordinates, FewBodyPhysics.Optimization,]
+Modules = [FewBodyECG.Utils, FewBodyECG.Sampling, FewBodyECG.Coordinates, FewBodyECG.Optimization,]
 ```

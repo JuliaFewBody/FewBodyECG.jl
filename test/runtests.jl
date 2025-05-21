@@ -2,7 +2,7 @@ using Test
 using LinearAlgebra
 
 
-@testset "FewBodyPhysics" begin
+@testset "FewBodyECG" begin
 
     include("test_sampling.jl")
     include("test_coordinates.jl")

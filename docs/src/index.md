@@ -1,4 +1,4 @@
-# FewBodyPhysics.jl
+# FewBodyECG.jl
 
 !!! warning "WIP"
     This is work in progress. 
@@ -8,7 +8,7 @@
 Get the latest stable release with Julia's package manager:
 
 ```
-julia ] add FewBodyPhysics
+julia ] add FewBodyECG
 ```
 
 ## Example
@@ -20,7 +20,7 @@ H = - \sum_{i=1}^{3} \frac{1}{2m_i}\frac{\partial^2}{\partial \boldsymbol{r}_i^2
 The masses of the three constituents are `m_i = {1, 1, 1}` and the charges `q_i = {+1, −1, −1}`. We can estimate the ground state of this Coulombic three-body system using 50 Gaussians
 
 ```@example example2
-using FewBodyPhysics
+using FewBodyECG
 using LinearAlgebra
 using Plots
 

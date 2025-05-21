@@ -1,7 +1,7 @@
 using Test
-using FewBodyPhysics.Coordinates
+using FewBodyECG.Coordinates
 using LinearAlgebra
-using FewBodyPhysics.Types
+using FewBodyECG.Types
 
 @testset "Coordinates Module Tests" begin
     @testset "jacobi_transform" begin

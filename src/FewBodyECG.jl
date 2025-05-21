@@ -1,4 +1,4 @@
-module FewBodyPhysics
+module FewBodyECG
 
 include("types.jl")
 include("coordinates.jl")

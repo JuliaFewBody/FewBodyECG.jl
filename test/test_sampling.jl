@@ -1,5 +1,5 @@
 using Test
-using FewBodyPhysics.Sampling
+using FewBodyECG.Sampling
 
 @testset "Sampling Module Tests" begin
     @testset "Van der Corput Sequence" begin
