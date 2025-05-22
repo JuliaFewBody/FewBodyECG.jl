@@ -345,7 +345,7 @@ version = "4.4.4+1"
 deps = ["LinearAlgebra", "Optim", "Plots", "SpecialFunctions"]
 path = ".."
 uuid = "083b1810-24a1-4a79-9a41-145bb2bb8ceb"
-version = "1.0.3"
+version = "1.0.4"
 
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
