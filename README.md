@@ -1,4 +1,4 @@
-# FewBodyECG
+# FewBodyECG.jl
 
 [![Documentation](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliafewbody.github.io/FewBodyECG.jl/)
 
