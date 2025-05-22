@@ -1,6 +1,6 @@
 using Test
 using LinearAlgebra
-
+using FewBodyECG
 
 @testset "FewBodyECG" begin
 
