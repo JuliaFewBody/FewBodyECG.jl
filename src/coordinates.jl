@@ -127,7 +127,7 @@ an element of the resulting vector.
   the corresponding value from the input vector `α`.
 """
 function transform_list(α::Vector{Float64})::Vector{Matrix{Float64}}
-    return [Matrix{Float64}([α_i]) for α_i in α]
+    return [reshape([α_i], 1, 1) for α_i in α]
 end
 
 """
@@ -178,7 +178,7 @@ function transform_coordinates(J::Matrix{Float64}, r::Vector{Float64})::Vector{F
 end
 
 function inverse_transform_coordinates(U::Matrix{Float64}, x::Vector{Float64})::Vector{Float64}
-    @assert size(U, 1) == length(x) "Matrix `U` rows must match length of vector `x`."
+    @assert size(U, 2) == length(x) "Matrix `U` columns must match length of vector `x`."
     return U * x
 end
 

@@ -1,4 +1,4 @@
-module FewBodyPhysics
+module FewBodyECG
 
 include("types.jl")
 include("coordinates.jl")
@@ -18,17 +18,14 @@ using .Optimization
 using .Constants  
 using .Utils
 
-export Particle, GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian,
-       BasisSet, Operator, KineticEnergy, CoulombPotential,
-       FewBodyHamiltonian, MatrixElementResult, SystemCoordinates, ParticleSystem, generate_A_matrix, run_simulation, generate_bij, default_b0
+export generate_A_matrix, run_simulation, generate_bij, default_b0, jacobi_transform, transform_list, transform_coordinates, inverse_transform_coordinates, ParticleSystem, Particle, GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet, Operator, KineticEnergy, CoulombPotential, FewBodyHamiltonian, MatrixElementResult
 
 export compute_matrix_element, build_overlap_matrix, build_operator_matrix,
        build_hamiltonian_matrix, solve_generalized_eigenproblem,
        generate_basis, compute_ground_state_energy,
-       corput, halton, optimize_ground_state_energy, jacobi_kinetic_matrix
-
-export m_p, m_n, m_pi0, m_pi, ħc, μ, m_bare 
+       corput, halton, optimize_ground_state_energy
 
 export ψ₀, plot_wavefunction, plot_density
+
 
 end

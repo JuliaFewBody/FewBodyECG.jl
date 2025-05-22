@@ -1,11 +1,11 @@
 using Documenter, Pkg
-using FewBodyPhysics
+using FewBodyECG
 
 push!(LOAD_PATH,"../src/")
 makedocs(
     source  = "src", 
-    sitename = "FewBodyPhysics.jl",
-    modules = [FewBodyPhysics], 
+    sitename = "FewBodyECG.jl",
+    modules = [FewBodyECG], 
     pages = [
         "index.md",
         "theory.md",
@@ -16,7 +16,7 @@ makedocs(
 
 )
 deploydocs(
-    repo = "github.com/MartinMikkelsen/FewBodyPhysics.jl.git",
+    repo = "github.com/JuliaFewBody/FewBodyECG.jl",
     target = "build",
     branch="gh-pages",
 )

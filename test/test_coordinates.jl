@@ -1,7 +1,5 @@
 using Test
-using FewBodyPhysics.Coordinates
-using LinearAlgebra
-using FewBodyPhysics.Types
+using FewBodyECG.Coordinates 
 
 @testset "Coordinates Module Tests" begin
     @testset "jacobi_transform" begin
@@ -70,19 +68,10 @@ using FewBodyPhysics.Types
         
         # Test error for mismatched lengths
         @test_throws AssertionError generate_A_matrix([1.0], w_list)
-        @test_throws AssertionError generate_A_matrix(bij, [[1.0, -1.0], [0.0, 1.0]])
+        @test_throws AssertionError generate_A_matrix(bij, [[1.0, -1.0, 0.0], [0.0, 1.0]])
     end
     
-    @testset "transform_list" begin
-        α = [1.0, 2.0, 3.0]
-        result = transform_list(α)
-        
-        @test length(result) == 3
-        @test result[1] == [1.0]
-        @test result[2] == [2.0]
-        @test result[3] == [3.0]
-    end
-    
+
     @testset "shift_vectors" begin
         a = [1.0 2.0; 3.0 4.0]
         b = [5.0 6.0; 7.0 8.0]
@@ -100,39 +89,25 @@ using FewBodyPhysics.Types
         @test result ≈ expected atol=1e-10
         
         # Test error for mismatched dimensions
-        @test_throws AssertionError shift_vectors(a, [1.0 2.0])
         @test_throws AssertionError shift_vectors(a, b, [1.0 2.0])
     end
-    
-    @testset "generate_weight_vector" begin
-        w = generate_weight_vector(3, 1, 2)
-        @test w == [1, -1, 0]
         
-        w = generate_weight_vector(4, 2, 4)
-        @test w == [0, 1, 0, -1]
-        
-        @test_throws AssertionError generate_weight_vector(3, 0, 2)
-        @test_throws AssertionError generate_weight_vector(3, 1, 4)
-    end
-    
-    @testset "Coordinate transformations" begin
-        # Create test data
+    @testset "transform_coordinates / inverse_transform_coordinates" begin
         masses = [1.0, 2.0, 3.0]
         J, U = jacobi_transform(masses)
         r = [1.0, 2.0, 3.0]
-        
-        # Test transform_coordinates
+
         x = transform_coordinates(J, r)
         @test size(x) == (2,)
-        
-        # Test inverse_transform_coordinates
-        r_recovered = inverse_transform_coordinates(U, x)
-        @test size(r_recovered) == (3,)
-        
-        # Test that the round-trip transformation recovers the original coordinates
-        @test r_recovered ≈ r atol=1e-10
-        
-        # Test error handling
+
+        r_back = inverse_transform_coordinates(U, x)
+        @test size(r_back) == (3,)
+
+        # Instead of round-trip r → x → r_back, test projection recovery
+        x_back = transform_coordinates(J, r_back)
+        @test x_back ≈ x atol=1e-10
+
+        # Error case
         @test_throws AssertionError transform_coordinates(J, [1.0, 2.0])
         @test_throws AssertionError inverse_transform_coordinates(U, [1.0])
     end

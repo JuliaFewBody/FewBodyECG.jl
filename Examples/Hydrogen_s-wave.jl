@@ -1,4 +1,4 @@
-using FewBodyPhysics
+using FewBodyECG
 using LinearAlgebra
 using Plots
 
