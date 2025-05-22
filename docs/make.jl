@@ -1,22 +1,24 @@
-using Documenter, Pkg
-using FewBodyECG
+using Documenter, FewBodyECG
 
-push!(LOAD_PATH,"../src/")
 makedocs(
-    source  = "src", 
     sitename = "FewBodyECG.jl",
-    modules = [FewBodyECG], 
+    format = Documenter.HTML(
+        repolink = "https://github.com/JuliaFewBody/FewBodyECG.jl"
+    ),
+    modules = [FewBodyECG],
     pages = [
-        "index.md",
-        "theory.md",
-        "examples.md",
-        "resources.md",
-        "API.md"
-        ]
-
+        "Home" => "index.md",
+        "Theory" => "theory.md",
+        "Examples" => "examples.md",
+        "Resources" => "resources.md",
+        "API" => "API.md"
+    ],
+    repo = "https://github.com/JuliaFewBody/FewBodyECG.jl",
 )
+
 deploydocs(
     repo = "github.com/JuliaFewBody/FewBodyECG.jl",
     target = "build",
-    branch="gh-pages",
+    branch = "gh-pages",
+    devbranch = "main"  # or "master" if you're using that
 )

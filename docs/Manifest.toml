@@ -2,7 +2,7 @@
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "6a7839a78d4f18a9980c2da64fafc74a9f23cabf"
+project_hash = "5731404ca3cfdf0e6109593f875a59a79bc976ab"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -340,6 +340,12 @@ deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers",
 git-tree-sha1 = "466d45dc38e15794ec7d5d63ec03d776a9aff36e"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
 version = "4.4.4+1"
+
+[[deps.FewBodyECG]]
+deps = ["LinearAlgebra", "Optim", "Plots", "SpecialFunctions"]
+path = ".."
+uuid = "083b1810-24a1-4a79-9a41-145bb2bb8ceb"
+version = "1.0.3"
 
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"

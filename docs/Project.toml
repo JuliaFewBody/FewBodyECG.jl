@@ -1,9 +1,10 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+FewBodyECG = "083b1810-24a1-4a79-9a41-145bb2bb8ceb"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 
 [compat]
-julia = "1.8.5"
-Plots = "1.39.0"
 Optim = "1.7.8"
+Plots = "1.39.0"
+julia = "1.8.5"

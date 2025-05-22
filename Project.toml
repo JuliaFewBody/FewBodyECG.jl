@@ -1,7 +1,7 @@
 name = "FewBodyECG"
 uuid = "083b1810-24a1-4a79-9a41-145bb2bb8ceb"
 authors = ["Martin Mikkelsen"]
-version = "1.0.3"
+version = "1.0.4"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
