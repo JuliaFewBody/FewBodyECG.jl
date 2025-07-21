@@ -11,9 +11,9 @@ K_transformed = psys.J * K * psys.J'
 w_raw = [psys.U' * [1, -1]]
 coeffs = [-1.0]
 
-n_basis = 5
-method = :quasirandom  
-b1 = 1.0
+n_basis = 13
+method = :halton  
+b1 = 1.4
 
 basis_fns = GaussianBase[]
 E₀_list = Float64[]
@@ -35,12 +35,18 @@ for i in 1:n_basis
     S = build_overlap_matrix(basis)
 
     vals, _ = solve_generalized_eigenproblem(H, S)
-    valid = vals .> 1e-6
+    valid = vals .> 1e-12
     S⁻¹₂ = Diagonal(1 ./ sqrt.(vals[valid]))
     H̃ = S⁻¹₂ * H[valid, valid] * S⁻¹₂
     eigvals = eigen(H̃).values
 
-    E₀ = minimum(eigvals)
+    real_eigvals = eigvals[abs.(imag.(eigvals)) .< 1e-10]
+    if !isempty(real_eigvals)
+        E₀ = minimum(real_eigvals)
+    else
+        E₀ = NaN
+        @warn "All eigenvalues are complex at step $i"
+    end
     push!(E₀_list, E₀)
     println("Step $i: E₀ = $E₀")
 end

@@ -11,8 +11,8 @@ K_transformed = psys.J * K * psys.J'
 w_raw = [psys.U' * [1, -1]]  # r₁ - r₂
 coeffs = [-1.0]  # Coulomb attraction
 
-n_basis = 15
-method = :quasirandom  # :quasirandom, :pseudorandom
+n_basis = 20
+method = :quasirandom 
 b1 = 1.5
 
 basis_fns = GaussianBase[]

@@ -22,8 +22,7 @@ export generate_A_matrix, run_simulation, generate_bij, default_b0, jacobi_trans
 
 export compute_matrix_element, build_overlap_matrix, build_operator_matrix,
        build_hamiltonian_matrix, solve_generalized_eigenproblem,
-       generate_basis, compute_ground_state_energy,
-       corput, halton, optimize_ground_state_energy
+       generate_basis, compute_ground_state_energy, optimize_ground_state_energy
 
 export ψ₀, plot_wavefunction, plot_density
 
