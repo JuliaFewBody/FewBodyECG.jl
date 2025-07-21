@@ -1,6 +1,7 @@
 using FewBodyECG
 using LinearAlgebra
 using Plots
+using QuasiMonteCarlo
 
 masses = [1e15, 1.0, 1.0] 
 psys = ParticleSystem(masses)

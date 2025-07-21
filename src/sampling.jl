@@ -4,7 +4,6 @@ using ..Types
 using ..Coordinates
 using ..Hamiltonian
 using LinearAlgebra
-using LowDiscrepancySampling
 using QuasiMonteCarlo
 
 export generate_basis, compute_ground_state_energy, generate_bij
@@ -33,12 +32,6 @@ function generate_bij(method::Symbol, i::Int, n_terms::Int, b1::Float64; qmc_sam
         return QuasiMonteCarlo.sample(i+1, n_terms, qmc_sampler)[:, end] * b1
     elseif method == :random
         return rand(n_terms) * b1
-    elseif method == :hammersley
-        points = hammersley_set(i+1, max(n_terms, 2)) 
-        bij = vec(points[end, 1:n_terms])
-        bij = 0.2 .+ 0.8 .* bij
-        bij = bij * b1
-        return max.(bij, 0.1)  
     else
         error("Unsupported sampling method: $method")
     end

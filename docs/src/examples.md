@@ -6,6 +6,7 @@ Suppose you want to calculate the ground state energy of the hydrogen anion in t
 using FewBodyECG
 using LinearAlgebra
 using Plots
+using QuasiMonteCarlo
 
 masses = [1e15, 1.0, 1.0] 
 psys = ParticleSystem(masses)
@@ -26,7 +27,7 @@ let
     coeffs = [-1.0, -1.0, +1.0]
 
     for i in 1:n_basis
-        bij = generate_bij(method, i, length(w_raw), b1)
+        bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler=SobolSample())
         A = generate_A_matrix(bij, w_raw)
         push!(basis_fns, Rank0Gaussian(A))
 
