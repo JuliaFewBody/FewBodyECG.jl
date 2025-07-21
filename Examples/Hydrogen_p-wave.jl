@@ -11,17 +11,17 @@ K_transformed = psys.J * K * psys.J'
 w_raw = [psys.U' * [1, -1]]
 coeffs = [-1.0]
 
-n_basis = 13
-method = :halton  
+n_basis = 25
+method = :quasirandom  
 b1 = 1.4
 
 basis_fns = GaussianBase[]
 E₀_list = Float64[]
 
 a_vec = [1.0]  
-
+    
 for i in 1:n_basis
-    bij = generate_bij(method, i, length(w_raw), b1)
+    bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler=HaltonSample())
     A = generate_A_matrix(bij, w_raw)
     push!(basis_fns, Rank1Gaussian(A, [a_vec]))
 

@@ -11,16 +11,15 @@ K_transformed = psys.J * K * psys.J'
 w_raw = [psys.U' * [1, -1]]  # r₁ - r₂
 coeffs = [-1.0]  # Coulomb attraction
 
-n_basis = 20
-method = :quasirandom 
+n_basis = 25
+method = :hammersley 
 b1 = 1.5
 
 basis_fns = GaussianBase[]
 E₀_list = Float64[]
 
-# --- Build basis and compute ground state energy step by step
 for i in 1:n_basis
-    bij = generate_bij(method, i, length(w_raw), b1)
+    bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler=HaltonSample())
     A = generate_A_matrix(bij, w_raw)
     push!(basis_fns, Rank0Gaussian(A))
 
