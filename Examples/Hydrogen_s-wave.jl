@@ -1,6 +1,7 @@
 using FewBodyECG
 using LinearAlgebra
 using Plots
+using QuasiMonteCarlo
 
 masses = [1e15, 1.0]  # proton, electron
 psys = ParticleSystem(masses)
@@ -11,16 +12,15 @@ K_transformed = psys.J * K * psys.J'
 w_raw = [psys.U' * [1, -1]]  # r₁ - r₂
 coeffs = [-1.0]  # Coulomb attraction
 
-n_basis = 15
-method = :quasirandom  # :quasirandom, :pseudorandom
+n_basis = 25
+method = :quasirandom 
 b1 = 1.5
 
 basis_fns = GaussianBase[]
 E₀_list = Float64[]
 
-# --- Build basis and compute ground state energy step by step
 for i in 1:n_basis
-    bij = generate_bij(method, i, length(w_raw), b1)
+    bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler=SobolSample())
     A = generate_A_matrix(bij, w_raw)
     push!(basis_fns, Rank0Gaussian(A))
 
