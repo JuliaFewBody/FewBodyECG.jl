@@ -9,6 +9,3 @@ using FewBodyECG
     include("test_coordinates.jl")
 
 end
-
-    
-

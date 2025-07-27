@@ -1,10 +1,10 @@
 module Types
 
 export Particle,
-       GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian,
-       BasisSet,
-       Operator, KineticEnergy, CoulombPotential,
-       FewBodyHamiltonian, MatrixElementResult
+    GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian,
+    BasisSet,
+    Operator, KineticEnergy, CoulombPotential,
+    FewBodyHamiltonian, MatrixElementResult
 
 abstract type GaussianBase end
 

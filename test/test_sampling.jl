@@ -2,7 +2,7 @@ using Test
 using FewBodyECG.Sampling
 
 @testset "Sampling Module Tests" begin
-    
+
     @testset "generate_bij function" begin
         b1 = 1.5
         n_terms = 5
@@ -14,8 +14,8 @@ using FewBodyECG.Sampling
         @test all(0 .<= bij_quasi .<= b1)
         # Compare with direct QuasiMonteCarlo.sample
         using QuasiMonteCarlo
-        expected_quasi = QuasiMonteCarlo.sample(i+1, n_terms, HaltonSample())[:, end] * b1
-        @test isapprox(bij_quasi, expected_quasi; atol=1e-12)
+        expected_quasi = QuasiMonteCarlo.sample(i + 1, n_terms, HaltonSample())[:, end] * b1
+        @test isapprox(bij_quasi, expected_quasi; atol = 1.0e-12)
 
         # Test random method
         bij_rand = generate_bij(:random, i, n_terms, b1)
