@@ -4,7 +4,7 @@ using LinearAlgebra
 using ..Types
 
 export ParticleSystem, jacobi_transform, generate_A_matrix, transform_list,
-       shift_vectors, generate_weight_vector, transform_coordinates, inverse_transform_coordinates, default_b0
+    shift_vectors, generate_weight_vector, transform_coordinates, inverse_transform_coordinates, default_b0
 
 
 """
@@ -26,12 +26,12 @@ struct ParticleSystem
     masses::Vector{Float64}
     J::Matrix{Float64}
     U::Matrix{Float64}
-    scale::Union{Symbol,Nothing}  # :atomic, :molecular, :nuclear, etc.
+    scale::Union{Symbol, Nothing}  # :atomic, :molecular, :nuclear, etc.
 
-    function ParticleSystem(masses::Vector{Float64}; scale::Union{Symbol,Nothing}=nothing)
+    function ParticleSystem(masses::Vector{Float64}; scale::Union{Symbol, Nothing} = nothing)
         @assert length(masses) ≥ 2 "At least two masses are required for a particle system."
         J, U = jacobi_transform(masses)
-        new(masses, J, U, scale)
+        return new(masses, J, U, scale)
     end
 end
 
@@ -60,7 +60,7 @@ function jacobi_transform(masses::Vector{Float64})::Tuple{Matrix{Float64}, Matri
     @assert N ≥ 2 "At least two masses are required for Jacobi transformation."
     J = zeros(Float64, N - 1, N)
 
-    for k in 1:N - 1
+    for k in 1:(N - 1)
         mk = masses[k + 1]
         Mk = sum(masses[1:k])
         μk = sqrt(mk * Mk / (mk + Mk))
@@ -92,11 +92,11 @@ Returns a default value for the parameter `b0` based on the provided `scale`.
     - `:nuclear`: Returns `0.03`, approximately 1 femtometer in atomic units.
     - `nothing`: Returns `1.0` as a fallback default.
 """
-function default_b0(scale::Union{Symbol,Nothing})
-    scale === :atomic     && return 1.0       
-    scale === :molecular  && return 3.0       
-    scale === :nuclear    && return 0.03     
-    scale === nothing     && return 10.0    
+function default_b0(scale::Union{Symbol, Nothing})
+    scale === :atomic     && return 1.0
+    scale === :molecular  && return 3.0
+    scale === :nuclear    && return 0.03
+    scale === nothing     && return 10.0
     error("Unknown scale: $scale")
 end
 
@@ -148,7 +148,7 @@ optionally using a weighting matrix `mat`.
 - The number of columns in `a` and `b` must be the same.
 - If `mat` is provided, it must be a square matrix with dimensions equal to the number of columns in `a` and `b`.
 """
-function shift_vectors(a::Matrix{Float64}, b::Matrix{Float64}, mat::Union{Nothing, Matrix{Float64}}=nothing)::Float64
+function shift_vectors(a::Matrix{Float64}, b::Matrix{Float64}, mat::Union{Nothing, Matrix{Float64}} = nothing)::Float64
     n = size(a, 2)
     @assert n == size(b, 2) "Matrices `a` and `b` must have the same number of columns."
     mat = mat === nothing ? I(n) : mat

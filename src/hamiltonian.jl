@@ -11,7 +11,7 @@ struct IdentityOperator <: Operator end
 function compute_overlap_element(bra::GaussianBase, ket::GaussianBase)
     A, B = bra.A, ket.A
     R = inv(A + B)
-    return (π^length(R) / det(A + B))^(3/2)
+    return (π^length(R) / det(A + B))^(3 / 2)
 end
 
 function build_overlap_matrix(basis::BasisSet)

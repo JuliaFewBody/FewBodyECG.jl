@@ -16,7 +16,7 @@ function compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::Kine
     A, B = bra.A, ket.A
     K = op.K
     R = inv(A + B)
-    M0 = (π^length(R) / det(A + B))^(3/2)
+    M0 = (π^length(R) / det(A + B))^(3 / 2)
     return 6 * tr(B * K * A * R) * M0
 end
 
@@ -24,7 +24,7 @@ function compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::Coul
     A, B, w = bra.A, ket.A, op.w
     R = inv(A + B)
     β = 1 / (dot(w, R * w))
-    M0 = (π^length(R) / det(A + B))^(3/2)
+    M0 = (π^length(R) / det(A + B))^(3 / 2)
     return op.coefficient * 2 * sqrt(β / π) * M0
 end
 
@@ -32,7 +32,7 @@ function compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::Coul
     A, B, a, b, w = bra.A, ket.A, bra.a, ket.a, op.w
     R = inv(A + B)
     β = 1 / (dot(w, R * w))
-    M0 = (π^length(R) / det(A + B))^(3/2)
+    M0 = (π^length(R) / det(A + B))^(3 / 2)
     M1 = 0.5 * dot(b, R * a) * M0
     q2 = 0.25 * dot(a .+ b, R * (w * w') * (a .+ b))
     return 2 * sqrt(β / π) * M1 - sqrt(β^3 / π) / 3 * q2 * M0
@@ -41,11 +41,11 @@ end
 function compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::KineticEnergy)
     a = bra.a isa AbstractVector{<:AbstractVector} ? vec(bra.a[1]) : vec(bra.a)
     b = ket.a isa AbstractVector{<:AbstractVector} ? vec(ket.a[1]) : vec(ket.a)
-    
+
     A, B = bra.A, ket.A
-    K = op.K  
+    K = op.K
     R = inv(A + B)
-    M0 = (π^length(R) / det(A + B))^(3/2)
+    M0 = (π^length(R) / det(A + B))^(3 / 2)
     M1 = 0.5 * dot(b, R * a) * M0
 
     T1 = 6 * tr(B * K * A * R) * M1
@@ -58,60 +58,59 @@ function compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::Kine
 end
 
 
-
 function compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::KineticEnergy)
     A, B = bra.A, ket.A
     a, b, c, d = bra.a, bra.b, ket.a, ket.b
     K = op.K
     R = inv(A + B)
-    M0 = (π^length(R) / det(A + B))^(3/2)
+    M0 = (π^length(R) / det(A + B))^(3 / 2)
 
     M2 = 0.25 * (
         dot(a, R * b) * dot(c, R * d) +
-        dot(a, R * c) * dot(b, R * d) +
-        dot(a, R * d) * dot(b, R * c)
+            dot(a, R * c) * dot(b, R * d) +
+            dot(a, R * d) * dot(b, R * c)
     ) * M0
 
     T1 = 6 * tr(B * K * A * R) * M2
 
     T2 = 0.5 * (
         dot(a, K * c) * dot(b, R * d) +
-        dot(a, K * d) * dot(b, R * c) +
-        dot(b, K * c) * dot(a, R * d) +
-        dot(b, K * d) * dot(a, R * c)
+            dot(a, K * d) * dot(b, R * c) +
+            dot(b, K * c) * dot(a, R * d) +
+            dot(b, K * d) * dot(a, R * c)
     ) * M0
 
     T3 = 0.5 * (
         dot(a, R * B * K * A * R * b) * dot(c, R * d) +
-        dot(a, R * B * K * A * R * c) * dot(b, R * d) +
-        dot(a, R * B * K * A * R * d) * dot(b, R * c) +
-        dot(b, R * B * K * A * R * a) * dot(c, R * d) +
-        dot(b, R * B * K * A * R * c) * dot(a, R * d) +
-        dot(b, R * B * K * A * R * d) * dot(a, R * c) +
-        dot(c, R * B * K * A * R * a) * dot(b, R * d) +
-        dot(c, R * B * K * A * R * b) * dot(a, R * d) +
-        dot(c, R * B * K * A * R * d) * dot(a, R * b) +
-        dot(d, R * B * K * A * R * a) * dot(b, R * c) +
-        dot(d, R * B * K * A * R * b) * dot(a, R * c) +
-        dot(d, R * B * K * A * R * c) * dot(a, R * b)
+            dot(a, R * B * K * A * R * c) * dot(b, R * d) +
+            dot(a, R * B * K * A * R * d) * dot(b, R * c) +
+            dot(b, R * B * K * A * R * a) * dot(c, R * d) +
+            dot(b, R * B * K * A * R * c) * dot(a, R * d) +
+            dot(b, R * B * K * A * R * d) * dot(a, R * c) +
+            dot(c, R * B * K * A * R * a) * dot(b, R * d) +
+            dot(c, R * B * K * A * R * b) * dot(a, R * d) +
+            dot(c, R * B * K * A * R * d) * dot(a, R * b) +
+            dot(d, R * B * K * A * R * a) * dot(b, R * c) +
+            dot(d, R * B * K * A * R * b) * dot(a, R * c) +
+            dot(d, R * B * K * A * R * c) * dot(a, R * b)
     ) * M0
 
     T4 = -0.5 * (
         dot(a, R * B * K * b) * dot(c, R * d) +
-        dot(b, R * B * K * a) * dot(c, R * d) +
-        dot(c, R * B * K * a) * dot(b, R * d) +
-        dot(c, R * B * K * b) * dot(a, R * d) +
-        dot(d, R * B * K * a) * dot(b, R * c) +
-        dot(d, R * B * K * b) * dot(a, R * c)
+            dot(b, R * B * K * a) * dot(c, R * d) +
+            dot(c, R * B * K * a) * dot(b, R * d) +
+            dot(c, R * B * K * b) * dot(a, R * d) +
+            dot(d, R * B * K * a) * dot(b, R * c) +
+            dot(d, R * B * K * b) * dot(a, R * c)
     ) * M0
 
     T5 = -0.5 * (
         dot(c, K * A * a) * dot(b, R * d) +
-        dot(c, K * A * b) * dot(a, R * d) +
-        dot(c, K * A * d) * dot(a, R * b) +
-        dot(d, K * A * a) * dot(b, R * c) +
-        dot(d, K * A * b) * dot(a, R * c) +
-        dot(d, K * A * c) * dot(a, R * b)
+            dot(c, K * A * b) * dot(a, R * d) +
+            dot(c, K * A * d) * dot(a, R * b) +
+            dot(d, K * A * a) * dot(b, R * c) +
+            dot(d, K * A * b) * dot(a, R * c) +
+            dot(d, K * A * c) * dot(a, R * b)
     ) * M0
 
     return T1 + T2 + T3 + T4 + T5
@@ -122,15 +121,15 @@ function compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::Coul
     a, b, c, d = bra.a, bra.b, ket.a, ket.b
     w = op.w
     R = inv(A + B)
-    M0 = (π^length(R) / det(A + B))^(3/2)
+    M0 = (π^length(R) / det(A + B))^(3 / 2)
 
     β = 1 / dot(w, R * w)
     q = 0.5 * dot(w, R * (a + b + c + d))
 
     M2 = 0.25 * (
         dot(a, R * b) * dot(c, R * d) +
-        dot(a, R * c) * dot(b, R * d) +
-        dot(a, R * d) * dot(b, R * c)
+            dot(a, R * c) * dot(b, R * d) +
+            dot(a, R * d) * dot(b, R * c)
     ) * M0
 
     term1 = 2 * sqrt(β / π) * M2
