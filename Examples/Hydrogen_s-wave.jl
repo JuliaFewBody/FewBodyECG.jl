@@ -32,7 +32,7 @@ for i in 1:n_basis
 
     H = build_hamiltonian_matrix(basis, ops)
     S = build_overlap_matrix(basis)
-    
+
     λs, Us = eigen(S)
     keep = λs .> 1e-10
     S⁻¹₂ = Us[:, keep] * Diagonal(1 ./ sqrt.(λs[keep])) * Us[:, keep]'
