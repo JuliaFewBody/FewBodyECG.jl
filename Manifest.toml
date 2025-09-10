@@ -2,7 +2,7 @@
 
 julia_version = "1.11.6"
 manifest_format = "2.0"
-project_hash = "635cf368533e28beaba4d8c3c9a432477d04656c"
+project_hash = "df08fcfe3bb9ba924fd76a24677aa3485677ac93"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "60665b326b75db6517939d0e1875850bc4a54368"
@@ -249,6 +249,13 @@ version = "0.9.5"
 git-tree-sha1 = "bddad79635af6aec424f53ed8aad5d7555dc6f00"
 uuid = "4e289a0a-7415-4d19-859d-a7e5c4648b56"
 version = "1.0.5"
+
+[[deps.FewBodyHamiltonians]]
+git-tree-sha1 = "8d67c1859d3682d75b2419633cc94edabb9dbbca"
+repo-rev = "main"
+repo-url = "https://github.com/JuliaFewBody/FewBodyHamiltonians.jl"
+uuid = "3a126c26-e5d7-4a95-83c3-3b69f8a11ded"
+version = "0.0.1"
 
 [[deps.FillArrays]]
 deps = ["LinearAlgebra"]
