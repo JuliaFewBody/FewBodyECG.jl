@@ -1,61 +1,64 @@
 using FewBodyECG
 using LinearAlgebra
 using Plots
-using QuasiMonteCarlo
 
-masses = [1e15, 1.0]
-psys = ParticleSystem(masses)
+particles = [Particle(1e15, 1.0, nothing), Particle(1.0, -1.0, nothing)]
+sys = System(particles, true)  
 
-K = Diagonal([0.0, 0.5])
-K_transformed = psys.J * K * psys.J'
+ops = Operator[
+    Kinetic(1, 1.0, 1.0),           
+    Coulomb(1, 2, -1.0)              
+]
 
-w_raw = [psys.U' * [1, -1]]
-coeffs = [-1.0]
-
-n_basis = 25
-method = :quasirandom  
-b1 = 1.4
-
-basis_fns = GaussianBase[]
-E₀_list = Float64[]
-
-a_vec = [1.0]  
-    
-for i in 1:n_basis
-    bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler=HaltonSample())
-    A = generate_A_matrix(bij, w_raw)
-    push!(basis_fns, Rank1Gaussian(A, [a_vec]))
-
-    basis = BasisSet(basis_fns)
-    ops = Operator[
-        KineticEnergy(K_transformed);
-        (CoulombPotential(c, w) for (c, w) in zip(coeffs, w_raw))...
-    ]
-
-    H = build_hamiltonian_matrix(basis, ops)
-    S = build_overlap_matrix(basis)
-
-    vals, _ = solve_generalized_eigenproblem(H, S)
-    valid = vals .> 1e-12
-    S⁻¹₂ = Diagonal(1 ./ sqrt.(vals[valid]))
-    H̃ = S⁻¹₂ * H[valid, valid] * S⁻¹₂
-    eigvals = eigen(H̃).values
-
-    real_eigvals = eigvals[abs.(imag.(eigvals)) .< 1e-10]
-    if !isempty(real_eigvals)
-        E₀ = minimum(real_eigvals)
-    else
-        E₀ = NaN
-        @warn "All eigenvalues are complex at step $i"
-    end
-    push!(E₀_list, E₀)
-    println("Step $i: E₀ = $E₀")
+overlap(bra::Rank0Gaussian, ket::Rank0Gaussian) = begin
+    A, B = bra.A, ket.A
+    R = inv(A + B)
+    (π^size(R,1) / det(A + B))^(3/2)
 end
 
-E_exact = -0.125  #
-E_min = minimum(E₀_list)
-@show ΔE = abs(E_min - E_exact)
+n_basis = 25
+basis_fns = Vector{GaussianBase}(undef, 0)
+E0_list = Float64[]
 
-plot(1:n_basis, E₀_list, xlabel="Number of Gaussians", ylabel="E₀ [Hartree]",
-     lw=2, label="E₀ estimate", title="p-wave Hydrogen Convergence")
+for i in 1:n_basis
+    dim = 1                
+    α = 0.2 + 0.1*i
+    A = α * I(dim)        
+    push!(basis_fns, Rank0Gaussian(A))
+
+    basis = ECGBasis(basis_fns)
+
+    N = length(basis.functions)
+    H = zeros(Float64, N, N)
+    S = zeros(Float64, N, N)
+
+    for p in 1:N, q in 1:N
+        bra = basis.functions[p]
+        ket = basis.functions[q]
+        S[p,q] = overlap(bra, ket)
+
+        for op in ops
+            if op isa Kinetic
+                H[p,q] += compute_matrix_element(bra, ket, op, K)  
+            elseif op isa Coulomb
+                H[p,q] += compute_matrix_element(bra, ket, op, w)  
+            end
+        end
+    end
+
+
+    F = eigen(H, S)                 
+    vals = real(F.values)
+    E0 = minimum(vals)
+    push!(E0_list, E0)
+    @info "step $i" E0
+end
+
+E_exact = -0.125
+E_min = minimum(E0_list)
+ΔE = abs(E_min - E_exact)
+@show ΔE
+
+plot(1:n_basis, E0_list, xlabel="Number of Gaussians", ylabel="E₀ [Hartree]",
+     lw=2, label="E₀ estimate", title="S-wave Hydrogen (minimal demo)")
 hline!([E_exact], label="Exact: -0.125", linestyle=:dash)

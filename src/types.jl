@@ -1,60 +1,46 @@
 module Types
 
-export Particle,
-    GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian,
-    BasisSet,
-    Operator, KineticEnergy, CoulombPotential,
-    FewBodyHamiltonian, MatrixElementResult
+using FewBodyHamiltonians
+
+export Operator, Hamiltonian, Kinetic, Coulomb, Particle, System, GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, ECGBasis, MatrixElementResult
 
 abstract type GaussianBase end
 
 struct Particle
-    mass::Float64
-    charge::Float64
-    label::Symbol
+    mass::Real
+    charge::Real
+    spin::Union{Nothing, Real}
 end
 
-struct Rank0Gaussian <: GaussianBase
-    A::Matrix{Float64}  # Correlation matrix
+struct System
+    particles::Vector{Particle}
+    remove_com::Bool
 end
 
-struct Rank1Gaussian <: GaussianBase
-    A::Matrix{Float64}                 # Correlation matrix
-    a::Vector{Vector{Float64}}         # Polarization vectors
+struct Rank0Gaussian{T <: Real, M <: AbstractMatrix{T}} <: GaussianBase
+    A::M
 end
 
-struct Rank2Gaussian <: GaussianBase
-    A::Matrix{Float64}
-    a::Vector{Vector{Float64}}         # First polarization vector set
-    b::Vector{Vector{Float64}}         # Second polarization vector set
+struct Rank1Gaussian{T <: Real, M <: AbstractMatrix{T}, V <: AbstractVector{<:AbstractVector{T}}} <: GaussianBase
+    A::M
+    a::V
 end
 
-struct BasisSet
-    functions::Vector{GaussianBase}
+struct Rank2Gaussian{T <: Real, M <: AbstractMatrix{T}, V <: AbstractVector{<:AbstractVector{T}}} <: GaussianBase
+    A::M
+    a::V
+    b::V
 end
 
-abstract type Operator end
-
-struct KineticEnergy <: Operator
-    K::Matrix{Float64}  # required for ⟨T⟩
+struct ECGBasis{F <: GaussianBase}
+    functions::Vector{F}
 end
 
-struct CoulombPotential <: Operator
-    coefficient::Float64
-    w::Vector{Float64}
+struct MatrixElementResult{B <: GaussianBase, O <: Operator, T <: Real}
+    bra::B
+    ket::B
+    operator::O
+    value::T
 end
 
-
-struct FewBodyHamiltonian
-    basis::BasisSet
-    operators::Vector{Operator}
 end
-
-struct MatrixElementResult
-    bra::GaussianBase
-    ket::GaussianBase
-    operator::Operator
-    value::Float64
-end
-
-end # module

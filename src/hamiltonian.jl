@@ -3,10 +3,9 @@ module Hamiltonian
 using LinearAlgebra
 using ..Types
 using ..MatrixElements
+using FewBodyHamiltonians
 
 export build_overlap_matrix, build_operator_matrix, build_hamiltonian_matrix, solve_generalized_eigenproblem
-
-struct IdentityOperator <: Operator end
 
 function compute_overlap_element(bra::GaussianBase, ket::GaussianBase)
     A, B = bra.A, ket.A
@@ -14,7 +13,7 @@ function compute_overlap_element(bra::GaussianBase, ket::GaussianBase)
     return (π^length(R) / det(A + B))^(3 / 2)
 end
 
-function build_overlap_matrix(basis::BasisSet)
+function build_overlap_matrix(basis::ECGBasis)
     n = length(basis.functions)
     S = zeros(n, n)
     for i in 1:n, j in 1:i
@@ -24,7 +23,7 @@ function build_overlap_matrix(basis::BasisSet)
     return S
 end
 
-function build_operator_matrix(basis::BasisSet, op::Operator)
+function build_operator_matrix(basis::ECGBasis, op::Operator)
     n = length(basis.functions)
     H = zeros(n, n)
     for i in 1:n, j in 1:i
@@ -34,7 +33,7 @@ function build_operator_matrix(basis::BasisSet, op::Operator)
     return H
 end
 
-function build_hamiltonian_matrix(basis::BasisSet, operators::Vector{Operator})
+function build_hamiltonian_matrix(basis::ECGBasis, operators::Vector{Operator})
     H = zeros(length(basis.functions), length(basis.functions))
     for op in operators
         H .+= build_operator_matrix(basis, op)
@@ -47,4 +46,4 @@ function solve_generalized_eigenproblem(H::Matrix{Float64}, S::Matrix{Float64})
     return real(vals), real(vecs)
 end
 
-end # module
+end 
