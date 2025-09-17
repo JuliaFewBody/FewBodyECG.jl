@@ -6,7 +6,7 @@ using ..Hamiltonian
 using LinearAlgebra
 using QuasiMonteCarlo
 
-export generate_basis, compute_ground_state_energy, generate_bij
+export generate_basis, generate_bij
 
 
 """
