@@ -3,7 +3,7 @@ using LinearAlgebra
 using Plots
 using QuasiMonteCarlo
 
-masses = [1e15, 1.0]
+masses = [1.0e15, 1.0]
 psys = ParticleSystem(masses)
 
 K = Diagonal([0.0, 0.5])
@@ -13,16 +13,16 @@ w_raw = [psys.U' * [1, -1]]
 coeffs = [-1.0]
 
 n_basis = 25
-method = :quasirandom  
+method = :quasirandom
 b1 = 1.4
 
 basis_fns = GaussianBase[]
 E₀_list = Float64[]
 
-a_vec = [1.0]  
-    
+a_vec = [1.0]
+
 for i in 1:n_basis
-    bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler=HaltonSample())
+    bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler = HaltonSample())
     A = generate_A_matrix(bij, w_raw)
     push!(basis_fns, Rank1Gaussian(A, [a_vec]))
 
@@ -36,12 +36,12 @@ for i in 1:n_basis
     S = build_overlap_matrix(basis)
 
     vals, _ = solve_generalized_eigenproblem(H, S)
-    valid = vals .> 1e-12
+    valid = vals .> 1.0e-12
     S⁻¹₂ = Diagonal(1 ./ sqrt.(vals[valid]))
     H̃ = S⁻¹₂ * H[valid, valid] * S⁻¹₂
     eigvals = eigen(H̃).values
 
-    real_eigvals = eigvals[abs.(imag.(eigvals)) .< 1e-10]
+    real_eigvals = eigvals[abs.(imag.(eigvals)) .< 1.0e-10]
     if !isempty(real_eigvals)
         E₀ = minimum(real_eigvals)
     else
@@ -56,6 +56,8 @@ E_exact = -0.125  #
 E_min = minimum(E₀_list)
 @show ΔE = abs(E_min - E_exact)
 
-plot(1:n_basis, E₀_list, xlabel="Number of Gaussians", ylabel="E₀ [Hartree]",
-     lw=2, label="E₀ estimate", title="p-wave Hydrogen Convergence")
-hline!([E_exact], label="Exact: -0.125", linestyle=:dash)
+plot(
+    1:n_basis, E₀_list, xlabel = "Number of Gaussians", ylabel = "E₀ [Hartree]",
+    lw = 2, label = "E₀ estimate", title = "p-wave Hydrogen Convergence"
+)
+hline!([E_exact], label = "Exact: -0.125", linestyle = :dash)

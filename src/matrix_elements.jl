@@ -157,4 +157,4 @@ function compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::Coul
 end
 
 
-end 
+end
