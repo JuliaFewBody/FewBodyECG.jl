@@ -49,4 +49,4 @@ function compute_ground_state_energy(basis::BasisSet, ops::Vector{Operator})
     return minimum(vals)
 end
 
-end 
+end

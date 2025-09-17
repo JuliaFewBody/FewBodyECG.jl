@@ -27,4 +27,4 @@ function optimize_ground_state_energy(init_widths::Vector{Matrix{Float64}}, ops:
     return Optim.minimum(result)
 end
 
-end 
+end
