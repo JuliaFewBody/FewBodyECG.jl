@@ -46,4 +46,4 @@ function solve_generalized_eigenproblem(H::Matrix{Float64}, S::Matrix{Float64})
     return real(vals), real(vecs)
 end
 
-end 
+end
