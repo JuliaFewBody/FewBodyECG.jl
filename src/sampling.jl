@@ -1,4 +1,3 @@
-using LinearAlgebra
 using QuasiMonteCarlo
 
 export compute_ground_state_energy, generate_bij

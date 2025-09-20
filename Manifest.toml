@@ -2,7 +2,7 @@
 
 julia_version = "1.11.7"
 manifest_format = "2.0"
-project_hash = "b6559de034294fc1b2200ef3bc79db6d839fe6bc"
+project_hash = "b10ce7d5c0e23e288791e8236aa807608c838c8a"
 
 [[deps.Accessors]]
 deps = ["CompositionsBase", "ConstructionBase", "Dates", "InverseFunctions", "MacroTools"]
@@ -100,11 +100,11 @@ uuid = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 version = "0.9.5"
 
 [[deps.FewBodyHamiltonians]]
-git-tree-sha1 = "8d67c1859d3682d75b2419633cc94edabb9dbbca"
+git-tree-sha1 = "3cf35661914b5eb9bce1f2a5ced704b4133ee1d4"
 repo-rev = "main"
 repo-url = "https://github.com/JuliaFewBody/FewBodyHamiltonians.jl"
 uuid = "3a126c26-e5d7-4a95-83c3-3b69f8a11ded"
-version = "0.0.1"
+version = "0.0.2"
 
 [[deps.IntegerMathUtils]]
 git-tree-sha1 = "4c1acff2dc6b6967e7e750633c50bc3b8d83e617"

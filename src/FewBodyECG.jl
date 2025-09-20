@@ -1,13 +1,20 @@
 module FewBodyECG
 
+using LinearAlgebra
+using FewBodyHamiltonians
 
-export generate_A_matrix, generate_bij, default_b0, jacobi_transform, transform_coordinates, inverse_transform_coordinates,
-    ParticleSystem, shift_vectors,
-    GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian,
-    BasisSet, Operator, MatrixElementResult, KineticOperator, CoulombOperator,
-    compute_matrix_element, build_overlap_matrix, build_operator_matrix,
-    build_hamiltonian_matrix, solve_generalized_eigenproblem, compute_ground_state_energy,
-    ψ₀, plot_wavefunction, plot_density
+export generate_A_matrix, default_b0, jacobi_transform, transform_coordinates, inverse_transform_coordinates, ParticleSystem, shift_vectors
+
+export generate_bij, compute_ground_state_energy
+
+export GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet, ECG, MatrixElementResult, KineticOperator, CoulombOperator
+
+const Operator = FewBodyHamiltonians.Operator
+export Operator
+
+export build_hamiltonian_matrix, solve_generalized_eigenproblem
+
+export ψ₀
 
 include("types.jl")
 include("coordinates.jl")
