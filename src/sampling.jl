@@ -30,4 +30,3 @@ function compute_ground_state_energy(basis::BasisSet, ops::Vector{Operator})
     vals, _ = solve_generalized_eigenproblem(H, S)
     return minimum(vals)
 end
-

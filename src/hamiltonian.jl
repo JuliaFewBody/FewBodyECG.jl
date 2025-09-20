@@ -40,4 +40,3 @@ function solve_generalized_eigenproblem(H::Matrix{Float64}, S::Matrix{Float64})
     vals, vecs = eigen(H, S)
     return real(vals), real(vecs)
 end
-
