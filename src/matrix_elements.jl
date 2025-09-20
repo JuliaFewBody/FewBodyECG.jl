@@ -12,7 +12,7 @@ compute_matrix_element(bra, ket, op)
 Compute the matrix element ⟨bra|op|ket⟩ using analytic expressions.
 """
 
-function compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::KineticEnergy)
+function compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::KineticOperator)
     A, B = bra.A, ket.A
     K = op.K
     R = inv(A + B)
@@ -20,7 +20,7 @@ function compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::Kine
     return 6 * tr(B * K * A * R) * M0
 end
 
-function compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::CoulombPotential)
+function compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::CoulombOperator)
     A, B, w = bra.A, ket.A, op.w
     R = inv(A + B)
     β = 1 / (dot(w, R * w))
@@ -28,7 +28,7 @@ function compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::Coul
     return op.coefficient * 2 * sqrt(β / π) * M0
 end
 
-function compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::CoulombPotential)
+function compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::CoulombOperator)
     A, B, a, b, w = bra.A, ket.A, bra.a, ket.a, op.w
     R = inv(A + B)
     β = 1 / (dot(w, R * w))
@@ -38,7 +38,7 @@ function compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::Coul
     return 2 * sqrt(β / π) * M1 - sqrt(β^3 / π) / 3 * q2 * M0
 end
 
-function compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::KineticEnergy)
+function compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::KineticOperator)
     a = bra.a isa AbstractVector{<:AbstractVector} ? vec(bra.a[1]) : vec(bra.a)
     b = ket.a isa AbstractVector{<:AbstractVector} ? vec(ket.a[1]) : vec(ket.a)
 
@@ -58,7 +58,7 @@ function compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::Kine
 end
 
 
-function compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::KineticEnergy)
+function compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::KineticOperator)
     A, B = bra.A, ket.A
     a, b, c, d = bra.a, bra.b, ket.a, ket.b
     K = op.K
@@ -116,7 +116,7 @@ function compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::Kine
     return T1 + T2 + T3 + T4 + T5
 end
 
-function compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::CoulombPotential)
+function compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::CoulombOperator)
     A, B = bra.A, ket.A
     a, b, c, d = bra.a, bra.b, ket.a, ket.b
     w = op.w
