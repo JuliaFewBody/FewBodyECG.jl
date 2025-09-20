@@ -1,14 +1,6 @@
-module Hamiltonian
-
 using FewBodyHamiltonians
 
 using LinearAlgebra
-using ..Types
-using ..MatrixElements
-
-export build_overlap_matrix, build_operator_matrix, build_hamiltonian_matrix, solve_generalized_eigenproblem
-
-struct IdentityOperator <: Operator end
 
 function compute_overlap_element(bra::GaussianBase, ket::GaussianBase)
     A, B = bra.A, ket.A
@@ -49,4 +41,3 @@ function solve_generalized_eigenproblem(H::Matrix{Float64}, S::Matrix{Float64})
     return real(vals), real(vecs)
 end
 
-end # module

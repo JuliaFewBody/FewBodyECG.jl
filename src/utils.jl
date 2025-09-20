@@ -1,7 +1,3 @@
-module Utils
-
-export ψ₀, plot_wavefunction, plot_density
-
 """
     ψ₀(r::Vector{Float64}, c₀::Vector{Float64}, basis_fns::Vector{<:GaussianBase})
 
@@ -35,6 +31,4 @@ function plot_density(c₀, basis_fns; range = (-4.0, 4.0), N = 200)
     ys = range(range[1], range[2], length = N)
     ψ² = [abs2(ψ₀([x, y], c₀, basis_fns)) for y in ys, x in xs]
     return heatmap(xs, ys, ψ², xlabel = "x", ylabel = "y", title = "|ψ₀(x, y)|²", aspect_ratio = 1)
-end
-
 end

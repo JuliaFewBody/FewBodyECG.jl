@@ -1,26 +1,8 @@
-module Sampling
-
-using ..Types
-using ..Coordinates
-using ..Hamiltonian
 using LinearAlgebra
 using QuasiMonteCarlo
 
-export generate_basis, compute_ground_state_energy, generate_bij
+export compute_ground_state_energy, generate_bij
 
-"""
-generate_basis(widths::Vector{Matrix{Float64}}, rank::Int=0)
-
-Construct a `BasisSet` from a list of correlation matrices and optional rank.
-"""
-function generate_basis(widths::Vector{Matrix{Float64}}, rank::Int = 0)
-    if rank == 0
-        funcs = [Rank0Gaussian(A) for A in widths]
-    else
-        error("Only Rank0Gaussian implemented in generate_basis")
-    end
-    return BasisSet(funcs)
-end
 
 """
     generate_bij(method::Symbol, i::Int, n_terms::Int, b1::Float64) -> Vector{Float64}
@@ -49,4 +31,3 @@ function compute_ground_state_energy(basis::BasisSet, ops::Vector{Operator})
     return minimum(vals)
 end
 
-end

@@ -1,5 +1,5 @@
 using Test
-using FewBodyECG.Sampling
+using FewBodyECG
 
 @testset "Sampling Module Tests" begin
 

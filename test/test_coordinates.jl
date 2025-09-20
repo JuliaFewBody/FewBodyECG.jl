@@ -1,5 +1,5 @@
 using Test
-using FewBodyECG.Coordinates
+using FewBodyECG
 
 @testset "Coordinates Module Tests" begin
     @testset "jacobi_transform" begin

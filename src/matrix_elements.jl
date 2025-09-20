@@ -1,10 +1,5 @@
-module MatrixElements
-
 using LinearAlgebra
-using ..Types
 using SpecialFunctions: erf
-
-export compute_matrix_element
 
 """
 compute_matrix_element(bra, ket, op)
@@ -154,7 +149,4 @@ function compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::Coul
     ) * M0
 
     return op.coefficient * (term1 + term2 + term3)
-end
-
-
 end

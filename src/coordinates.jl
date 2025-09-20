@@ -1,11 +1,4 @@
-module Coordinates
-
 using LinearAlgebra
-using ..Types
-
-export ParticleSystem, jacobi_transform, generate_A_matrix, transform_list,
-    shift_vectors, generate_weight_vector, transform_coordinates, inverse_transform_coordinates, default_b0
-
 
 """
     struct ParticleSystem
@@ -112,23 +105,6 @@ function generate_A_matrix(bij::Vector{Float64}, w_list::Vector{Vector{Float64}}
     return A
 end
 
-"""
-    transform_list(α::Vector{Float64})::Vector{Matrix{Float64}}
-
-Transforms a vector of `Float64` values into a vector of `Matrix{Float64}` objects. 
-Each element of the input vector `α` is wrapped into a 1x1 matrix and returned as 
-an element of the resulting vector.
-
-# Arguments
-- `α::Vector{Float64}`: A vector of `Float64` values to be transformed.
-
-# Returns
-- `Vector{Matrix{Float64}}`: A vector where each element is a 1x1 matrix containing 
-  the corresponding value from the input vector `α`.
-"""
-function transform_list(α::Vector{Float64})::Vector{Matrix{Float64}}
-    return [reshape([α_i], 1, 1) for α_i in α]
-end
 
 """
     shift_vectors(a::Matrix{Float64}, b::Matrix{Float64}, mat::Union{Nothing, Matrix{Float64}}=nothing) -> Float64
@@ -180,6 +156,4 @@ end
 function inverse_transform_coordinates(U::Matrix{Float64}, x::Vector{Float64})::Vector{Float64}
     @assert size(U, 2) == length(x) "Matrix `U` columns must match length of vector `x`."
     return U * x
-end
-
 end

@@ -1,8 +1,4 @@
-module Types
-
 using FewBodyHamiltonians
-
-export GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet, Operator, KineticOperator, CoulombOperator, ECG, MatrixElementResult
 
 abstract type GaussianBase end
 
@@ -25,7 +21,6 @@ struct BasisSet
     functions::Vector{GaussianBase}
 end
 
-
 struct KineticOperator <: FewBodyHamiltonians.KineticTerm
     K::Matrix{Float64}
 end
@@ -45,6 +40,4 @@ struct MatrixElementResult
     ket::GaussianBase
     operator::Operator
     value::Float64
-end
-
 end
