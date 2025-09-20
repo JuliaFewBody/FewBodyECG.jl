@@ -23,7 +23,7 @@ a_vec = [1.0]
 
 for i in 1:n_basis
     bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler = HaltonSample())
-    A = generate_A_matrix(bij, w_raw)
+    A = _generate_A_matrix(bij, w_raw)
     # pass a plain vector for the rank-1 displacement
     push!(basis_fns, Rank1Gaussian(A, a_vec))
 

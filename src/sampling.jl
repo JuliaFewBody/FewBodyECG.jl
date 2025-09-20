@@ -1,6 +1,6 @@
 using QuasiMonteCarlo
 
-export compute_ground_state_energy, generate_bij
+export generate_bij
 
 
 """
@@ -16,16 +16,4 @@ function generate_bij(method::Symbol, i::Int, n_terms::Int, b1::Float64; qmc_sam
     else
         error("Unsupported sampling method: $method")
     end
-end
-
-"""
-compute_ground_state_energy(basis::BasisSet, ops::Vector{Operator})
-
-Construct the Hamiltonian and overlap matrices and return the lowest eigenvalue.
-"""
-function compute_ground_state_energy(basis::BasisSet, ops::Vector{Operator})
-    H = build_hamiltonian_matrix(basis, ops)
-    S = build_overlap_matrix(basis)
-    vals, _ = solve_generalized_eigenproblem(H, S)
-    return minimum(vals)
 end

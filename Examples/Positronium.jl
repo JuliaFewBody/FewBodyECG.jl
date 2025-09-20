@@ -23,7 +23,7 @@ let
 
     for i in 1:n_basis
         bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler = SobolSample())
-        A = generate_A_matrix(bij, w_raw)
+        A = _generate_A_matrix(bij, w_raw)
         push!(basis_fns, Rank0Gaussian(A))
 
         basis = BasisSet(basis_fns)
@@ -39,13 +39,13 @@ let
         E₀ = minimum(vals)
 
         push!(E₀_list, E₀)
-        @info "Step $i" E₀ = E₀_step
+        @info "Step $i" E₀ = E₀
     end
 
     E₀ = minimum(E₀_list)
     Eᵗʰ = -0.2620050702328
     ΔE = abs(E₀ - Eᵗʰ)
-    @show ΔE
+    @info "Energy difference" ΔE
 
     r = range(0.01, 14.0, length = 400)
     ρ_r = [rval^2 * abs2(ψ₀([rval, 0.0], c₀, basis_fns)) for rval in r]

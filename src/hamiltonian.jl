@@ -6,7 +6,7 @@ function _compute_overlap_element(bra::GaussianBase, ket::GaussianBase)
     return (π^length(R) / det(A + B))^(3 / 2)
 end
 
-function _build_overlap_matrix(basis::BasisSet)
+function build_overlap_matrix(basis::BasisSet)
     n = length(basis.functions)
     S = zeros(n, n)
     for i in 1:n, j in 1:i
@@ -20,7 +20,7 @@ function _build_operator_matrix(basis::BasisSet, op::FewBodyHamiltonians.Operato
     n = length(basis.functions)
     H = zeros(n, n)
     for i in 1:n, j in 1:i
-        val = compute_matrix_element(basis.functions[i], basis.functions[j], op)
+        val = _compute_matrix_element(basis.functions[i], basis.functions[j], op)
         H[i, j] = H[j, i] = val
     end
     return H

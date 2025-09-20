@@ -45,7 +45,7 @@ let
 
     for i in 1:n_basis
         bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler = SobolSample())
-        A = generate_A_matrix(bij, w_raw)
+        A = _generate_A_matrix(bij, w_raw)
         push!(basis_fns, Rank0Gaussian(A))
 
         basis = BasisSet(basis_fns)

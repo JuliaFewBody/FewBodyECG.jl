@@ -5,9 +5,9 @@ using LinearAlgebra
 import FewBodyECG: _compute_matrix_element
 
 @testset "compute_matrix_element for Rank0Gaussian and KineticOperator" begin
-    A = rand(2,2)
-    B = rand(2,2)
-    K = rand(2,2)
+    A = [1.0 0.2; 0.2 1.5]
+    B = [0.9 0.1; 0.1 1.2]
+    K = rand(2, 2)
 
     bra = Rank0Gaussian(A)
     ket = Rank0Gaussian(B)
@@ -22,8 +22,8 @@ import FewBodyECG: _compute_matrix_element
     @test isapprox(result, expected; atol = 1.0e-10)
 end
 @testset "compute_matrix_element for Rank0Gaussian and CoulombOperator" begin
-    A = rand(2,2)
-    B = rand(2,2)
+    A = [1.0 0.2; 0.2 1.5]
+    B = [0.9 0.1; 0.1 1.2]
     w = [1.0, -1.0]
     coefficient = 1.5
 
@@ -42,8 +42,8 @@ end
 end
 
 @testset "compute_matrix_element for Rank1Gaussian and CoulombOperator" begin
-    A = rand(2,2)
-    B = rand(2,2)
+    A = rand(2, 2)
+    B = rand(2, 2)
     a = [0.5, -0.4]
     b = [-0.2, 0.7]
     w = [1.0, -1.0]
@@ -66,8 +66,8 @@ end
 end
 
 @testset "compute_matrix_element for Rank1Gaussian and KineticOperator" begin
-    A = rand(2,2)
-    B = rand(2,2)
+    A = [1.0 0.2; 0.2 1.5]
+    B = [0.9 0.1; 0.1 1.2]
     a = [0.4, -0.6]
     b = [-0.3, 0.8]
     K = [2.0 0.0; 0.0 2.0]
@@ -94,8 +94,8 @@ end
 end
 
 @testset "compute_matrix_element for Rank2Gaussian and KineticOperator" begin
-    A = rand(2,2)
-    B = rand(2,2)
+    A = [1.0 0.2; 0.2 1.5]
+    B = [0.9 0.1; 0.1 1.2]
     a = [0.5, -0.4]
     b = [-0.2, 0.7]
     c = [0.3, 0.6]
@@ -165,8 +165,8 @@ end
 end
 
 @testset "compute_matrix_element for Rank2Gaussian and CoulombOperator" begin
-    A = rand(2,2)
-    B = rand(2,2)
+    A = [1.0 0.2; 0.2 1.5]
+    B = [0.9 0.1; 0.1 1.2]
     a = [0.6, -0.5]
     b = [-0.3, 0.9]
     c = [0.2, 0.4]
