@@ -2,7 +2,7 @@
 
 julia_version = "1.11.7"
 manifest_format = "2.0"
-project_hash = "df08fcfe3bb9ba924fd76a24677aa3485677ac93"
+project_hash = "d433e10f40a859fd1cab65651c56182eecb3f00d"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "27cecae79e5cc9935255f90c53bb831cc3c870d7"
@@ -251,9 +251,7 @@ uuid = "4e289a0a-7415-4d19-859d-a7e5c4648b56"
 version = "1.0.5"
 
 [[deps.FewBodyHamiltonians]]
-git-tree-sha1 = "8d67c1859d3682d75b2419633cc94edabb9dbbca"
-repo-rev = "main"
-repo-url = "https://github.com/JuliaFewBody/FewBodyHamiltonians.jl"
+path = "/Users/pzb464/.julia/dev/FewBodyHamiltonians"
 uuid = "3a126c26-e5d7-4a95-83c3-3b69f8a11ded"
 version = "0.0.1"
 
