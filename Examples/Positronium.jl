@@ -39,7 +39,7 @@ let
         E₀ = minimum(vals)
 
         push!(E₀_list, E₀)
-        println("Step $i: E₀ = $E₀")
+        @info "Step $i" E₀ = E₀_step
     end
 
     E₀ = minimum(E₀_list)

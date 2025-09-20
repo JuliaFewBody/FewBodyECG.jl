@@ -37,6 +37,17 @@ function build_hamiltonian_matrix(basis::BasisSet, operators::AbstractVector{<:F
 end
 
 function solve_generalized_eigenproblem(H::Matrix{Float64}, S::Matrix{Float64})
-    vals, vecs = eigen(H, S)
-    return real(vals), real(vecs)
+    try
+        F = cholesky(S; check = true)
+        L = F.L
+        Linv = inv(L)
+        A = Linv * H * Linv'
+        vals, vecs = eigen(Symmetric(A))
+        vecs_orig = Linv' * vecs
+        return real(vals), real(vecs_orig)
+    catch err
+        @warn "Cholesky on S failed, falling back to generalized eigen solver" exception = (err, catch_backtrace())
+        vals, vecs = eigen(H, S)
+        return real(vals), real(vecs)
+    end
 end

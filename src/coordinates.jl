@@ -105,7 +105,6 @@ function generate_A_matrix(bij::Vector{Float64}, w_list::Vector{Vector{Float64}}
     return A
 end
 
-
 """
     shift_vectors(a::Matrix{Float64}, b::Matrix{Float64}, mat::Union{Nothing, Matrix{Float64}}=nothing) -> Float64
 

@@ -14,7 +14,6 @@ include("coordinates.jl")
 include("matrix_elements.jl")
 include("hamiltonian.jl")
 include("sampling.jl")
-include("optimization.jl")
 include("utils.jl")
 
 

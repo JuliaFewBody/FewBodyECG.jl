@@ -34,18 +34,19 @@ let
 
         H = build_hamiltonian_matrix(basis, ops)
         S = build_overlap_matrix(basis)
+
         vals, _ = solve_generalized_eigenproblem(H, S)
         E₀_step = minimum(vals)
 
         push!(E₀_list, E₀_step)
-        println("Step $i: E₀ = $E₀_step")
+        @info "Step $i" E₀ = E₀_step
 
     end
 
     E₀ = minimum(E₀_list)
     Eᵗʰ = -0.527751016523
     ΔE = abs(E₀ - Eᵗʰ)
-    @show ΔE
+    @info "Energy difference" ΔE
 
     plot(
         1:n_basis, E₀_list, xlabel = "Number of Gaussians", ylabel = "E₀ [Hartree]",
