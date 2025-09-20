@@ -23,29 +23,30 @@ let
 
     for i in 1:n_basis
         bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler = SobolSample())
-        A = generate_A_matrix(bij, w_raw)
+        A = _generate_A_matrix(bij, w_raw)
         push!(basis_fns, Rank0Gaussian(A))
 
         basis = BasisSet(basis_fns)
         ops = Operator[
-            KineticEnergy(K_transformed);
-            (CoulombPotential(c, w) for (c, w) in zip(coeffs, w_raw))...
+            KineticOperator(K_transformed);
+            (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
         ]
 
         H = build_hamiltonian_matrix(basis, ops)
         S = build_overlap_matrix(basis)
+
         vals, _ = solve_generalized_eigenproblem(H, S)
         E₀_step = minimum(vals)
 
         push!(E₀_list, E₀_step)
-        println("Step $i: E₀ = $E₀_step")
+        @info "Step $i" E₀ = E₀_step
 
     end
 
     E₀ = minimum(E₀_list)
     Eᵗʰ = -0.527751016523
     ΔE = abs(E₀ - Eᵗʰ)
-    @show ΔE
+    @info "Energy difference" ΔE
 
     plot(
         1:n_basis, E₀_list, xlabel = "Number of Gaussians", ylabel = "E₀ [Hartree]",

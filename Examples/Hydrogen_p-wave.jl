@@ -23,13 +23,14 @@ a_vec = [1.0]
 
 for i in 1:n_basis
     bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler = HaltonSample())
-    A = generate_A_matrix(bij, w_raw)
-    push!(basis_fns, Rank1Gaussian(A, [a_vec]))
+    A = _generate_A_matrix(bij, w_raw)
+    # pass a plain vector for the rank-1 displacement
+    push!(basis_fns, Rank1Gaussian(A, a_vec))
 
     basis = BasisSet(basis_fns)
     ops = Operator[
-        KineticEnergy(K_transformed);
-        (CoulombPotential(c, w) for (c, w) in zip(coeffs, w_raw))...
+        KineticOperator(K_transformed);
+        (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
     ]
 
     H = build_hamiltonian_matrix(basis, ops)
@@ -52,7 +53,7 @@ for i in 1:n_basis
     println("Step $i: E₀ = $E₀")
 end
 
-E_exact = -0.125  #
+E_exact = -0.125
 E_min = minimum(E₀_list)
 @show ΔE = abs(E_min - E_exact)
 

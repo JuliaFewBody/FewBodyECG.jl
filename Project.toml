@@ -4,15 +4,15 @@ authors = ["Shuhei Ohno", "Martin Mikkelsen"]
 version = "1.0.5"
 
 [deps]
+FewBodyHamiltonians = "3a126c26-e5d7-4a95-83c3-3b69f8a11ded"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 QuasiMonteCarlo = "8a4e6c94-4038-4cdc-81c3-7e6ffdb2a71b"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [compat]
 Aqua = "0.8.13"
+FewBodyHamiltonians = "0.0.2"
 LinearAlgebra = "1.7.3"
-Optim = "1.7.8"
 QuasiMonteCarlo = "0.3.3"
 SpecialFunctions = "2.5.0"
 Test = "1.11.0"

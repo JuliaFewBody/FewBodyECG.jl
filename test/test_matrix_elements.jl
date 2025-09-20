@@ -1,43 +1,83 @@
-using SpecialFunctions: erf
+using Test
+using FewBodyECG
+using LinearAlgebra
 
-"""
-compute_matrix_element(bra, ket, op)
+import FewBodyECG: _compute_matrix_element
 
-Compute the matrix element ⟨bra|op|ket⟩ using analytic expressions.
-"""
+@testset "compute_matrix_element for Rank0Gaussian and KineticOperator" begin
+    A = [1.0 0.2; 0.2 1.5]
+    B = [0.9 0.1; 0.1 1.2]
+    K = rand(2, 2)
 
-function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::KineticOperator)
-    A, B = bra.A, ket.A
-    K = op.K
+    bra = Rank0Gaussian(A)
+    ket = Rank0Gaussian(B)
+    op = KineticOperator(K)
+
+    result = _compute_matrix_element(bra, ket, op)
+
     R = inv(A + B)
     M0 = (π^length(R) / det(A + B))^(3 / 2)
-    return 6 * tr(B * K * A * R) * M0
-end
+    expected = 6 * tr(B * K * A * R) * M0
 
-function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::CoulombOperator)
-    A, B, w = bra.A, ket.A, op.w
+    @test isapprox(result, expected; atol = 1.0e-10)
+end
+@testset "compute_matrix_element for Rank0Gaussian and CoulombOperator" begin
+    A = [1.0 0.2; 0.2 1.5]
+    B = [0.9 0.1; 0.1 1.2]
+    w = [1.0, -1.0]
+    coefficient = 1.5
+
+    bra = Rank0Gaussian(A)
+    ket = Rank0Gaussian(B)
+    op = CoulombOperator(coefficient, w)
+
+    result = _compute_matrix_element(bra, ket, op)
+
     R = inv(A + B)
     β = 1 / (dot(w, R * w))
     M0 = (π^length(R) / det(A + B))^(3 / 2)
-    return op.coefficient * 2 * sqrt(β / π) * M0
+    expected = coefficient * 2 * sqrt(β / π) * M0
+
+    @test isapprox(result, expected; atol = 1.0e-10)
 end
 
-function _compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::CoulombOperator)
-    A, B, a, b, w = bra.A, ket.A, bra.a, ket.a, op.w
+@testset "compute_matrix_element for Rank1Gaussian and CoulombOperator" begin
+    A = [1.0 0.2; 0.2 1.5]
+    B = [0.9 0.1; 0.1 1.2]
+    a = [0.5, -0.4]
+    b = [-0.2, 0.7]
+    w = [1.0, -1.0]
+    coefficient = 1.0
+
+    bra = Rank1Gaussian(A, a)
+    ket = Rank1Gaussian(B, b)
+    op = CoulombOperator(coefficient, w)
+
+    result = _compute_matrix_element(bra, ket, op)
+
     R = inv(A + B)
     β = 1 / (dot(w, R * w))
     M0 = (π^length(R) / det(A + B))^(3 / 2)
     M1 = 0.5 * dot(b, R * a) * M0
     q2 = 0.25 * dot(a .+ b, R * (w * w') * (a .+ b))
-    return 2 * sqrt(β / π) * M1 - sqrt(β^3 / π) / 3 * q2 * M0
+    expected = 2 * sqrt(β / π) * M1 - sqrt(β^3 / π) / 3 * q2 * M0
+
+    @test isapprox(result, expected; atol = 1.0e-10)
 end
 
-function _compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::KineticOperator)
-    a = bra.a isa AbstractVector{<:AbstractVector} ? vec(bra.a[1]) : vec(bra.a)
-    b = ket.a isa AbstractVector{<:AbstractVector} ? vec(ket.a[1]) : vec(ket.a)
+@testset "compute_matrix_element for Rank1Gaussian and KineticOperator" begin
+    A = [1.0 0.2; 0.2 1.5]
+    B = [0.9 0.1; 0.1 1.2]
+    a = [0.4, -0.6]
+    b = [-0.3, 0.8]
+    K = [2.0 0.0; 0.0 2.0]
 
-    A, B = bra.A, ket.A
-    K = op.K
+    bra = Rank1Gaussian(A, a)
+    ket = Rank1Gaussian(B, b)
+    op = KineticOperator(K)
+
+    result = _compute_matrix_element(bra, ket, op)
+
     R = inv(A + B)
     M0 = (π^length(R) / det(A + B))^(3 / 2)
     M1 = 0.5 * dot(b, R * a) * M0
@@ -48,13 +88,26 @@ function _compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::Kin
     T4 = dot(b, R * B * a) * M0
     T5 = dot(a, R * A * b) * M0
 
-    return T1 + T2 + T3 - T4 - T5
+    expected = T1 + T2 + T3 - T4 - T5
+
+    @test isapprox(result, expected; atol = 1.0e-10)
 end
 
-function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::KineticOperator)
-    A, B = bra.A, ket.A
-    a, b, c, d = bra.a, bra.b, ket.a, ket.b
-    K = op.K
+@testset "compute_matrix_element for Rank2Gaussian and KineticOperator" begin
+    A = [1.0 0.2; 0.2 1.5]
+    B = [0.9 0.1; 0.1 1.2]
+    a = [0.5, -0.4]
+    b = [-0.2, 0.7]
+    c = [0.3, 0.6]
+    d = [-0.1, -0.8]
+    K = [2.0 0.1; 0.1 2.0]
+
+    bra = Rank2Gaussian(A, a, b)
+    ket = Rank2Gaussian(B, c, d)
+    op = KineticOperator(K)
+
+    result = _compute_matrix_element(bra, ket, op)
+
     R = inv(A + B)
     M0 = (π^length(R) / det(A + B))^(3 / 2)
 
@@ -106,13 +159,27 @@ function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::Kin
             dot(d, K * A * c) * dot(a, R * b)
     ) * M0
 
-    return T1 + T2 + T3 + T4 + T5
+    expected = T1 + T2 + T3 + T4 + T5
+
+    @test isapprox(result, expected; atol = 1.0e-10)
 end
 
-function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::CoulombOperator)
-    A, B = bra.A, ket.A
-    a, b, c, d = bra.a, bra.b, ket.a, ket.b
-    w = op.w
+@testset "compute_matrix_element for Rank2Gaussian and CoulombOperator" begin
+    A = [1.0 0.2; 0.2 1.5]
+    B = [0.9 0.1; 0.1 1.2]
+    a = [0.6, -0.5]
+    b = [-0.3, 0.9]
+    c = [0.2, 0.4]
+    d = [-0.2, -0.7]
+    w = [1.0, -1.0]
+    coefficient = 2.0
+
+    bra = Rank2Gaussian(A, a, b)
+    ket = Rank2Gaussian(B, c, d)
+    op = CoulombOperator(coefficient, w)
+
+    result = _compute_matrix_element(bra, ket, op)
+
     R = inv(A + B)
     M0 = (π^length(R) / det(A + B))^(3 / 2)
 
@@ -146,5 +213,7 @@ function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::Cou
         q4_1 + q4_2 + q4_3
     ) * M0
 
-    return op.coefficient * (term1 + term2 + term3)
+    expected = coefficient * (term1 + term2 + term3)
+
+    @test isapprox(result, expected; atol = 1.0e-10)
 end
