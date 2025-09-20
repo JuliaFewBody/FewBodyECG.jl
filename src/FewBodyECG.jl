@@ -7,7 +7,7 @@ export ParticleSystem, default_b0
 
 export generate_bij
 
-export GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet, ECG, MatrixElementResult, KineticOperator, CoulombOperator
+export GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet, ECG, KineticOperator, CoulombOperator
 
 const Operator = FewBodyHamiltonians.Operator
 

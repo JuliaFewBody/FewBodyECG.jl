@@ -34,10 +34,3 @@ struct ECG
     basis::BasisSet
     operators::Vector{Operator}
 end
-
-struct MatrixElementResult
-    bra::GaussianBase
-    ket::GaussianBase
-    operator::Operator
-    value::Float64
-end

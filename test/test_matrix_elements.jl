@@ -42,8 +42,8 @@ end
 end
 
 @testset "compute_matrix_element for Rank1Gaussian and CoulombOperator" begin
-    A = rand(2, 2)
-    B = rand(2, 2)
+    A = [1.0 0.2; 0.2 1.5]
+    B = [0.9 0.1; 0.1 1.2]
     a = [0.5, -0.4]
     b = [-0.2, 0.7]
     w = [1.0, -1.0]

@@ -2,7 +2,6 @@ using QuasiMonteCarlo
 
 export generate_bij
 
-
 """
     generate_bij(method::Symbol, i::Int, n_terms::Int, b1::Float64) -> Vector{Float64}
 

@@ -7,8 +7,8 @@ import FewBodyECG: _compute_overlap_element
 @testset "Hamiltonian / overlap helpers" begin
 
     @testset "compute_overlap_element for Rank0Gaussian" begin
-        A = rand(2, 2)
-        B = rand(2, 2)
+        A = [1.0 0.2; 0.2 1.5]
+        B = [0.9 0.1; 0.1 1.2]
 
         bra = Rank0Gaussian(A)
         ket = Rank0Gaussian(B)
