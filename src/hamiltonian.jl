@@ -1,5 +1,7 @@
 module Hamiltonian
 
+using FewBodyHamiltonians
+
 using LinearAlgebra
 using ..Types
 using ..MatrixElements
@@ -24,7 +26,7 @@ function build_overlap_matrix(basis::BasisSet)
     return S
 end
 
-function build_operator_matrix(basis::BasisSet, op::Operator)
+function build_operator_matrix(basis::BasisSet, op::FewBodyHamiltonians.Operator)
     n = length(basis.functions)
     H = zeros(n, n)
     for i in 1:n, j in 1:i
@@ -34,7 +36,7 @@ function build_operator_matrix(basis::BasisSet, op::Operator)
     return H
 end
 
-function build_hamiltonian_matrix(basis::BasisSet, operators::Vector{Operator})
+function build_hamiltonian_matrix(basis::BasisSet, operators::AbstractVector{<:FewBodyHamiltonians.Operator})
     H = zeros(length(basis.functions), length(basis.functions))
     for op in operators
         H .+= build_operator_matrix(basis, op)

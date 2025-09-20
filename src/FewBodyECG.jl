@@ -16,7 +16,7 @@ using .Sampling
 using .Optimization
 using .Utils
 
-export generate_A_matrix, generate_bij, default_b0, jacobi_transform, transform_list, transform_coordinates, inverse_transform_coordinates, ParticleSystem, GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet, Operator, MatrixElementResult
+export generate_A_matrix, generate_bij, default_b0, jacobi_transform, transform_list, transform_coordinates, inverse_transform_coordinates, ParticleSystem, GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet, Operator, MatrixElementResult, KineticOperator, CoulombOperator
 
 export compute_matrix_element, build_overlap_matrix, build_operator_matrix,
     build_hamiltonian_matrix, solve_generalized_eigenproblem,

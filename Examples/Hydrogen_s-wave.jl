@@ -26,8 +26,8 @@ for i in 1:n_basis
 
     basis = BasisSet(basis_fns)
     ops = Operator[
-        KineticEnergy(K_transformed);
-        (CoulombPotential(c, w) for (c, w) in zip(coeffs, w_raw))...
+        KineticOperator(K_transformed);
+        (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
     ]
 
     H = build_hamiltonian_matrix(basis, ops)
