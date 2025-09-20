@@ -7,5 +7,6 @@ using FewBodyECG
     include("Aqua.jl")
     include("test_sampling.jl")
     include("test_coordinates.jl")
-
+    include("test_matrix_elements.jl")
+    
 end

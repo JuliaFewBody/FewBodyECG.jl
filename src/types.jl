@@ -8,13 +8,13 @@ end
 
 struct Rank1Gaussian <: GaussianBase
     A::Matrix{Float64}
-    a::Vector{Vector{Float64}}
+    a::Vector{Float64}
 end
 
 struct Rank2Gaussian <: GaussianBase
     A::Matrix{Float64}
-    a::Vector{Vector{Float64}}
-    b::Vector{Vector{Float64}}
+    a::Vector{Float64}
+    b::Vector{Float64}
 end
 
 struct BasisSet
