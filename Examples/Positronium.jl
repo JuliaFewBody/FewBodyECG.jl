@@ -14,6 +14,13 @@ w_raw = [psys.U' * w for w in w_list]
 
 coeffs = [+1.0, -1.0, -1.0]
 
+ops = Operator[
+    KineticOperator(K_transformed);
+    (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
+]
+
+A = solve_ECG(ops, psys, 100)
+
 let
     n_basis = 100
     b1 = default_b0(psys.scale)

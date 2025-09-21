@@ -21,6 +21,13 @@ E₀_list = Float64[]
 
 a_vec = [1.0]
 
+ops = Operator[
+    KineticOperator(K_transformed);
+    (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
+]
+
+A = solve_ECG(ops, psys, 50)
+
 for i in 1:n_basis
     bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler = HaltonSample())
     A = _generate_A_matrix(bij, w_raw)

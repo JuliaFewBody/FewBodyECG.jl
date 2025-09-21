@@ -21,16 +21,18 @@ b1 = 1.5
 basis_fns = GaussianBase[]
 E₀_list = Float64[]
 
+ops = Operator[
+    KineticOperator(K_transformed);
+    (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
+]
+
+
 for i in 1:n_basis
     bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler = SobolSample())
     A = _generate_A_matrix(bij, w_raw)
     push!(basis_fns, Rank0Gaussian(A))
 
     basis = BasisSet(basis_fns)
-    ops = Operator[
-        KineticOperator(K_transformed);
-        (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
-    ]
 
     H = build_hamiltonian_matrix(basis, ops)
     S = build_overlap_matrix(basis)
