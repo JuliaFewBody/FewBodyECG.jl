@@ -26,4 +26,5 @@ E = -0.527751016523
 ΔE = abs(A.ground_state - E)
 @info "Energy difference" ΔE
 
-convergence(A)
+n, E = convergence(A)
+plot(n, E)

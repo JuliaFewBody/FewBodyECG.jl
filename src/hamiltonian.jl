@@ -1,6 +1,5 @@
 using FewBodyHamiltonians
 using QuasiMonteCarlo
-using Plots
 
 function _compute_overlap_element(bra::GaussianBase, ket::GaussianBase)
     A, B = bra.A, ket.A
@@ -64,12 +63,8 @@ struct SolverResults
     eigenvectors::Vector{Matrix{Float64}}
 end
 
-function convergence(sr::SolverResults; xlabel = "Number of Gaussians", ylabel = "E₀ [Hartree]", title = "Convergence")
-    p = plot(
-        1:sr.n_basis, sr.energies;
-        xlabel = xlabel, ylabel = ylabel, lw = 2, label = "Ground state energy", title = title
-    )
-    return p
+function convergence(sr::SolverResults)
+    return 1:sr.n_basis, sr.energies
 end
 
 function solve_ECG(operators::Vector{FewBodyHamiltonians.Operator}, system::ParticleSystem, n::Int = 50; sampler = SobolSample(), method::Symbol = :quasirandom, verbose::Bool = true)
