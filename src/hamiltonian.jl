@@ -51,22 +51,6 @@ function solve_generalized_eigenproblem(H::Matrix{Float64}, S::Matrix{Float64})
     end
 end
 
-struct SolverResults
-    basis_functions::Vector{GaussianBase}
-    n_basis::Int
-    operators::Vector{FewBodyHamiltonians.Operator}
-    method::Symbol
-    sampler::QuasiMonteCarlo.DeterministicSamplingAlgorithm
-    length_scale::Float64
-    ground_state::Float64
-    energies::Vector{Float64}
-    eigenvectors::Vector{Matrix{Float64}}
-end
-
-function convergence(sr::SolverResults)
-    return 1:sr.n_basis, sr.energies
-end
-
 function solve_ECG(operators::Vector{FewBodyHamiltonians.Operator}, system::ParticleSystem, n::Int = 50; sampler = SobolSample(), method::Symbol = :quasirandom, verbose::Bool = true)
     b₁ = default_b0(system.scale)
     basis_fns = GaussianBase[]
