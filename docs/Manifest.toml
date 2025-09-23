@@ -382,17 +382,15 @@ uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
 version = "7.1.1+0"
 
 [[deps.FewBodyECG]]
-deps = ["FewBodyHamiltonians", "LinearAlgebra", "Optim", "QuasiMonteCarlo", "SpecialFunctions"]
+deps = ["FewBodyHamiltonians", "LinearAlgebra", "QuasiMonteCarlo", "SpecialFunctions"]
 path = ".."
 uuid = "083b1810-24a1-4a79-9a41-145bb2bb8ceb"
 version = "1.0.5"
 
 [[deps.FewBodyHamiltonians]]
-git-tree-sha1 = "8d67c1859d3682d75b2419633cc94edabb9dbbca"
-repo-rev = "main"
-repo-url = "https://github.com/JuliaFewBody/FewBodyHamiltonians.jl"
+git-tree-sha1 = "3cf35661914b5eb9bce1f2a5ced704b4133ee1d4"
 uuid = "3a126c26-e5d7-4a95-83c3-3b69f8a11ded"
-version = "0.0.1"
+version = "0.0.2"
 
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"

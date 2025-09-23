@@ -11,7 +11,6 @@ SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [compat]
 Aqua = "0.8.13"
-FewBodyHamiltonians = "0.0.2"
 LinearAlgebra = "1.7.3"
 QuasiMonteCarlo = "0.3.3"
 SpecialFunctions = "2.5.0"
