@@ -60,7 +60,7 @@ function solve_ECG(operators::Vector{FewBodyHamiltonians.Operator}, system::Part
     E₀_list = Float64[]
     vecs_list = []
     for i in 1:n
-        bij = generate_bij(:quasirandom, i, coulomb_length, b₁; qmc_sampler = sampler)
+        bij = generate_bij(method, i, coulomb_length, b₁; qmc_sampler = sampler)
         A = _generate_A_matrix(bij, w_list)
         push!(basis_fns, Rank0Gaussian(A))
 
