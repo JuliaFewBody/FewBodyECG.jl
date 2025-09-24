@@ -1,60 +1,36 @@
-module Types
-
-export Particle,
-    GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian,
-    BasisSet,
-    Operator, KineticEnergy, CoulombPotential,
-    FewBodyHamiltonian, MatrixElementResult
+using FewBodyHamiltonians
 
 abstract type GaussianBase end
 
-struct Particle
-    mass::Float64
-    charge::Float64
-    label::Symbol
-end
-
 struct Rank0Gaussian <: GaussianBase
-    A::Matrix{Float64}  # Correlation matrix
+    A::Matrix{Float64}
 end
 
 struct Rank1Gaussian <: GaussianBase
-    A::Matrix{Float64}                 # Correlation matrix
-    a::Vector{Vector{Float64}}         # Polarization vectors
+    A::Matrix{Float64}
+    a::Vector{Float64}
 end
 
 struct Rank2Gaussian <: GaussianBase
     A::Matrix{Float64}
-    a::Vector{Vector{Float64}}         # First polarization vector set
-    b::Vector{Vector{Float64}}         # Second polarization vector set
+    a::Vector{Float64}
+    b::Vector{Float64}
 end
 
 struct BasisSet
     functions::Vector{GaussianBase}
 end
 
-abstract type Operator end
-
-struct KineticEnergy <: Operator
-    K::Matrix{Float64}  # required for ⟨T⟩
+struct KineticOperator <: FewBodyHamiltonians.KineticTerm
+    K::Matrix{Float64}
 end
 
-struct CoulombPotential <: Operator
+struct CoulombOperator <: FewBodyHamiltonians.PotentialTerm
     coefficient::Float64
     w::Vector{Float64}
 end
 
-
-struct FewBodyHamiltonian
+struct ECG
     basis::BasisSet
     operators::Vector{Operator}
 end
-
-struct MatrixElementResult
-    bra::GaussianBase
-    ket::GaussianBase
-    operator::Operator
-    value::Float64
-end
-
-end # module

@@ -14,6 +14,13 @@ w_raw = [psys.U' * w for w in w_list]
 
 coeffs = [+1.0, -1.0, -1.0]
 
+ops = Operator[
+    KineticOperator(K_transformed);
+    (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
+]
+
+A = solve_ECG(ops, psys, 100)
+
 let
     n_basis = 100
     b1 = default_b0(psys.scale)
@@ -23,13 +30,13 @@ let
 
     for i in 1:n_basis
         bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler = SobolSample())
-        A = generate_A_matrix(bij, w_raw)
+        A = _generate_A_matrix(bij, w_raw)
         push!(basis_fns, Rank0Gaussian(A))
 
         basis = BasisSet(basis_fns)
         ops = Operator[
-            KineticEnergy(K_transformed);
-            (CoulombPotential(c, w) for (c, w) in zip(coeffs, w_raw))...
+            KineticOperator(K_transformed);
+            (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
         ]
 
         H = build_hamiltonian_matrix(basis, ops)
@@ -39,13 +46,13 @@ let
         E₀ = minimum(vals)
 
         push!(E₀_list, E₀)
-        println("Step $i: E₀ = $E₀")
+        @info "Step $i" E₀ = E₀
     end
 
     E₀ = minimum(E₀_list)
     Eᵗʰ = -0.2620050702328
     ΔE = abs(E₀ - Eᵗʰ)
-    @show ΔE
+    @info "Energy difference" ΔE
 
     r = range(0.01, 14.0, length = 400)
     ρ_r = [rval^2 * abs2(ψ₀([rval, 0.0], c₀, basis_fns)) for rval in r]
