@@ -4,13 +4,13 @@ using LinearAlgebra
 using Plots
 using QuasiMonteCarlo
 
-masses = [1e15, 1.0, 1.0]
+masses = [1.0e15, 1.0, 1.0]
 psys = ParticleSystem(masses)
 
-K = Diagonal([0.0, 1/2, 1/2])
+K = Diagonal([0.0, 1 / 2, 1 / 2])
 K_transformed = psys.J * K * psys.J&#39;
 
-w_list = [ [1, -1, 0], [1, 0, -1], [0, 1, -1] ]
+w_list = [[1, -1, 0], [1, 0, -1], [0, 1, -1]]
 
 w_raw = [psys.U&#39; * w for w in w_list]
 
@@ -23,14 +23,14 @@ let
     coeffs = [-1.0, -1.0, +1.0]
 
     for i in 1:n_basis
-        bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler=SobolSample())
-        A = generate_A_matrix(bij, w_raw)
+        bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler = SobolSample())
+        A = _generate_A_matrix(bij, w_raw)
         push!(basis_fns, Rank0Gaussian(A))
 
         basis = BasisSet(basis_fns)
         ops = Operator[
-            KineticEnergy(K_transformed);
-            (CoulombPotential(c, w) for (c, w) in zip(coeffs, w_raw))...
+            KineticOperator(K_transformed);
+            (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
         ]
 
         H = build_hamiltonian_matrix(basis, ops)
@@ -48,7 +48,9 @@ let
     ΔE = abs(E₀ - Eᵗʰ)
     @show ΔE
 
-    plot(1:n_basis, E₀_list, xlabel=&quot;Number of Gaussians&quot;, ylabel=&quot;E₀ [Hartree]&quot;,
-         lw=2, label=&quot;Ground state energy&quot;, title=&quot;Hydrogen Anion Convergence&quot;)
+    plot(
+        1:n_basis, E₀_list, xlabel = &quot;Number of Gaussians&quot;, ylabel = &quot;E₀ [Hartree]&quot;,
+        lw = 2, label = &quot;Ground state energy&quot;, title = &quot;Hydrogen Anion Convergence&quot;
+    )
 
-end</code></pre><img src="51027cc8.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../theory/">« Theory</a><a class="docs-footer-nextpage" href="../resources/">Resources »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.11.4 on <span class="colophon-date" title="Monday 22 September 2025 15:32">Monday 22 September 2025</span>. Using Julia version 1.11.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><img src="dc6f2f40.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../theory/">« Theory</a><a class="docs-footer-nextpage" href="../resources/">Resources »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Wednesday 24 September 2025 10:42">Wednesday 24 September 2025</span>. Using Julia version 1.11.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

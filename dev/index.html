@@ -7,7 +7,7 @@ using QuasiMonteCarlo
 masses = [1.0, 1.0, 1.0]
 psys = ParticleSystem(masses)
 
-K = Diagonal([1/2, 1/2, 1/2])
+K = Diagonal([1 / 2, 1 / 2, 1 / 2])
 K_transformed = psys.J * K * psys.J&#39;
 
 w_list = [[1, -1, 0], [1, 0, -1], [0, 1, -1]]
@@ -23,14 +23,14 @@ let
     E₀_list = Float64[]
 
     for i in 1:n_basis
-        bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler=SobolSample())
-        A = generate_A_matrix(bij, w_raw)
+        bij = generate_bij(method, i, length(w_raw), b1; qmc_sampler = SobolSample())
+        A = _generate_A_matrix(bij, w_raw)
         push!(basis_fns, Rank0Gaussian(A))
 
         basis = BasisSet(basis_fns)
         ops = Operator[
-            KineticEnergy(K_transformed);
-            (CoulombPotential(c, w) for (c, w) in zip(coeffs, w_raw))...
+            KineticOperator(K_transformed);
+            (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
         ]
 
         H = build_hamiltonian_matrix(basis, ops)
@@ -48,16 +48,20 @@ let
     ΔE = abs(E₀ - Eᵗʰ)
     @show ΔE
 
-    r = range(0.01, 14.0, length=400)
+    r = range(0.01, 14.0, length = 400)
     ρ_r = [rval^2 * abs2(ψ₀([rval, 0.0], c₀, basis_fns)) for rval in r]
 
-    p1 = plot(r, ρ_r, xlabel=&quot;r (a.u.)&quot;, ylabel=&quot;r²|ψ₀(r)|²&quot;,
-              lw=2, label=&quot;r²C(r)&quot;, title=&quot;Electron-Positron Correlation Function&quot;)
+    p1 = plot(
+        r, ρ_r, xlabel = &quot;r (a.u.)&quot;, ylabel = &quot;r²|ψ₀(r)|²&quot;,
+        lw = 2, label = &quot;r²C(r)&quot;, title = &quot;Electron-Positron Correlation Function&quot;
+    )
 
 
-    p2 = plot(1:n_basis, E₀_list, xlabel=&quot;Number of Gaussians&quot;, ylabel=&quot;E₀ [Hartree]&quot;,
-    lw=2, label=&quot;Ground state energy&quot;, title=&quot;Positronium Convergence&quot;)
+    p2 = plot(
+        1:n_basis, E₀_list, xlabel = &quot;Number of Gaussians&quot;, ylabel = &quot;E₀ [Hartree]&quot;,
+        lw = 2, label = &quot;Ground state energy&quot;, title = &quot;Positronium Convergence&quot;
+    )
 
-    plot(p1, p2, layout=(2, 1))
+    plot(p1, p2, layout = (2, 1))
 
-end</code></pre><img src="index-c6fc28b9.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="theory/">Theory »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.11.4 on <span class="colophon-date" title="Monday 22 September 2025 15:32">Monday 22 September 2025</span>. Using Julia version 1.11.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><img src="index-47f6aa1e.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="theory/">Theory »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Wednesday 24 September 2025 10:42">Wednesday 24 September 2025</span>. Using Julia version 1.11.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
