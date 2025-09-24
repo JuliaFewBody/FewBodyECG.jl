@@ -25,21 +25,21 @@ import FewBodyECG: _compute_overlap_element, _build_operator_matrix, _compute_ma
 
 end
 
-spd(M) = 0.5*(M + M') + (size(M,1) == 1 ? 1e-12 : 0.0)I 
+spd(M) = 0.5 * (M + M') + (size(M, 1) == 1 ? 1.0e-12 : 0.0)I
 
 
 @testset "_compute_overlap_element basic properties" begin
-    A = [1.0;;]   
-    B = [1.0;;]   
+    A = [1.0;;]
+    B = [1.0;;]
     bra = Rank0Gaussian(A)
     ket = Rank0Gaussian(B)
     val = _compute_overlap_element(bra, ket)
-    @test isapprox(val, (π/2)^(3/2); atol=1e-12)
+    @test isapprox(val, (π / 2)^(3 / 2); atol = 1.0e-12)
 
     @test isapprox(
         _compute_overlap_element(Rank0Gaussian(A), Rank0Gaussian(B)),
         _compute_overlap_element(Rank0Gaussian(B), Rank0Gaussian(A));
-        atol=1e-12
+        atol = 1.0e-12
     )
 
     A2 = [1.0 0.2; 0.2 1.5]
@@ -59,15 +59,15 @@ end
 
     S = build_overlap_matrix(basis)
 
-    @test size(S) == (3,3)
+    @test size(S) == (3, 3)
     # Symmetry
     @test S ≈ S'
-    @test isapprox(S[1,1], _compute_overlap_element(g1,g1); atol=1e-12)
-    @test isapprox(S[2,2], _compute_overlap_element(g2,g2); atol=1e-12)
-    @test isapprox(S[3,3], _compute_overlap_element(g3,g3); atol=1e-12)
-    @test isapprox(S[1,2], _compute_overlap_element(g1,g2); atol=1e-12)
-    @test isapprox(S[2,3], _compute_overlap_element(g2,g3); atol=1e-12)
-    @test isapprox(S[1,3], _compute_overlap_element(g1,g3); atol=1e-12)
+    @test isapprox(S[1, 1], _compute_overlap_element(g1, g1); atol = 1.0e-12)
+    @test isapprox(S[2, 2], _compute_overlap_element(g2, g2); atol = 1.0e-12)
+    @test isapprox(S[3, 3], _compute_overlap_element(g3, g3); atol = 1.0e-12)
+    @test isapprox(S[1, 2], _compute_overlap_element(g1, g2); atol = 1.0e-12)
+    @test isapprox(S[2, 3], _compute_overlap_element(g2, g3); atol = 1.0e-12)
+    @test isapprox(S[1, 3], _compute_overlap_element(g1, g3); atol = 1.0e-12)
 end
 
 @testset "_build_operator_matrix matches pairwise _compute_matrix_element" begin
@@ -81,20 +81,20 @@ end
     kop = KineticOperator(K)
     Hk = _build_operator_matrix(basis, kop)
 
-    @test size(Hk) == (3,3)
+    @test size(Hk) == (3, 3)
     @test Hk ≈ Hk'
     for i in 1:3, j in 1:3
-        @test isapprox(Hk[i,j], _compute_matrix_element(g[i], g[j], kop); atol=1e-10)
+        @test isapprox(Hk[i, j], _compute_matrix_element(g[i], g[j], kop); atol = 1.0e-10)
     end
 
     w = [1.0, -1.0]
     cop = CoulombOperator(1.5, w)
     Hc = _build_operator_matrix(basis, cop)
 
-    @test size(Hc) == (3,3)
+    @test size(Hc) == (3, 3)
     @test Hc ≈ Hc'
     for i in 1:3, j in 1:3
-        @test isapprox(Hc[i,j], _compute_matrix_element(g[i], g[j], cop); atol=1e-10)
+        @test isapprox(Hc[i, j], _compute_matrix_element(g[i], g[j], cop); atol = 1.0e-10)
     end
 end
 
@@ -113,12 +113,12 @@ end
 
     H = build_hamiltonian_matrix(basis, [kop, cop])
 
-    @test size(H) == (3,3)
+    @test size(H) == (3, 3)
     @test H ≈ H'
-    @test H ≈ Hk .+ Hc atol=1e-10
+    @test H ≈ Hk .+ Hc atol = 1.0e-10
 
     H_only = build_hamiltonian_matrix(basis, [kop])
-    @test H_only ≈ Hk atol=1e-12
+    @test H_only ≈ Hk atol = 1.0e-12
 end
 
 
