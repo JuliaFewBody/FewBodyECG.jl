@@ -10,8 +10,11 @@ import FewBodyECG: _compute_overlap_element, _build_operator_matrix, _compute_ma
         A = [1.0 0.2; 0.2 1.5]
         B = [0.9 0.1; 0.1 1.2]
 
-        bra = Rank0Gaussian(A)
-        ket = Rank0Gaussian(B)
+        s₁ = randn(2)
+        s₂ = randn(2)
+
+        bra = Rank0Gaussian(A,s₁)
+        ket = Rank0Gaussian(B,s₂)
 
         val = _compute_overlap_element(bra, ket)
 
@@ -25,36 +28,46 @@ import FewBodyECG: _compute_overlap_element, _build_operator_matrix, _compute_ma
 
 end
 
-spd(M) = 0.5 * (M + M') + (size(M, 1) == 1 ? 1.0e-12 : 0.0)I
-
 
 @testset "_compute_overlap_element basic properties" begin
     A = [1.0;;]
     B = [1.0;;]
-    bra = Rank0Gaussian(A)
-    ket = Rank0Gaussian(B)
+
+    s₁ = randn(2)
+    s₂ = randn(2)
+
+    bra = Rank0Gaussian(A, s₁)
+    ket = Rank0Gaussian(B, s₂)
     val = _compute_overlap_element(bra, ket)
     @test isapprox(val, (π / 2)^(3 / 2); atol = 1.0e-12)
 
     @test isapprox(
-        _compute_overlap_element(Rank0Gaussian(A), Rank0Gaussian(B)),
-        _compute_overlap_element(Rank0Gaussian(B), Rank0Gaussian(A));
+        _compute_overlap_element(Rank0Gaussian(A, s₁), Rank0Gaussian(B, s₂)),
+        _compute_overlap_element(Rank0Gaussian(B, s₂), Rank0Gaussian(A, s₁));
         atol = 1.0e-12
     )
 
     A2 = [1.0 0.2; 0.2 1.5]
     B2 = [0.9 0.1; 0.1 1.2]
-    val2 = _compute_overlap_element(Rank0Gaussian(A2), Rank0Gaussian(B2))
+
+    val2 = _compute_overlap_element(Rank0Gaussian(A2, s₁), Rank0Gaussian(B2, s₂))
     @test val2 > 0
 end
+
+spd(M) = 0.5 * (M + M') + (size(M, 1) == 1 ? 1.0e-12 : 0.0)I
 
 @testset "build_overlap_matrix structure & values" begin
     A = spd([1.0 0.2; 0.2 1.5])
     B = spd([0.9 0.1; 0.1 1.2])
     C = spd([1.3 0.0; 0.0 0.8])
-    g1 = Rank0Gaussian(A)
-    g2 = Rank0Gaussian(B)
-    g3 = Rank0Gaussian(C)
+
+    s₁ = randn(2)
+    s₂ = randn(2)
+    s₃ = randn(2)
+
+    g1 = Rank0Gaussian(A, s₁)
+    g2 = Rank0Gaussian(B, s₂)
+    g3 = Rank0Gaussian(C, s₃)
     basis = BasisSet([g1, g2, g3])
 
     S = build_overlap_matrix(basis)
@@ -74,7 +87,12 @@ end
     A = spd([1.0 0.2; 0.2 1.5])
     B = spd([0.9 0.1; 0.1 1.2])
     C = spd([1.3 0.0; 0.0 0.8])
-    g = [Rank0Gaussian(A), Rank0Gaussian(B), Rank0Gaussian(C)]
+
+    s₁ = randn(2)
+    s₂ = randn(2)
+    s₃ = randn(2)
+
+    g = [Rank0Gaussian(A, s₁), Rank0Gaussian(B, s₂), Rank0Gaussian(C, s₃)]
     basis = BasisSet(g)
 
     K = [2.0 0.1; 0.1 2.0]
@@ -102,7 +120,13 @@ end
     A = spd([1.0 0.2; 0.2 1.5])
     B = spd([0.9 0.1; 0.1 1.2])
     C = spd([1.3 0.0; 0.0 0.8])
-    g = [Rank0Gaussian(A), Rank0Gaussian(B), Rank0Gaussian(C)]
+
+    s₁ = randn(2)
+    s₂ = randn(2)
+    s₃ = randn(2)
+
+
+    g = [Rank0Gaussian(A, s₁), Rank0Gaussian(B, s₂), Rank0Gaussian(C, s₃)]
     basis = BasisSet(g)
 
     kop = KineticOperator([2.0 0.0; 0.0 2.0])

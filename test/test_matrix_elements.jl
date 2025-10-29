@@ -9,8 +9,11 @@ import FewBodyECG: _compute_matrix_element
     B = [0.9 0.1; 0.1 1.2]
     K = rand(2, 2)
 
-    bra = Rank0Gaussian(A)
-    ket = Rank0Gaussian(B)
+    s₁ = randn(2)
+    s₂ = randn(2)
+
+    bra = Rank0Gaussian(A, s₁)
+    ket = Rank0Gaussian(B, s₂)
     op = KineticOperator(K)
 
     result = _compute_matrix_element(bra, ket, op)
@@ -27,8 +30,11 @@ end
     w = [1.0, -1.0]
     coefficient = 1.5
 
-    bra = Rank0Gaussian(A)
-    ket = Rank0Gaussian(B)
+    s₁ = randn(2)
+    s₂ = randn(2)
+
+    bra = Rank0Gaussian(A, s₁)
+    ket = Rank0Gaussian(B, s₂)
     op = CoulombOperator(coefficient, w)
 
     result = _compute_matrix_element(bra, ket, op)
