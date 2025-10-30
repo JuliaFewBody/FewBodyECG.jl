@@ -1,18 +1,4 @@
-"""
-    struct ParticleSystem
 
-A structure representing a system of particles with associated masses and coordinate transformations.
-
-# Fields
-- `masses::Vector{Float64}`: A vector containing the masses of the particles in the system. Must contain at least two elements.
-- `J::Matrix{Float64}`: The Jacobi transformation matrix for the particle system, computed based on the masses.
-- `U::Matrix{Float64}`: An auxiliary transformation matrix for the particle system, computed based on the masses.
-- `scale::Union{Symbol,Nothing}`: An optional symbol indicating the scale of the system (e.g., `:atomic`, `:molecular`, `:nuclear`). Defaults to `nothing`.
-
-# Constructor
-- `ParticleSystem(masses::Vector{Float64}; scale::Union{Symbol,Nothing}=nothing)`: 
-  Creates a new `ParticleSystem` instance. The `masses` vector must contain at least two elements. The `scale` parameter is optional and can be used to specify the scale of the system. The Jacobi and auxiliary transformation matrices (`J` and `U`) are computed internally using the `_jacobi_transform` function.
-"""
 struct ParticleSystem
     masses::Vector{Float64}
     J::Matrix{Float64}
@@ -50,6 +36,17 @@ function _jacobi_transform(masses::Vector{Float64})::Tuple{Matrix{Float64}, Matr
     return J, U
 end
 
+function Λ(masses::Vector{<:Number})
+    J, _ = _jacobi_transform(masses)         
+    Minv  = Diagonal(0.5 ./ masses)          
+    Λ = Symmetric(J * Minv * J')             
+    return Λ
+end
+
+function KineticOperator(masses::Vector{<:Number})
+    return KineticOperator(Λ(masses))
+end
+
 """
     default_b0(scale::Union{Symbol,Nothing}) -> Float64
 
@@ -70,14 +67,13 @@ function default_b0(scale::Union{Symbol, Nothing})
     error("Unknown scale: $scale")
 end
 
-function _generate_A_matrix(bij::Vector{Float64}, w_list::Vector{Vector{Float64}})::Matrix{Float64}
-    @assert length(bij) == length(w_list) "Length of `bij` and `w_list` must be equal."
-    dim = length(w_list[1])
+function _generate_A_matrix(bij::AbstractVector{<:Number}, w_list::AbstractVector{<:AbstractVector{<:Number}})::Matrix{Float64}
+    bijf = Float64.(bij)
+    w_listf = [Float64.(w) for w in w_list]
+    dim = length(w_listf[1])
     A = zeros(Float64, dim, dim)
-    for i in 1:length(bij)
-        w = w_list[i]
-        @assert length(w) == dim "All weight vectors must have the same dimension."
-        A += (w * w') / (bij[i]^2)
+    for i in 1:length(bijf)
+        A .+= (w_listf[i] * w_listf[i]') / (bijf[i]^2)
     end
     return A
 end
@@ -95,15 +91,6 @@ function _shift_vectors(a::Matrix{Float64}, b::Matrix{Float64}, mat::Union{Nothi
         end
     end
     return sum_val
-end
-
-function _generate_weight_vector(dim::Int, i::Int, j::Int)::Vector{Int}
-    @assert 1 ≤ i ≤ dim "Index `i` must be between 1 and $dim."
-    @assert 1 ≤ j ≤ dim "Index `j` must be between 1 and $dim."
-    w = zeros(Int, dim)
-    w[i] = 1
-    w[j] = -1
-    return w
 end
 
 function _transform_coordinates(J::Matrix{Float64}, r::Vector{Float64})::Vector{Float64}

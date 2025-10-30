@@ -22,8 +22,8 @@ struct BasisSet
     functions::Vector{GaussianBase}
 end
 
-struct KineticOperator <: FewBodyHamiltonians.KineticTerm
-    K::Matrix{Number}
+struct KineticOperator{T<:Number} <: FewBodyHamiltonians.KineticTerm
+    K::AbstractMatrix{T}
 end
 
 struct CoulombOperator <: FewBodyHamiltonians.PotentialTerm

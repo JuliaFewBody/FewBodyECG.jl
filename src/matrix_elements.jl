@@ -6,12 +6,21 @@ compute_matrix_element(bra, ket, op)
 Compute the matrix element ⟨bra|op|ket⟩ using analytic expressions.
 """
 
+function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian)
+    B = bra.A + ket.A
+    v = bra.s + ket.s
+    N = size(B, 1)
+    return exp(0.25 * transpose(v) * inv(B) * v) * ((π^N) / det(B))^(3 / 2)
+end
+
 function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::KineticOperator)
     A, B = bra.A, ket.A
-    K = op.K
+    v = bra.s + ket.s
+    K = op.K 
     R = inv(A + B)
-    M0 = (π^length(R) / det(A + B))^(3 / 2)
-    return 6 * tr(B * K * A * R) * M0
+    M0 = _compute_matrix_element(bra, ket)
+    u = 0.5 * inv(B) * v
+    return (6 * tr(B * K * A * R) + transpose(bra.s - 2 * bra.A * u) * K * (s - 2 * ket.A * u)) * M0
 end
 
 function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::CoulombOperator)

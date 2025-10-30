@@ -6,16 +6,13 @@ using QuasiMonteCarlo
 masses = [1.0, 1.0, 1.0]
 psys = ParticleSystem(masses)
 
-K = Diagonal([1 / 2, 1 / 2, 1 / 2])
-K_transformed = psys.J * K * psys.J'
-
 w_list = [[1, -1, 0], [1, 0, -1], [0, 1, -1]]
 w_raw = [psys.U' * w for w in w_list]
 
 coeffs = [+1.0, -1.0, -1.0]
 
 ops = Operator[
-    KineticOperator(K_transformed);
+    KineticOperator(masses);
     (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
 ]
 
