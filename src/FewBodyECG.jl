@@ -3,7 +3,7 @@ module FewBodyECG
 using LinearAlgebra
 using FewBodyHamiltonians
 
-export ParticleSystem, default_b0, Λ
+export Λ, _jacobi_transform
 
 export generate_bij, _generate_A_matrix
 
