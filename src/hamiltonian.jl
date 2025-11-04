@@ -70,8 +70,8 @@ function solve_ECG(operators::Vector{<:FewBodyHamiltonians.Operator},
 
     for i in 1:n
         bij = generate_bij(method, i, n_pairs, b₁; qmc_sampler=sampler)
-        A, _ = _generate_A_matrix(bij, w_list)
-        s = generate_shift(method, i, d, sscale; qmc_sampler=sampler)   # ▼ use nonzero shifts
+        A   = _generate_A_matrix(bij, w_list)
+        s   = generate_shift(method, i, length(w_list[1]), sscale; qmc_sampler=sampler) 
         push!(basis_fns, Rank0Gaussian(A, s))
 
         basis = BasisSet{Rank0Gaussian}(basis_fns)

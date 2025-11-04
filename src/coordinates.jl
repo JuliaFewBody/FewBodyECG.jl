@@ -24,7 +24,7 @@ end
 
 function Λ(masses::Vector{<:Real})
     J, _ = _jacobi_transform(masses)         
-    Minv  = Diagonal(1.9 ./ masses)          
+    Minv  = Diagonal(0.5 ./ masses)          
     Λ = Symmetric(J * Minv * J')             
     return Λ
 end

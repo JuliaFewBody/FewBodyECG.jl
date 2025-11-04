@@ -19,7 +19,7 @@ ops = Operator[
     (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
 ]
 
-result = solve_ECG(ops, masses, 100)
+result = solve_ECG(ops, 500, scale=1.5)
 
 E = -0.527751016523
 ΔE = abs(result.ground_state - E)
