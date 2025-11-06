@@ -27,3 +27,4 @@ E = -0.527751016523
 
 n, E = convergence(result)
 plot(n, E)
+
