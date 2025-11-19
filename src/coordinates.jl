@@ -23,9 +23,9 @@ function _jacobi_transform(masses::Vector{Float64})::Tuple{Matrix{Float64}, Matr
 end
 
 function Λ(masses::Vector{<:Real})
-    J, _ = _jacobi_transform(masses)         
-    Minv  = Diagonal(0.5 ./ masses)          
-    Λ = Symmetric(J * Minv * J')             
+    J, _ = _jacobi_transform(masses)
+    Minv = Diagonal(0.5 ./ masses)
+    Λ = Symmetric(J * Minv * J')
     return Λ
 end
 

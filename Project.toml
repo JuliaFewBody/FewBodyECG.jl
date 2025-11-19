@@ -6,7 +6,6 @@ authors = ["Shuhei Ohno", "Martin Mikkelsen"]
 [deps]
 FewBodyHamiltonians = "3a126c26-e5d7-4a95-83c3-3b69f8a11ded"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 QuasiMonteCarlo = "8a4e6c94-4038-4cdc-81c3-7e6ffdb2a71b"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
@@ -14,7 +13,6 @@ SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 Aqua = "0.8.13"
 FewBodyHamiltonians = "0.0.2"
 LinearAlgebra = "1.7.3"
-Plots = "1.41.1"
 QuasiMonteCarlo = "0.3.3"
 SpecialFunctions = "2.5.0"
 Test = "1.11.0"

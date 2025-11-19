@@ -2,55 +2,55 @@ using FewBodyHamiltonians
 
 abstract type GaussianBase end
 
-struct Rank0Gaussian{T<:Real, M<:AbstractMatrix{T}, V<:AbstractVector{T}} <: GaussianBase
-    A::Symmetric{T,M}
+struct Rank0Gaussian{T <: Real, M <: AbstractMatrix{T}, V <: AbstractVector{T}} <: GaussianBase
+    A::Symmetric{T, M}
     s::V
-    function Rank0Gaussian(A::AbstractMatrix{T}, s::AbstractVector{T}) where {T<:Real}
-        size(A,1) == size(A,2) || throw(ArgumentError("A must be square"))
-        length(s) == size(A,1) || throw(ArgumentError("length(s) != size(A,1)"))
-        new{T, typeof(A), typeof(s)}(Symmetric(A), s)
+    function Rank0Gaussian(A::AbstractMatrix{T}, s::AbstractVector{T}) where {T <: Real}
+        size(A, 1) == size(A, 2) || throw(ArgumentError("A must be square"))
+        length(s) == size(A, 1) || throw(ArgumentError("length(s) != size(A,1)"))
+        return new{T, typeof(A), typeof(s)}(Symmetric(A), s)
     end
 end
 
-struct Rank1Gaussian{T<:Real, M<:AbstractMatrix{T}, V<:AbstractVector{T}} <: GaussianBase
-    A::Symmetric{T,M}
+struct Rank1Gaussian{T <: Real, M <: AbstractMatrix{T}, V <: AbstractVector{T}} <: GaussianBase
+    A::Symmetric{T, M}
     a::V
     s::V
-    function Rank1Gaussian(A::AbstractMatrix{T}, a::AbstractVector{T}, s::AbstractVector{T}) where {T<:Real}
-        size(A,1) == size(A,2) || throw(ArgumentError("A must be square"))
-        (length(a) == size(A,1) && length(s) == size(A,1)) ||
+    function Rank1Gaussian(A::AbstractMatrix{T}, a::AbstractVector{T}, s::AbstractVector{T}) where {T <: Real}
+        size(A, 1) == size(A, 2) || throw(ArgumentError("A must be square"))
+        (length(a) == size(A, 1) && length(s) == size(A, 1)) ||
             throw(ArgumentError("length(a) and length(s) must equal size(A,1)"))
-        new{T, typeof(A), typeof(a)}(Symmetric(A), a, s)
+        return new{T, typeof(A), typeof(a)}(Symmetric(A), a, s)
     end
 end
 
-struct Rank2Gaussian{T<:Real, M<:AbstractMatrix{T}, V<:AbstractVector{T}} <: GaussianBase
-    A::Symmetric{T,M}
+struct Rank2Gaussian{T <: Real, M <: AbstractMatrix{T}, V <: AbstractVector{T}} <: GaussianBase
+    A::Symmetric{T, M}
     a::V
     b::V
     s::V
-    function Rank2Gaussian(A::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector{T}, s::AbstractVector{T}) where {T<:Real}
-        size(A,1) == size(A,2) || throw(ArgumentError("A must be square"))
-        (length(a) == size(A,1) && length(b) == size(A,1) && length(s) == size(A,1)) ||
+    function Rank2Gaussian(A::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector{T}, s::AbstractVector{T}) where {T <: Real}
+        size(A, 1) == size(A, 2) || throw(ArgumentError("A must be square"))
+        (length(a) == size(A, 1) && length(b) == size(A, 1) && length(s) == size(A, 1)) ||
             throw(ArgumentError("length(a), length(b), length(s) must equal size(A,1)"))
-        new{T, typeof(A), typeof(a)}(Symmetric(A), a, b, s)
+        return new{T, typeof(A), typeof(a)}(Symmetric(A), a, b, s)
     end
 end
 
-struct BasisSet{G<:GaussianBase}
+struct BasisSet{G <: GaussianBase}
     functions::Vector{G}
 end
 
-struct KineticOperator{T<:Real} <: FewBodyHamiltonians.KineticTerm
+struct KineticOperator{T <: Real} <: FewBodyHamiltonians.KineticTerm
     K::AbstractMatrix{T}
 end
 
-struct CoulombOperator{T<:Real} <: FewBodyHamiltonians.PotentialTerm
+struct CoulombOperator{T <: Real} <: FewBodyHamiltonians.PotentialTerm
     coefficient::T
     w::AbstractVector{T}
 end
 
-struct ECG{G<:GaussianBase,O}
+struct ECG{G <: GaussianBase, O}
     basis::BasisSet{G}
     operators::Vector{O}
 end
