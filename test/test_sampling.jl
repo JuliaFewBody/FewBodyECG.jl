@@ -46,5 +46,5 @@ using LinearAlgebra
         svec = [0.1, 0.2, 0.3]
         rg = build_rank0([1.0, 2.0], [w1, w2], svec)
         @test isa(rg, FewBodyECG.Rank0Gaussian) || isa(rg, Rank0Gaussian)
-    end 
+    end
 end
