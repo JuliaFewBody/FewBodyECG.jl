@@ -2,7 +2,6 @@ using FewBodyECG
 using LinearAlgebra
 using Plots
 using QuasiMonteCarlo
-using FewBodyDB
 
 masses = [1.0e15, 1.0, 1.0]
 
