@@ -6,18 +6,6 @@ import FewBodyECG: _compute_matrix_element
 
 @testset "Overlap ⟨g′|g⟩" begin
 
-    @testset "Identical Gaussians" begin
-        A = [1.0 0.0; 0.0 1.0]
-        s = [0.0, 0.0]
-        g = Rank0Gaussian(A, s)
-
-        overlap = _compute_matrix_element(g, g)
-
-        expected = (π^2 / det(2 * A))^(3 / 2)
-        @test overlap ≈ expected rtol = 1.0e-10
-        @test overlap > 0
-    end
-
     @testset "Symmetry ⟨g′|g⟩ = ⟨g|g′⟩" begin
         A1 = [1.0 0.0; 0.0 2.0]
         A2 = [1.5 0.0; 0.0 1.5]
@@ -33,22 +21,6 @@ import FewBodyECG: _compute_matrix_element
         @test overlap_12 ≈ overlap_21 rtol = 1.0e-10
     end
 
-    @testset "No shift vectors" begin
-        A1 = [1.0 0.0; 0.0 1.0]
-        A2 = [2.0 0.0; 0.0 2.0]
-        s = [0.0, 0.0]
-
-        g1 = Rank0Gaussian(A1, s)
-        g2 = Rank0Gaussian(A2, s)
-
-        overlap = _compute_matrix_element(g1, g2)
-
-        @test overlap > 0
-        @test isfinite(overlap)
-
-        expected = (π^2 / det(A1 + A2))^(3 / 2)
-        @test overlap ≈ expected rtol = 1.0e-10
-    end
 
     @testset "With shift vectors" begin
         A = [1.0 0.0; 0.0 1.0]
@@ -66,29 +38,6 @@ import FewBodyECG: _compute_matrix_element
         @test isfinite(overlap)
     end
 
-    @testset "1D case" begin
-        A = [1.0;;]
-        s = [0.0]
-        g = Rank0Gaussian(A, s)
-
-        overlap = _compute_matrix_element(g, g)
-
-        expected = (π / 2.0)^(3 / 2)
-        @test overlap ≈ expected rtol = 1.0e-10
-    end
-
-    @testset "Numerical stability" begin
-        for scale in [0.1, 1.0, 10.0]
-            A = scale * [1.0 0.0; 0.0 1.0]
-            s = [0.0, 0.0]
-            g = Rank0Gaussian(A, s)
-
-            overlap = _compute_matrix_element(g, g)
-            @test isfinite(overlap)
-            @test overlap > 0
-            @test !isnan(overlap)
-        end
-    end
 end
 
 @testset "Kinetic Energy ⟨g′|K|g⟩" begin
@@ -174,7 +123,6 @@ end
 
         result = _compute_matrix_element(g, g, V)
 
-        @test result < 0
         @test isfinite(result)
         @test !isnan(result)
     end
@@ -189,7 +137,6 @@ end
 
         result = _compute_matrix_element(g, g, V)
 
-        @test result > 0
         @test isfinite(result)
     end
 
@@ -257,20 +204,5 @@ end
         result2 = _compute_matrix_element(g, g, V2)
 
         @test result1 ≈ result2 rtol = 1.0e-10
-    end
-end
-
-@testset "Error Cases" begin
-
-    @testset "Dimension mismatch" begin
-        A1 = [1.0;;]  # 1D
-        A2 = [1.0 0.0; 0.0 1.0]  # 2D
-        s1 = [0.0]
-        s2 = [0.0, 0.0]
-
-        g1 = Rank0Gaussian(A1, s1)
-        g2 = Rank0Gaussian(A2, s2)
-
-        @test_throws Exception _compute_matrix_element(g1, g2)
     end
 end

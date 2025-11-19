@@ -5,7 +5,6 @@ import FewBodyECG: _jacobi_transform, _generate_A_matrix, _shift_vectors, _trans
 
 @testset "Coordinates Module Tests" begin
     @testset "_jacobi_transform" begin
-        # Test with simple equal masses
         masses = [1.0, 1.0, 1.0]
         J, U = _jacobi_transform(masses)
 
@@ -13,7 +12,6 @@ import FewBodyECG: _jacobi_transform, _generate_A_matrix, _shift_vectors, _trans
         @test size(U) == (3, 2)
         @test J * U ≈ I(2) atol = 1.0e-10
 
-        # Test with different masses
         masses = [1.0, 2.0, 3.0]
         J, U = _jacobi_transform(masses)
 
@@ -21,7 +19,6 @@ import FewBodyECG: _jacobi_transform, _generate_A_matrix, _shift_vectors, _trans
         @test size(U) == (3, 2)
         @test J * U ≈ I(2) atol = 1.0e-10
 
-        # Test with exactly two masses
         masses = [1.0, 2.0]
         J, U = _jacobi_transform(masses)
 
@@ -29,7 +26,6 @@ import FewBodyECG: _jacobi_transform, _generate_A_matrix, _shift_vectors, _trans
         @test size(U) == (2, 1)
         @test J * U ≈ [1.0] atol = 1.0e-10
 
-        # Test error for fewer than two masses
         @test_throws AssertionError _jacobi_transform([1.0])
     end
 
@@ -45,11 +41,9 @@ import FewBodyECG: _jacobi_transform, _generate_A_matrix, _shift_vectors, _trans
         r_back = _inverse_transform_coordinates(U, x)
         @test size(r_back) == (3,)
 
-        # Instead of round-trip r → x → r_back, test projection recovery
         x_back = _transform_coordinates(J, r_back)
         @test x_back ≈ x atol = 1.0e-10
 
-        # Error case
         @test_throws AssertionError _transform_coordinates(J, [1.0, 2.0])
         @test_throws AssertionError _inverse_transform_coordinates(U, [1.0])
     end
@@ -87,7 +81,6 @@ end
         masses = [1.3, 2.5, 0.7, 4.1]
         J, U = _jacobi_transform(masses)
 
-        # J * U should act like the identity on the reduced space
         Ired = I(size(J, 1))
         @test isapprox(J * U, Ired; atol = 1.0e-10)
 
@@ -95,7 +88,6 @@ end
         @test isapprox(J * U * J, J; atol = 1.0e-10)
         @test isapprox(U * J * U, U; atol = 1.0e-10)
 
-        # Symmetry conditions
         @test isapprox((J * U)', J * U; atol = 1.0e-10)
         @test isapprox((U * J)', U * J; atol = 1.0e-10)
     end

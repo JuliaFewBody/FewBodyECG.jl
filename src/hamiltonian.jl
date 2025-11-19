@@ -45,12 +45,6 @@ function solve_generalized_eigenproblem(H::AbstractMatrix{<:Real}, S::AbstractMa
     return real(evals), real(vecs)
 end
 
-function diagonalize(basis::BasisSet{<:GaussianBase}, operators::AbstractVector{<:FewBodyHamiltonians.Operator})
-    H = build_hamiltonian_matrix(basis, operators)
-    S = build_overlap_matrix(basis)
-    return solve_generalized_eigenproblem(H, S)
-end
-
 function normalized_overlap(A::GaussianBase, B::GaussianBase)
     overlap_12 = _compute_matrix_element(A, B)
     overlap_11 = _compute_matrix_element(A, A)
