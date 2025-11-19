@@ -10,5 +10,5 @@ using FewBodyECG
     include("test_matrix_elements.jl")
     include("test_hamiltonian.jl")
     include("test_types.jl")
-    
+
 end

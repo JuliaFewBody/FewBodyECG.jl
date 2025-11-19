@@ -90,7 +90,7 @@ end
     @test g2.b == b
     @test g2.s == s
 
-    @test_throws ArgumentError Rank2Gaussian(rand(2,3), a, b, s)
+    @test_throws ArgumentError Rank2Gaussian(rand(2, 3), a, b, s)
     @test_throws ArgumentError Rank2Gaussian(A, [1.0], b, s)
     @test_throws ArgumentError Rank2Gaussian(A, a, [1.0], s)
     @test_throws ArgumentError Rank2Gaussian(A, a, b, [1.0])
