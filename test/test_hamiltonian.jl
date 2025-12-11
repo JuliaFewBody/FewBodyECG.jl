@@ -444,11 +444,11 @@ end
         b1 = 1.0
         bmin = 0.02 * b1
         bmax = 5.0 * b1
-        
+
         for i in 1:100
             bij = generate_bij(:quasirandom, i, 3, b1; qmc_sampler = HaltonSample())
-            @test all(bij .>= bmin - 1e-10)
-            @test all(bij .<= bmax + 1e-10)
+            @test all(bij .>= bmin - 1.0e-10)
+            @test all(bij .<= bmax + 1.0e-10)
         end
     end
 
@@ -481,7 +481,7 @@ end
         scale = 2.0
         for i in 1:100
             s = generate_shift(:quasirandom, i, 3, scale; qmc_sampler = HaltonSample())
-            @test all(abs.(s) .<= scale + 1e-10)
+            @test all(abs.(s) .<= scale + 1.0e-10)
         end
     end
 
@@ -522,7 +522,7 @@ end
 
 @testset "Physics: Variational principle" begin
     # Energy should decrease monotonically as basis size increases
-    
+
     masses = [1.0e15, 1.0]
     Λmat = Λ(masses)
     kin = KineticOperator(Λmat)
@@ -530,18 +530,18 @@ end
     w_raw = [U' * [1.0, -1.0]]
     coulomb = CoulombOperator(-1.0, w_raw[1])
     ops = Operator[kin, coulomb]
-    
+
     result = solve_ECG(ops, 20; scale = 1.5, verbose = false)
-    
+
     # Check monotonic decrease (with some tolerance for numerical noise)
     for i in 2:length(result.energies)
-        @test result.energies[i] <= result.energies[i-1] + 1e-10
+        @test result.energies[i] <= result.energies[i - 1] + 1.0e-10
     end
 end
 
 @testset "Physics: Scale sensitivity" begin
     # Demonstrate that scale matters for convergence
-    
+
     masses = [1.0e15, 1.0]
     Λmat = Λ(masses)
     kin = KineticOperator(Λmat)
@@ -549,13 +549,13 @@ end
     w_raw = [U' * [1.0, -1.0]]
     coulomb = CoulombOperator(-1.0, w_raw[1])
     ops = Operator[kin, coulomb]
-    
+
     # Good scale for hydrogen
     result_good = solve_ECG(ops, 15; scale = 1.5, verbose = false)
-    
+
     # Bad scale (too small - Gaussians too narrow)
     result_bad = solve_ECG(ops, 15; scale = 0.05, verbose = false)
-    
+
     # Good scale should give better (lower) energy
     @test result_good.ground_state < result_bad.ground_state
 end
@@ -571,9 +571,9 @@ end
         w_raw = [U' * [1.0, -1.0]]
         coulomb = CoulombOperator(-1.0, w_raw[1])
         ops = Operator[kin, coulomb]
-        
+
         result = solve_ECG(ops, 10; scale = 1.0, verbose = false)
-        
+
         @test length(result.basis_functions) == result.n_basis
         @test length(result.energies) == result.n_basis
         @test result.ground_state == last(result.energies)
@@ -588,10 +588,10 @@ end
         w_raw = [U' * [1.0, -1.0]]
         coulomb = CoulombOperator(-1.0, w_raw[1])
         ops = Operator[kin, coulomb]
-        
+
         # Request many basis functions but limit attempts
         result = solve_ECG(ops, 1000; scale = 1.0, max_attempts = 50, verbose = false)
-        
+
         @test result.n_basis <= 50
     end
 
@@ -603,10 +603,10 @@ end
         w_raw = [U' * [1.0, -1.0]]
         coulomb = CoulombOperator(-1.0, w_raw[1])
         ops = Operator[kin, coulomb]
-        
+
         # Very strict threshold should cause rejections
         result = solve_ECG(ops, 10; scale = 1.0, threshold = 0.5, verbose = false)
-        
+
         # Should still produce valid results
         @test result.n_basis >= 1
         @test isfinite(result.ground_state)

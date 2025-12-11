@@ -150,8 +150,8 @@ function is_linearly_independent(
 end
 
 function default_scale(masses::Vector{<:Real})
-    μ = minimum(masses[masses .< 1e10])  
-    return 1 / sqrt(μ) 
+    μ = minimum(masses[masses .< 1.0e10])
+    return 1 / sqrt(μ)
 end
 
 function solve_ECG(
@@ -162,7 +162,7 @@ function solve_ECG(
         scale::Real = 0.2,
         threshold::Real = 0.95,
         max_attempts::Int = 10 * n,
-        max_condition::Real = 1e12,
+        max_condition::Real = 1.0e12,
         verbose::Bool = true
     )
 
@@ -207,14 +207,14 @@ function solve_ECG(
 
             # Check for NaN/Inf BEFORE eigensolve
             if any(!isfinite, H)
-                @warn "Hamiltonian contains NaN/Inf at step $(n_accepted+1), rejecting basis function"
+                @warn "Hamiltonian contains NaN/Inf at step $(n_accepted + 1), rejecting basis function"
                 pop!(basis_fns)
                 n_rejected += 1
                 continue
             end
 
             if any(!isfinite, S)
-                @warn "Overlap contains NaN/Inf at step $(n_accepted+1), rejecting basis function"
+                @warn "Overlap contains NaN/Inf at step $(n_accepted + 1), rejecting basis function"
                 pop!(basis_fns)
                 n_rejected += 1
                 continue
@@ -223,7 +223,7 @@ function solve_ECG(
             # Check condition number
             cond_S = cond(Symmetric(S))
             if cond_S > max_condition
-                @warn "Overlap poorly conditioned (κ=$cond_S) at step $(n_accepted+1), rejecting"
+                @warn "Overlap poorly conditioned (κ=$cond_S) at step $(n_accepted + 1), rejecting"
                 pop!(basis_fns)
                 n_rejected += 1
                 continue
@@ -233,7 +233,7 @@ function solve_ECG(
             λs, Us = solve_generalized_eigenproblem(H, S; max_condition)
 
         catch e
-            @warn "Failed at step $(n_accepted+1): $e"
+            @warn "Failed at step $(n_accepted + 1): $e"
             pop!(basis_fns)  # Remove problematic function
             n_rejected += 1
             continue

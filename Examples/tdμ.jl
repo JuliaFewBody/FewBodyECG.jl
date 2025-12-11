@@ -21,5 +21,5 @@ scale = default_scale(masses)
 result = solve_ECG(ops, 550, sampler = HaltonSample(); scale = scale)
 println("E ≈ ", result.ground_state)
 
-a,b = correlation_function(result)
+a, b = correlation_function(result)
 conv = FewBodyECG.convergence(result)
