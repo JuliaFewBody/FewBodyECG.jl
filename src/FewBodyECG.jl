@@ -15,7 +15,7 @@ export Operator
 
 export build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem, solve_ECG, convergence
 
-export ψ₀, SolverResults, convergence
+export ψ₀, SolverResults, convergence, correlation_function, ψ
 
 include("types.jl")
 include("coordinates.jl")

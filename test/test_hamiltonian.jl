@@ -3,7 +3,7 @@ using LinearAlgebra
 using FewBodyHamiltonians
 using FewBodyECG
 import FewBodyECG: _compute_overlap_element, _build_operator_matrix, _compute_matrix_element, normalized_overlap, is_linearly_independent
-
+using QuasiMonteCarlo
 
 @testset "build_overlap_matrix" begin
 

@@ -6,13 +6,14 @@ function _qmc_point(i::Int, d::Int; sampler = HaltonSample())
     return QuasiMonteCarlo.sample(i + 1, d, sampler)[:, end]
 end
 
-function generate_bij(method::Symbol, i::Int, n_terms::Int, b1::Float64; qmc_sampler = HaltonSample(), bmin = 0.02 * b1, bmax = 20b1)
+function generate_bij(method::Symbol, i::Int, n_terms::Int, b1::Float64; 
+                      qmc_sampler = HaltonSample(), bmin = 0.02 * b1, bmax = 5.0 * b1)
     bmin > 0 || throw(ArgumentError("bmin must be > 0"))
     bmax > bmin || throw(ArgumentError("bmax must be > bmin"))
     u = method === :quasirandom ? _qmc_point(i, n_terms; sampler = qmc_sampler) :
         method === :random ? rand(n_terms) :
         error("Unsupported method $method")
-    return bmin .* (bmax / bmin) .^ u
+    return bmin .+ (bmax - bmin) .* u  # Now properly uses the range!
 end
 
 function generate_shift(method::Symbol, i::Int, dim::Int, scale::Real; qmc_sampler = HaltonSample())

@@ -36,13 +36,84 @@ function build_hamiltonian_matrix(basis::BasisSet{<:GaussianBase}, operators::Ab
     return H
 end
 
-function solve_generalized_eigenproblem(H::AbstractMatrix{<:Real}, S::AbstractMatrix{<:Real})
-    F = cholesky(Symmetric(S); check = true)
+function solve_generalized_eigenproblem(
+        H::AbstractMatrix{<:Real},
+        S::AbstractMatrix{<:Real};
+        max_condition::Real = 1.0e12,
+        regularization::Real = 0.0
+    )
+
+    if any(!isfinite, H)
+        error("Hamiltonian matrix H contains NaN or Inf values")
+    end
+    if any(!isfinite, S)
+        error("Overlap matrix S contains NaN or Inf values")
+    end
+
+    H_sym = Symmetric((H + H') / 2)
+    S_sym = Symmetric((S + S') / 2)
+
+    cond_S = cond(S_sym)
+    if cond_S > max_condition
+        @warn "Overlap matrix poorly conditioned (κ=$cond_S), adding regularization"
+        if regularization == 0.0
+            regularization = maximum(abs.(diag(S_sym))) * 1.0e-10
+        end
+    end
+
+    if regularization > 0
+        S_sym = S_sym + regularization * I
+    end
+
+    if !isposdef(S_sym)
+        @warn "Overlap matrix not positive definite, adding regularization"
+        ε = maximum(abs.(diag(S_sym))) * 1.0e-8
+        S_sym = S_sym + ε * I
+
+        if !isposdef(S_sym)
+            error("Overlap matrix not positive definite even after regularization")
+        end
+    end
+
+    # Cholesky decomposition with error handling
+    local F
+    try
+        F = cholesky(S_sym)
+    catch e
+        @error "Cholesky decomposition failed" exception = e
+        @error "Overlap matrix info" condition = cond(S_sym) min_eigval = minimum(eigvals(S_sym))
+        rethrow(e)
+    end
+
     L = F.L
-    A = (L \ H) / L'
-    evals, evecs = eigen(Symmetric(A))
+
+    # Transform to standard eigenvalue problem
+    A = (L \ Matrix(H_sym)) / L'
+    A_sym = Symmetric((A + A') / 2)
+
+    # Check for NaN/Inf after transformation
+    if any(!isfinite, A_sym)
+        error("Transformed matrix contains NaN or Inf after Cholesky transformation")
+    end
+
+    # Solve standard eigenvalue problem
+    local evals, evecs
+    try
+        evals, evecs = eigen(A_sym)
+    catch e
+        @error "Eigenvalue decomposition failed" exception = e
+        @error "Transformed matrix info" condition = cond(A_sym)
+        rethrow(e)
+    end
+
+    # Transform eigenvectors back
     vecs = L' \ evecs
-    return real(evals), real(vecs)
+
+    # Ensure real
+    evals_real = real.(evals)
+    vecs_real = real.(vecs)
+
+    return evals_real, vecs_real
 end
 
 function normalized_overlap(A::GaussianBase, B::GaussianBase)
@@ -78,6 +149,11 @@ function is_linearly_independent(
     return true
 end
 
+function default_scale(masses::Vector{<:Real})
+    μ = minimum(masses[masses .< 1e10])  
+    return 1 / sqrt(μ) 
+end
+
 function solve_ECG(
         operators::Vector{<:FewBodyHamiltonians.Operator},
         n::Int = 50;
@@ -86,6 +162,7 @@ function solve_ECG(
         scale::Real = 0.2,
         threshold::Real = 0.95,
         max_attempts::Int = 10 * n,
+        max_condition::Real = 1e12,
         verbose::Bool = true
     )
 
@@ -110,6 +187,7 @@ function solve_ECG(
         s = generate_shift(method, attempt, d, scale; qmc_sampler = sampler)
         candidate = Rank0Gaussian(A, s)
 
+        # Check linear independence
         if !isempty(basis_fns)
             existing_basis = BasisSet{Rank0Gaussian}(basis_fns)
             if !is_linearly_independent(candidate, existing_basis; threshold = threshold)
@@ -120,13 +198,48 @@ function solve_ECG(
         end
 
         push!(basis_fns, candidate)
+
+        local H, S, λs, Us
+        try
+            basis = BasisSet{Rank0Gaussian}(basis_fns)
+            H = build_hamiltonian_matrix(basis, operators)
+            S = build_overlap_matrix(basis)
+
+            # Check for NaN/Inf BEFORE eigensolve
+            if any(!isfinite, H)
+                @warn "Hamiltonian contains NaN/Inf at step $(n_accepted+1), rejecting basis function"
+                pop!(basis_fns)
+                n_rejected += 1
+                continue
+            end
+
+            if any(!isfinite, S)
+                @warn "Overlap contains NaN/Inf at step $(n_accepted+1), rejecting basis function"
+                pop!(basis_fns)
+                n_rejected += 1
+                continue
+            end
+
+            # Check condition number
+            cond_S = cond(Symmetric(S))
+            if cond_S > max_condition
+                @warn "Overlap poorly conditioned (κ=$cond_S) at step $(n_accepted+1), rejecting"
+                pop!(basis_fns)
+                n_rejected += 1
+                continue
+            end
+
+            # Try to solve
+            λs, Us = solve_generalized_eigenproblem(H, S; max_condition)
+
+        catch e
+            @warn "Failed at step $(n_accepted+1): $e"
+            pop!(basis_fns)  # Remove problematic function
+            n_rejected += 1
+            continue
+        end
+
         n_accepted += 1
-
-        basis = BasisSet{Rank0Gaussian}(basis_fns)
-        H = build_hamiltonian_matrix(basis, operators)
-        S = build_overlap_matrix(basis)
-
-        λs, Us = solve_generalized_eigenproblem(H, S)
         E0 = minimum(λs)
 
         push!(E_hist, E0)
