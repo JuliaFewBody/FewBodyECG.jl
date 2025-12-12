@@ -1,7 +1,7 @@
 name = "FewBodyECG"
 uuid = "083b1810-24a1-4a79-9a41-145bb2bb8ceb"
-authors = ["Shuhei Ohno", "Martin Mikkelsen"]
 version = "1.0.5"
+authors = ["Shuhei Ohno", "Martin Mikkelsen"]
 
 [deps]
 FewBodyHamiltonians = "3a126c26-e5d7-4a95-83c3-3b69f8a11ded"

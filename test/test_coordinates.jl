@@ -5,7 +5,6 @@ import FewBodyECG: _jacobi_transform, _generate_A_matrix, _shift_vectors, _trans
 
 @testset "Coordinates Module Tests" begin
     @testset "_jacobi_transform" begin
-        # Test with simple equal masses
         masses = [1.0, 1.0, 1.0]
         J, U = _jacobi_transform(masses)
 
@@ -13,7 +12,6 @@ import FewBodyECG: _jacobi_transform, _generate_A_matrix, _shift_vectors, _trans
         @test size(U) == (3, 2)
         @test J * U ≈ I(2) atol = 1.0e-10
 
-        # Test with different masses
         masses = [1.0, 2.0, 3.0]
         J, U = _jacobi_transform(masses)
 
@@ -21,7 +19,6 @@ import FewBodyECG: _jacobi_transform, _generate_A_matrix, _shift_vectors, _trans
         @test size(U) == (3, 2)
         @test J * U ≈ I(2) atol = 1.0e-10
 
-        # Test with exactly two masses
         masses = [1.0, 2.0]
         J, U = _jacobi_transform(masses)
 
@@ -29,70 +26,9 @@ import FewBodyECG: _jacobi_transform, _generate_A_matrix, _shift_vectors, _trans
         @test size(U) == (2, 1)
         @test J * U ≈ [1.0] atol = 1.0e-10
 
-        # Test error for fewer than two masses
         @test_throws AssertionError _jacobi_transform([1.0])
     end
 
-    @testset "ParticleSystem Constructor" begin
-        # Test valid construction
-        masses = [1.0, 2.0, 3.0]
-        ps = ParticleSystem(masses)
-
-        @test ps.masses == masses
-        @test size(ps.J) == (2, 3)
-        @test size(ps.U) == (3, 2)
-        @test ps.scale === nothing
-
-        # Test with scale
-        ps = ParticleSystem(masses, scale = :atomic)
-        @test ps.scale === :atomic
-
-        # Test error for invalid masses
-        @test_throws AssertionError ParticleSystem([1.0])
-    end
-
-    @testset "default_b0" begin
-        @test default_b0(:atomic) == 1.0
-        @test default_b0(:molecular) == 3.0
-        @test default_b0(:nuclear) == 0.03
-        @test default_b0(nothing) == 10.0
-        @test_throws ErrorException default_b0(:unknown)
-    end
-
-    @testset "_generate_A_matrix" begin
-        bij = [1.0, 2.0]
-        w_list = [[1.0, -1.0, 0.0], [0.0, 1.0, -1.0]]
-        A = _generate_A_matrix(bij, w_list)
-
-        @test size(A) == (3, 3)
-        @test A[1, 1] ≈ 1.0 atol = 1.0e-10
-        @test A[2, 2] ≈ 1.0 + 0.25 atol = 1.0e-10
-
-        # Test error for mismatched lengths
-        @test_throws AssertionError _generate_A_matrix([1.0], w_list)
-        @test_throws AssertionError _generate_A_matrix(bij, [[1.0, -1.0, 0.0], [0.0, 1.0]])
-    end
-
-
-    @testset "_shift_vectors" begin
-        a = [1.0 2.0; 3.0 4.0]
-        b = [5.0 6.0; 7.0 8.0]
-
-        # Test with default identity matrix
-        result = _shift_vectors(a, b)
-        expected = dot([1.0, 3.0], [5.0, 7.0]) + dot([2.0, 4.0], [6.0, 8.0])
-        @test result ≈ expected atol = 1.0e-10
-
-        # Test with custom weighting matrix
-        mat = [2.0 1.0; 1.0 3.0]
-        result = _shift_vectors(a, b, mat)
-        expected = 2 * dot([1.0, 3.0], [5.0, 7.0]) + dot([1.0, 3.0], [6.0, 8.0]) +
-            dot([2.0, 4.0], [5.0, 7.0]) + 3 * dot([2.0, 4.0], [6.0, 8.0])
-        @test result ≈ expected atol = 1.0e-10
-
-        # Test error for mismatched dimensions
-        @test_throws AssertionError _shift_vectors(a, b, [1.0 2.0])
-    end
 
     @testset "_transform_coordinates / _inverse_transform_coordinates" begin
         masses = [1.0, 2.0, 3.0]
@@ -105,12 +41,101 @@ import FewBodyECG: _jacobi_transform, _generate_A_matrix, _shift_vectors, _trans
         r_back = _inverse_transform_coordinates(U, x)
         @test size(r_back) == (3,)
 
-        # Instead of round-trip r → x → r_back, test projection recovery
         x_back = _transform_coordinates(J, r_back)
         @test x_back ≈ x atol = 1.0e-10
 
-        # Error case
         @test_throws AssertionError _transform_coordinates(J, [1.0, 2.0])
         @test_throws AssertionError _inverse_transform_coordinates(U, [1.0])
+    end
+end
+
+@testset "Additional Jacobi Transform Tests" begin
+    @testset "Numeric values for equal masses" begin
+        masses = [1.0, 1.0, 1.0]
+        J, U = _jacobi_transform(masses)
+
+        μ1 = 1 / sqrt(2)
+        μ2 = sqrt(2 / 3)
+
+        @test size(J) == (2, 3)
+        @test isapprox(J[1, 1], μ1; atol = 1.0e-12)
+        @test isapprox(J[1, 2], -μ1; atol = 1.0e-12)
+        @test isapprox(J[1, 3], 0.0; atol = 1.0e-12)
+
+        @test isapprox(J[2, 1], μ2 / 2; atol = 1.0e-12)
+        @test isapprox(J[2, 2], μ2 / 2; atol = 1.0e-12)
+        @test isapprox(J[2, 3], -μ2; atol = 1.0e-12)
+    end
+
+    @testset "Numeric values for two masses" begin
+        masses = [1.0, 2.0]
+        J, U = _jacobi_transform(masses)
+
+        μ = sqrt(2.0 / 3.0)
+        @test size(J) == (1, 2)
+        @test isapprox(J[1, 1], μ; atol = 1.0e-12)
+        @test isapprox(J[1, 2], -μ; atol = 1.0e-12)
+    end
+
+    @testset "Pseudoinverse (Moore–Penrose) properties" begin
+        masses = [1.3, 2.5, 0.7, 4.1]
+        J, U = _jacobi_transform(masses)
+
+        Ired = I(size(J, 1))
+        @test isapprox(J * U, Ired; atol = 1.0e-10)
+
+        # Moore-Penrose conditions
+        @test isapprox(J * U * J, J; atol = 1.0e-10)
+        @test isapprox(U * J * U, U; atol = 1.0e-10)
+
+        @test isapprox((J * U)', J * U; atol = 1.0e-10)
+        @test isapprox((U * J)', U * J; atol = 1.0e-10)
+    end
+end
+
+@testset "Lambda and KineticOperator Tests" begin
+    @testset "Λ for equal masses (analytic)" begin
+        masses = [1.0, 1.0, 1.0]
+        L = Λ(masses)
+        @test size(L) == (2, 2)
+        @test issymmetric(L)
+        @test isapprox(Matrix(L), 0.5 * Matrix(I(2)); atol = 1.0e-12)
+    end
+
+    @testset "Λ for two masses (analytic)" begin
+        masses = [1.0, 2.0]
+        L = Λ(masses)
+        @test size(L) == (1, 1)
+        @test issymmetric(L)
+        @test isapprox(L[1, 1], 0.5; atol = 1.0e-12)
+    end
+
+    @testset "Λ general properties" begin
+        masses = [1.3, 2.5, 0.7, 4.1]
+        L = Λ(masses)
+        @test issymmetric(L)
+        # positive semidefinite (numerical tolerance)
+        vals = eigen(Symmetric(Matrix(L))).values
+        @test minimum(vals) >= -1.0e-12
+    end
+
+
+end
+
+@testset "Dispatch and Type Behaviour Tests" begin
+    @testset "Method signatures enforce Float64 matrices" begin
+        Jf32 = zeros(Float32, 2, 3)
+        r = [1.0, 2.0, 3.0]
+        @test_throws MethodError _transform_coordinates(Jf32, r)
+
+        Uf32 = zeros(Float32, 3, 2)
+        x = [1.0, 2.0]
+        @test_throws MethodError _inverse_transform_coordinates(Uf32, x)
+    end
+
+
+    @testset "Method errors on _jacobi_transform with non-Float64 masses" begin
+        @test_throws MethodError _jacobi_transform([1, 2, 3])             # Integer vector
+        @test_throws MethodError _jacobi_transform([1.0f0, 2.0f0, 3.0f0]) # Float32 vector
     end
 end

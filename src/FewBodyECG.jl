@@ -3,7 +3,7 @@ module FewBodyECG
 using LinearAlgebra
 using FewBodyHamiltonians
 
-export ParticleSystem, default_b0
+export Λ, _jacobi_transform
 
 export generate_bij, _generate_A_matrix
 
@@ -15,7 +15,7 @@ export Operator
 
 export build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem, solve_ECG, convergence
 
-export ψ₀
+export ψ₀, SolverResults, convergence, correlation_function, ψ
 
 include("types.jl")
 include("coordinates.jl")

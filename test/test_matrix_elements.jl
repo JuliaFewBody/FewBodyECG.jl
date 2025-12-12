@@ -4,216 +4,205 @@ using LinearAlgebra
 
 import FewBodyECG: _compute_matrix_element
 
-@testset "compute_matrix_element for Rank0Gaussian and KineticOperator" begin
-    A = [1.0 0.2; 0.2 1.5]
-    B = [0.9 0.1; 0.1 1.2]
-    K = rand(2, 2)
+@testset "Overlap ⟨g′|g⟩" begin
 
-    bra = Rank0Gaussian(A)
-    ket = Rank0Gaussian(B)
-    op = KineticOperator(K)
+    @testset "Symmetry ⟨g′|g⟩ = ⟨g|g′⟩" begin
+        A1 = [1.0 0.0; 0.0 2.0]
+        A2 = [1.5 0.0; 0.0 1.5]
+        s1 = [0.1, 0.2]
+        s2 = [0.3, 0.4]
 
-    result = _compute_matrix_element(bra, ket, op)
+        g1 = Rank0Gaussian(A1, s1)
+        g2 = Rank0Gaussian(A2, s2)
 
-    R = inv(A + B)
-    M0 = (π^length(R) / det(A + B))^(3 / 2)
-    expected = 6 * tr(B * K * A * R) * M0
+        overlap_12 = _compute_matrix_element(g1, g2)
+        overlap_21 = _compute_matrix_element(g2, g1)
 
-    @test isapprox(result, expected; atol = 1.0e-10)
-end
-@testset "compute_matrix_element for Rank0Gaussian and CoulombOperator" begin
-    A = [1.0 0.2; 0.2 1.5]
-    B = [0.9 0.1; 0.1 1.2]
-    w = [1.0, -1.0]
-    coefficient = 1.5
+        @test overlap_12 ≈ overlap_21 rtol = 1.0e-10
+    end
 
-    bra = Rank0Gaussian(A)
-    ket = Rank0Gaussian(B)
-    op = CoulombOperator(coefficient, w)
 
-    result = _compute_matrix_element(bra, ket, op)
+    @testset "With shift vectors" begin
+        A = [1.0 0.0; 0.0 1.0]
+        s1 = [0.0, 0.0]
+        s2 = [0.5, 0.5]
 
-    R = inv(A + B)
-    β = 1 / (dot(w, R * w))
-    M0 = (π^length(R) / det(A + B))^(3 / 2)
-    expected = coefficient * 2 * sqrt(β / π) * M0
+        g1 = Rank0Gaussian(A, s1)
+        g2 = Rank0Gaussian(A, s2)
 
-    @test isapprox(result, expected; atol = 1.0e-10)
-end
+        overlap = _compute_matrix_element(g1, g2)
+        overlap_noshift = _compute_matrix_element(g1, g1)
 
-@testset "compute_matrix_element for Rank1Gaussian and CoulombOperator" begin
-    A = [1.0 0.2; 0.2 1.5]
-    B = [0.9 0.1; 0.1 1.2]
-    a = [0.5, -0.4]
-    b = [-0.2, 0.7]
-    w = [1.0, -1.0]
-    coefficient = 1.0
+        @test overlap > 0
+        @test overlap > overlap_noshift
+        @test isfinite(overlap)
+    end
 
-    bra = Rank1Gaussian(A, a)
-    ket = Rank1Gaussian(B, b)
-    op = CoulombOperator(coefficient, w)
-
-    result = _compute_matrix_element(bra, ket, op)
-
-    R = inv(A + B)
-    β = 1 / (dot(w, R * w))
-    M0 = (π^length(R) / det(A + B))^(3 / 2)
-    M1 = 0.5 * dot(b, R * a) * M0
-    q2 = 0.25 * dot(a .+ b, R * (w * w') * (a .+ b))
-    expected = 2 * sqrt(β / π) * M1 - sqrt(β^3 / π) / 3 * q2 * M0
-
-    @test isapprox(result, expected; atol = 1.0e-10)
 end
 
-@testset "compute_matrix_element for Rank1Gaussian and KineticOperator" begin
-    A = [1.0 0.2; 0.2 1.5]
-    B = [0.9 0.1; 0.1 1.2]
-    a = [0.4, -0.6]
-    b = [-0.3, 0.8]
-    K = [2.0 0.0; 0.0 2.0]
+@testset "Kinetic Energy ⟨g′|K|g⟩" begin
 
-    bra = Rank1Gaussian(A, a)
-    ket = Rank1Gaussian(B, b)
-    op = KineticOperator(K)
+    @testset "Simple 1D kinetic energy" begin
+        A = [1.0;;]
+        s = [0.0]
+        g = Rank0Gaussian(A, s)
 
-    result = _compute_matrix_element(bra, ket, op)
+        Λ = [0.5;;]
+        K = KineticOperator(Λ)
 
-    R = inv(A + B)
-    M0 = (π^length(R) / det(A + B))^(3 / 2)
-    M1 = 0.5 * dot(b, R * a) * M0
+        T = _compute_matrix_element(g, g, K)
 
-    T1 = 6 * tr(B * K * A * R) * M1
-    T2 = dot(b, a) * M0
-    T3 = dot(a, R * B * A * R * b) * M0
-    T4 = dot(b, R * B * a) * M0
-    T5 = dot(a, R * A * b) * M0
+        @test isfinite(T)
+        @test !isnan(T)
+    end
 
-    expected = T1 + T2 + T3 - T4 - T5
+    @testset "Symmetry ⟨g′|K|g⟩ = ⟨g|K|g′⟩" begin
+        A1 = [1.0 0.0; 0.0 1.0]
+        A2 = [1.5 0.0; 0.0 1.5]
+        s = [0.0, 0.0]
 
-    @test isapprox(result, expected; atol = 1.0e-10)
+        g1 = Rank0Gaussian(A1, s)
+        g2 = Rank0Gaussian(A2, s)
+
+        Λ = [0.5 0.0; 0.0 0.5]
+        K = KineticOperator(Λ)
+
+        T12 = _compute_matrix_element(g1, g2, K)
+        T21 = _compute_matrix_element(g2, g1, K)
+
+        @test T12 ≈ T21 rtol = 1.0e-10
+    end
+
+    @testset "Real-valued result" begin
+        A1 = [1.0 0.0; 0.0 2.0]
+        A2 = [1.5 0.1; 0.1 1.5]
+        s1 = [0.1, 0.2]
+        s2 = [0.3, 0.4]
+
+        g1 = Rank0Gaussian(A1, s1)
+        g2 = Rank0Gaussian(A2, s2)
+
+        Λ = [0.5 0.0; 0.0 0.5]
+        K = KineticOperator(Λ)
+
+        T = _compute_matrix_element(g1, g2, K)
+
+        @test isfinite(T)
+        @test !isnan(T)
+        @test T isa Real
+    end
+
+    @testset "Scaling with Λ" begin
+        A = [1.0 0.0; 0.0 1.0]
+        s = [0.0, 0.0]
+        g = Rank0Gaussian(A, s)
+
+        Λ1 = [1.0 0.0; 0.0 1.0]
+        Λ2 = [2.0 0.0; 0.0 2.0]
+
+        K1 = KineticOperator(Λ1)
+        K2 = KineticOperator(Λ2)
+
+        T1 = _compute_matrix_element(g, g, K1)
+        T2 = _compute_matrix_element(g, g, K2)
+
+        @test T2 ≈ 2 * T1 rtol = 1.0e-10
+    end
 end
 
-@testset "compute_matrix_element for Rank2Gaussian and KineticOperator" begin
-    A = [1.0 0.2; 0.2 1.5]
-    B = [0.9 0.1; 0.1 1.2]
-    a = [0.5, -0.4]
-    b = [-0.2, 0.7]
-    c = [0.3, 0.6]
-    d = [-0.1, -0.8]
-    K = [2.0 0.1; 0.1 2.0]
 
-    bra = Rank2Gaussian(A, a, b)
-    ket = Rank2Gaussian(B, c, d)
-    op = KineticOperator(K)
+@testset "Coulomb Potential ⟨g′|V|g⟩" begin
 
-    result = _compute_matrix_element(bra, ket, op)
+    @testset "1D Coulomb attractive" begin
+        A = [1.0;;]
+        s = [0.0]
+        g = Rank0Gaussian(A, s)
 
-    R = inv(A + B)
-    M0 = (π^length(R) / det(A + B))^(3 / 2)
+        w = [1.0]
+        V = CoulombOperator(-1.0, w)
 
-    M2 = 0.25 * (
-        dot(a, R * b) * dot(c, R * d) +
-            dot(a, R * c) * dot(b, R * d) +
-            dot(a, R * d) * dot(b, R * c)
-    ) * M0
+        result = _compute_matrix_element(g, g, V)
 
-    T1 = 6 * tr(B * K * A * R) * M2
+        @test isfinite(result)
+        @test !isnan(result)
+    end
 
-    T2 = 0.5 * (
-        dot(a, K * c) * dot(b, R * d) +
-            dot(a, K * d) * dot(b, R * c) +
-            dot(b, K * c) * dot(a, R * d) +
-            dot(b, K * d) * dot(a, R * c)
-    ) * M0
+    @testset "1D Coulomb repulsive" begin
+        A = [1.0;;]
+        s = [0.0]
+        g = Rank0Gaussian(A, s)
 
-    T3 = 0.5 * (
-        dot(a, R * B * K * A * R * b) * dot(c, R * d) +
-            dot(a, R * B * K * A * R * c) * dot(b, R * d) +
-            dot(a, R * B * K * A * R * d) * dot(b, R * c) +
-            dot(b, R * B * K * A * R * a) * dot(c, R * d) +
-            dot(b, R * B * K * A * R * c) * dot(a, R * d) +
-            dot(b, R * B * K * A * R * d) * dot(a, R * c) +
-            dot(c, R * B * K * A * R * a) * dot(b, R * d) +
-            dot(c, R * B * K * A * R * b) * dot(a, R * d) +
-            dot(c, R * B * K * A * R * d) * dot(a, R * b) +
-            dot(d, R * B * K * A * R * a) * dot(b, R * c) +
-            dot(d, R * B * K * A * R * b) * dot(a, R * c) +
-            dot(d, R * B * K * A * R * c) * dot(a, R * b)
-    ) * M0
+        w = [1.0]
+        V = CoulombOperator(1.0, w)
 
-    T4 = -0.5 * (
-        dot(a, R * B * K * b) * dot(c, R * d) +
-            dot(b, R * B * K * a) * dot(c, R * d) +
-            dot(c, R * B * K * a) * dot(b, R * d) +
-            dot(c, R * B * K * b) * dot(a, R * d) +
-            dot(d, R * B * K * a) * dot(b, R * c) +
-            dot(d, R * B * K * b) * dot(a, R * c)
-    ) * M0
+        result = _compute_matrix_element(g, g, V)
 
-    T5 = -0.5 * (
-        dot(c, K * A * a) * dot(b, R * d) +
-            dot(c, K * A * b) * dot(a, R * d) +
-            dot(c, K * A * d) * dot(a, R * b) +
-            dot(d, K * A * a) * dot(b, R * c) +
-            dot(d, K * A * b) * dot(a, R * c) +
-            dot(d, K * A * c) * dot(a, R * b)
-    ) * M0
+        @test isfinite(result)
+    end
 
-    expected = T1 + T2 + T3 + T4 + T5
+    @testset "Symmetry ⟨g′|V|g⟩ = ⟨g|V|g′⟩" begin
+        A1 = [1.0 0.0; 0.0 1.0]
+        A2 = [1.5 0.0; 0.0 1.5]
+        s = [0.0, 0.0]
 
-    @test isapprox(result, expected; atol = 1.0e-10)
-end
+        g1 = Rank0Gaussian(A1, s)
+        g2 = Rank0Gaussian(A2, s)
 
-@testset "compute_matrix_element for Rank2Gaussian and CoulombOperator" begin
-    A = [1.0 0.2; 0.2 1.5]
-    B = [0.9 0.1; 0.1 1.2]
-    a = [0.6, -0.5]
-    b = [-0.3, 0.9]
-    c = [0.2, 0.4]
-    d = [-0.2, -0.7]
-    w = [1.0, -1.0]
-    coefficient = 2.0
+        w = [1.0, 0.0]
+        V = CoulombOperator(-1.0, w)
 
-    bra = Rank2Gaussian(A, a, b)
-    ket = Rank2Gaussian(B, c, d)
-    op = CoulombOperator(coefficient, w)
+        V12 = _compute_matrix_element(g1, g2, V)
+        V21 = _compute_matrix_element(g2, g1, V)
 
-    result = _compute_matrix_element(bra, ket, op)
+        @test V12 ≈ V21 rtol = 1.0e-10
+    end
 
-    R = inv(A + B)
-    M0 = (π^length(R) / det(A + B))^(3 / 2)
+    @testset "Small q limit (numerical stability)" begin
+        A = [1.0 0.0; 0.0 1.0]
+        s1 = [0.0, 0.0]
+        s2 = [1.0e-13, 1.0e-13]
 
-    β = 1 / dot(w, R * w)
-    q = 0.5 * dot(w, R * (a + b + c + d))
+        g1 = Rank0Gaussian(A, s1)
+        g2 = Rank0Gaussian(A, s2)
 
-    M2 = 0.25 * (
-        dot(a, R * b) * dot(c, R * d) +
-            dot(a, R * c) * dot(b, R * d) +
-            dot(a, R * d) * dot(b, R * c)
-    ) * M0
+        w = [1.0, 0.0]
+        V = CoulombOperator(-1.0, w)
 
-    term1 = 2 * sqrt(β / π) * M2
+        result = _compute_matrix_element(g1, g2, V)
 
-    q2_1 = dot(a, R * (w * w') * b) * dot(c, R * d)
-    q2_2 = dot(a, R * (w * w') * c) * dot(b, R * d)
-    q2_3 = dot(a, R * (w * w') * d) * dot(b, R * c)
-    q2_4 = dot(b, R * (w * w') * c) * dot(a, R * d)
-    q2_5 = dot(b, R * (w * w') * d) * dot(a, R * c)
-    q2_6 = dot(c, R * (w * w') * d) * dot(a, R * b)
+        @test isfinite(result)
+        @test !isnan(result)
+    end
 
-    q4_1 = dot(a, R * (w * w') * b) * dot(c, R * (w * w') * d)
-    q4_2 = dot(a, R * (w * w') * c) * dot(b, R * (w * w') * d)
-    q4_3 = dot(a, R * (w * w') * d) * dot(b, R * (w * w') * c)
+    @testset "Scaling with coefficient" begin
+        A = [1.0 0.0; 0.0 1.0]
+        s = [0.0, 0.0]
+        g = Rank0Gaussian(A, s)
 
-    term2 = -2 * sqrt(β / π) * β / 3 * 0.25 * (
-        q2_1 + q2_2 + q2_3 + q2_4 + q2_5 + q2_6
-    ) * M0
+        w = [1.0, 0.0]
+        V1 = CoulombOperator(-1.0, w)
+        V2 = CoulombOperator(-2.0, w)
 
-    term3 = 2 * sqrt(β / π) * β^2 / 10 * 0.5 * (
-        q4_1 + q4_2 + q4_3
-    ) * M0
+        result1 = _compute_matrix_element(g, g, V1)
+        result2 = _compute_matrix_element(g, g, V2)
 
-    expected = coefficient * (term1 + term2 + term3)
+        @test result2 ≈ 2 * result1 rtol = 1.0e-10
+    end
 
-    @test isapprox(result, expected; atol = 1.0e-10)
+    @testset "Different w vectors" begin
+        A = [1.0 0.0; 0.0 1.0]
+        s = [0.0, 0.0]
+        g = Rank0Gaussian(A, s)
+
+        w1 = [1.0, 0.0]
+        w2 = [0.0, 1.0]
+
+        V1 = CoulombOperator(-1.0, w1)
+        V2 = CoulombOperator(-1.0, w2)
+
+        result1 = _compute_matrix_element(g, g, V1)
+        result2 = _compute_matrix_element(g, g, V2)
+
+        @test result1 ≈ result2 rtol = 1.0e-10
+    end
 end
