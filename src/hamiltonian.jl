@@ -1,10 +1,32 @@
 using FewBodyHamiltonians
 using QuasiMonteCarlo
 
-function _compute_overlap_element(bra::GaussianBase, ket::GaussianBase)
-    A, B = bra.A, ket.A
-    R = inv(A + B)
-    return (π^length(R) / det(A + B))^(3 / 2)
+# Eq. 8: Rank-0 overlap M₀
+function _compute_overlap_element(bra::Rank0Gaussian, ket::Rank0Gaussian)
+    R = inv(bra.A + ket.A)
+    n = size(R, 1)
+    return (π^n / det(bra.A + ket.A))^(3 / 2)
+end
+
+# Eq. 16: Rank-1 overlap M₁ = ½ bᵀRa M₀
+function _compute_overlap_element(bra::Rank1Gaussian, ket::Rank1Gaussian)
+    R = inv(bra.A + ket.A)
+    n = size(R, 1)
+    M0 = (π^n / det(bra.A + ket.A))^(3 / 2)
+    return 0.5 * dot(bra.a, R * ket.a) * M0
+end
+
+# Eq. 33: Rank-2 overlap M₂
+function _compute_overlap_element(bra::Rank2Gaussian, ket::Rank2Gaussian)
+    R = inv(bra.A + ket.A)
+    n = size(R, 1)
+    M0 = (π^n / det(bra.A + ket.A))^(3 / 2)
+    a, b, c, d = bra.a, bra.b, ket.a, ket.b
+    return 0.25 * (
+        dot(a, R * b) * dot(c, R * d) +
+            dot(a, R * c) * dot(b, R * d) +
+            dot(a, R * d) * dot(b, R * c)
+    ) * M0
 end
 
 function build_overlap_matrix(basis::BasisSet)

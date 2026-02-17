@@ -9,5 +9,6 @@ using FewBodyECG
     include("test_coordinates.jl")
     include("test_matrix_elements.jl")
     include("test_hamiltonian.jl")
+    include("test_hydrogen.jl")
 
 end

@@ -16,7 +16,7 @@ import FewBodyECG: _compute_overlap_element, _build_operator_matrix, _compute_ma
         val = _compute_overlap_element(bra, ket)
 
         R = inv(A + B)
-        n = length(R)
+        n = size(R, 1)
         expected = (π^n / det(A + B))^(3 / 2)
 
         @test isapprox(val, expected; atol = 1.0e-10)
