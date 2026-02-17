@@ -16,16 +16,18 @@ end
 
 # Common setup for hydrogen atom (2-body: infinite mass nucleus + electron)
 masses = [1.0e15, 1.0]
-psys = ParticleSystem(masses)
-K_phys = Diagonal([0.0, 0.5])
-K_transformed = psys.J * K_phys * psys.J'
-w_raw = [psys.U' * [1, -1]]
+Λmat = Λ(masses)
+K_transformed = Λmat
+J, U = _jacobi_transform(masses)
+w_raw = [U' * [1, -1]]
 coeffs = [-1.0]
 
 ops = FewBodyECG.Operator[
     KineticOperator(K_transformed);
     (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
 ]
+
+s_zero = [0.0]
 
 @testset "Hydrogen s-wave (Rank0) convergence" begin
     n_basis = 20
@@ -36,7 +38,7 @@ ops = FewBodyECG.Operator[
     for i in 1:n_basis
         bij = generate_bij(:quasirandom, i, length(w_raw), b1; qmc_sampler = SobolSample())
         A = _generate_A_matrix(bij, w_raw)
-        push!(basis_fns, Rank0Gaussian(A))
+        push!(basis_fns, Rank0Gaussian(A, s_zero))
 
         basis = BasisSet(basis_fns)
         H = build_hamiltonian_matrix(basis, ops)
@@ -53,7 +55,7 @@ end
     # p-wave (2p state) needs wider Gaussians than s-wave, so use manual α values
     a_vec = [1.0]
     alphas = [0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0]
-    basis_fns = [Rank1Gaussian([α;;], a_vec) for α in alphas]
+    basis_fns = [Rank1Gaussian([α;;], a_vec, s_zero) for α in alphas]
 
     basis = BasisSet(basis_fns)
     H = build_hamiltonian_matrix(basis, ops)
@@ -71,7 +73,7 @@ end
     a_vec = [1.0]
     b_vec = [1.0]
     alphas = [0.1, 0.5, 1.0, 3.0]
-    basis_fns = [Rank2Gaussian([α;;], a_vec, b_vec) for α in alphas]
+    basis_fns = [Rank2Gaussian([α;;], a_vec, b_vec, s_zero) for α in alphas]
 
     basis = BasisSet(basis_fns)
     H = build_hamiltonian_matrix(basis, ops)
@@ -88,8 +90,8 @@ end
     a = [1.0]
     b = [1.0]
 
-    bra = Rank1Gaussian(A, a)
-    ket = Rank1Gaussian(B, b)
+    bra = Rank1Gaussian(A, a, s_zero)
+    ket = Rank1Gaussian(B, b, s_zero)
     val = _compute_overlap_element(bra, ket)
 
     R = inv(A + B)
@@ -106,8 +108,8 @@ end
     c = [1.0]
     d = [1.0]
 
-    bra = Rank2Gaussian(A, a, b_vec)
-    ket = Rank2Gaussian(B, c, d)
+    bra = Rank2Gaussian(A, a, b_vec, s_zero)
+    ket = Rank2Gaussian(B, c, d, s_zero)
     val = _compute_overlap_element(bra, ket)
 
     R = inv(A + B)
@@ -129,8 +131,8 @@ end
     C_op = CoulombOperator(-1.0, w_raw[1])
 
     # Rank1 symmetry
-    bra1 = Rank1Gaussian(A, a)
-    ket1 = Rank1Gaussian(B, b)
+    bra1 = Rank1Gaussian(A, a, s_zero)
+    ket1 = Rank1Gaussian(B, b, s_zero)
     import FewBodyECG: _compute_matrix_element
     @test isapprox(
         _compute_matrix_element(bra1, ket1, K_op),
@@ -144,8 +146,8 @@ end
     )
 
     # Rank2 symmetry
-    bra2 = Rank2Gaussian(A, a, b)
-    ket2 = Rank2Gaussian(B, a, b)
+    bra2 = Rank2Gaussian(A, a, b, s_zero)
+    ket2 = Rank2Gaussian(B, a, b, s_zero)
     @test isapprox(
         _compute_matrix_element(bra2, ket2, K_op),
         _compute_matrix_element(ket2, bra2, K_op);
