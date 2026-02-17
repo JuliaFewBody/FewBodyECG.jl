@@ -40,6 +40,95 @@ import FewBodyECG: _compute_matrix_element
 
 end
 
+@testset "Rank1/Rank2 matrix elements" begin
+
+    @testset "Rank1 overlap supports shifts" begin
+        A = [1.0 0.2; 0.2 1.5]
+        s1 = [0.1, -0.3]
+        s2 = [-0.2, 0.4]
+        p = [0.6, -0.1]
+        q = [-0.3, 0.8]
+
+        g1 = Rank1Gaussian(A, p, s1)
+        g2 = Rank1Gaussian(A, q, s2)
+
+        val = _compute_matrix_element(g1, g2)
+
+        S = A + A
+        R = inv(S)
+        t = s1 + s2
+        Rt = R * t
+        n = size(R, 1)
+        I0 = exp(0.25 * t' * R * t) * (π^n / det(S))^(3 / 2)
+        expected = (0.5 * dot(p, R * q) + 0.25 * dot(p, Rt) * dot(q, Rt)) * I0
+
+        @test isapprox(val, expected; rtol = 1.0e-12, atol = 1.0e-12)
+        @test isapprox(val, _compute_matrix_element(g2, g1); rtol = 1.0e-12, atol = 1.0e-12)
+    end
+
+    @testset "Rank1 kinetic/coulomb (zero shifts)" begin
+        A = [1.0 0.1; 0.1 1.2]
+        s = [0.0, 0.0]
+        p = [0.7, -0.2]
+        q = [-0.4, 0.3]
+
+        g1 = Rank1Gaussian(A, p, s)
+        g2 = Rank1Gaussian(A, q, s)
+
+        K = KineticOperator([0.5 0.0; 0.0 0.6])
+        V = CoulombOperator(-1.0, [1.0, 0.0])
+
+        T12 = _compute_matrix_element(g1, g2, K)
+        T21 = _compute_matrix_element(g2, g1, K)
+        V12 = _compute_matrix_element(g1, g2, V)
+        V21 = _compute_matrix_element(g2, g1, V)
+
+        @test isfinite(T12) && isfinite(V12)
+        @test isapprox(T12, T21; rtol = 1.0e-10)
+        @test isapprox(V12, V21; rtol = 1.0e-10)
+    end
+
+    @testset "Rank2 overlap symmetry" begin
+        A = [1.1 0.2; 0.2 1.4]
+        s = [0.0, 0.0]
+        a = [0.5, -0.4]
+        b = [-0.2, 0.7]
+        c = [0.3, 0.6]
+        d = [-0.1, -0.8]
+
+        g1 = Rank2Gaussian(A, a, b, s)
+        g2 = Rank2Gaussian(A, c, d, s)
+
+        S12 = _compute_matrix_element(g1, g2)
+        S21 = _compute_matrix_element(g2, g1)
+
+        @test isfinite(S12)
+        @test isapprox(S12, S21; rtol = 1.0e-12)
+    end
+
+    @testset "Rank2 kinetic/coulomb (zero shifts)" begin
+        A = [1.0 0.2; 0.2 1.5]
+        B = [0.9 0.1; 0.1 1.2]
+        s = [0.0, 0.0]
+        a = [0.5, -0.4]
+        b = [-0.2, 0.7]
+        c = [0.3, 0.6]
+        d = [-0.1, -0.8]
+
+        g1 = Rank2Gaussian(A, a, b, s)
+        g2 = Rank2Gaussian(B, c, d, s)
+
+        K = KineticOperator([0.5 0.0; 0.0 0.6])
+        V = CoulombOperator(1.0, [1.0, 0.0])
+
+        T = _compute_matrix_element(g1, g2, K)
+        Vval = _compute_matrix_element(g1, g2, V)
+
+        @test isfinite(T)
+        @test isfinite(Vval)
+    end
+end
+
 @testset "Kinetic Energy ⟨g′|K|g⟩" begin
 
     @testset "Simple 1D kinetic energy" begin
