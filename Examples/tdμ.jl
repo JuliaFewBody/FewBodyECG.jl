@@ -5,8 +5,6 @@ using Random
 
 import FewBodyECG: _generate_A_matrix
 
-# ── System setup ─────────────────────────────────────────────────────────────
-
 masses = [5496.918, 3670.481, 206.7686]
 
 Λmat = Λ(masses)
@@ -14,13 +12,10 @@ kin = KineticOperator(Λmat)
 
 J, U = _jacobi_transform(masses)
 
-# Weight vectors for each particle pair (in particle coordinates)
 w_pairs = [[1, -1, 0], [1, 0, -1], [0, 1, -1]]
 
-# Transform to Jacobi coordinates
 w_jac = [U' * Float64.(w) for w in w_pairs]
 
-# Charge products: q₁q₂ = +1, q₁q₃ = -1, q₂q₃ = -1
 coeffs = [+1.0, -1.0, -1.0]
 
 ops = Operator[kin; [CoulombOperator(c, w) for (c, w) in zip(coeffs, w_jac)]...]
@@ -31,15 +26,13 @@ n_pairs = length(w_jac)
 d = length(w_jac[1])
 s_zero = zeros(d)
 
-# ── Sampling: paper uses bij = u × b₀ (eq 5) ───────────────────────────────
-
 function make_points(n_max, n_pairs; method = :quasi)
     if method === :quasi
-        # Halton sequence = Van der Corput with bases 2, 3, 5 (matches paper)
+        # Halton sequence = Van der Corput with bases 2, 3, 5
         return [QuasiMonteCarlo.sample(i + 1, n_pairs, HaltonSample())[:, end]
                 for i in 1:n_max]
     else
-        Random.seed!(13)  # Paper seeds to 13
+        Random.seed!(13)
         return [rand(n_pairs) for _ in 1:n_max]
     end
 end
@@ -65,12 +58,6 @@ function compute_energy(points, n_basis, b₀)
     end
 end
 
-# ── Experiment 1: Energy vs scale factor b₀ (Fig 2) ─────────────────────────
-
-println("=" ^ 60)
-println("Experiment 1: Energy vs scale factor b₀ (180 Gaussians)")
-println("=" ^ 60)
-
 n_basis = 180
 b₀_values = range(0.02, 0.04, length = 15)
 
@@ -88,7 +75,6 @@ for b₀ in b₀_values
     println("  b₀ = $(round(b₀; digits=4)):  quasi = $(round(Eq; digits=4)),  pseudo = $(round(Ep; digits=4))")
 end
 
-# Relative error (E - Eₓ)/|Eₓ|
 rel_quasi = @. (E_quasi_b₀ - E_exact) / abs(E_exact)
 rel_pseudo = @. (E_pseudo_b₀ - E_exact) / abs(E_exact)
 
@@ -102,23 +88,15 @@ plot!(p1, b₀_values, rel_quasi,
 
 display(p1)
 
-# Find optimal scale factor
 b₀_opt_quasi = b₀_values[argmin(E_quasi_b₀)]
 b₀_opt_pseudo = b₀_values[argmin(E_pseudo_b₀)]
 println("\nOptimal b₀ (quasi):  $b₀_opt_quasi → E = $(minimum(E_quasi_b₀))")
 println("Optimal b₀ (pseudo): $b₀_opt_pseudo → E = $(minimum(E_pseudo_b₀))")
 println("Exact:                           Eₓ = $E_exact")
 
-# ── Experiment 2: Energy vs basis size n (Fig 3) ─────────────────────────────
-
-println("\n" * "=" ^ 60)
-println("Experiment 2: Energy vs basis size (optimal b₀ = $b₀_opt_quasi)")
-println("=" ^ 60)
-
 b₀_opt = b₀_opt_quasi
 n_values = 100:10:200
 
-# Pre-generate enough points for the largest basis
 n_max = maximum(n_values)
 quasi_pts_big = make_points(n_max, n_pairs; method = :quasi)
 pseudo_pts_big = make_points(n_max, n_pairs; method = :pseudo)
@@ -134,7 +112,6 @@ for n in n_values
     push!(E_quasi_n, Eq)
     push!(E_pseudo_n, Ep)
 
-    # Keep the best result for correlation function
     if Eq == minimum(E_quasi_n)
         global best_vecs = vecq
         global best_n = n
@@ -155,12 +132,6 @@ plot!(p2, collect(n_values), rel_quasi_n,
     label = "quasi", marker = :circle, ls = :solid, lw = 1.5)
 
 display(p2)
-
-# ── Correlation function from the best result ────────────────────────────────
-
-println("\n" * "=" ^ 60)
-println("Correlation function (best quasi-random result)")
-println("=" ^ 60)
 
 best_fns = [Rank0Gaussian(_generate_A_matrix(quasi_pts_big[i] .* b₀_opt, w_jac), s_zero)
              for i in 1:best_n]
