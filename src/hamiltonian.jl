@@ -1,7 +1,7 @@
 using FewBodyHamiltonians
 using LinearAlgebra
 
-function _compute_overlap_element(bra::Rank0Gaussian, ket::Rank0Gaussian)
+function _compute_overlap_element(bra::GaussianBase, ket::GaussianBase)
     return _compute_matrix_element(bra, ket)
 end
 
@@ -9,7 +9,7 @@ function build_overlap_matrix(basis::BasisSet{<:GaussianBase})
     n = length(basis.functions)
     S = Matrix{Float64}(undef, n, n)
     for i in 1:n, j in 1:i
-        val = _compute_overlap_element(basis.functions[i]::Rank0Gaussian, basis.functions[j]::Rank0Gaussian)
+        val = _compute_overlap_element(basis.functions[i], basis.functions[j])
         S[i, j] = val
         S[j, i] = val
     end
@@ -20,7 +20,7 @@ function _build_operator_matrix(basis::BasisSet{<:GaussianBase}, op::FewBodyHami
     n = length(basis.functions)
     H = Matrix{Float64}(undef, n, n)
     for i in 1:n, j in 1:i
-        val = _compute_matrix_element(basis.functions[i]::Rank0Gaussian, basis.functions[j]::Rank0Gaussian, op)
+        val = _compute_matrix_element(basis.functions[i], basis.functions[j], op)
         H[i, j] = val
         H[j, i] = val
     end

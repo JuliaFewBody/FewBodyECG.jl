@@ -5,3 +5,5 @@ src/test.jl
 .vscode
 docs/build/
 Manifest.toml
+.claude
+CLAUDE.md
