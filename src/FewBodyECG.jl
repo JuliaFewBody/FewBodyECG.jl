@@ -17,12 +17,15 @@ export build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenpr
 
 export ψ₀, SolverResults, convergence, correlation_function, ψ
 
+export solve_ECG_variational
+
 include("types.jl")
 include("coordinates.jl")
 include("matrix_elements.jl")
 include("hamiltonian.jl")
 include("sampling.jl")
 include("utils.jl")
+include("variational.jl")
 
 
 end

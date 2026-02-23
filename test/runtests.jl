@@ -12,5 +12,6 @@ using FewBodyECG
     include("test_hydrogen.jl")
     include("test_utils.jl")
     include("test_types.jl")
+    include("test_variational.jl")
 
 end

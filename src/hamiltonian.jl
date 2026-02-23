@@ -7,7 +7,8 @@ end
 
 function build_overlap_matrix(basis::BasisSet{<:GaussianBase})
     n = length(basis.functions)
-    S = Matrix{Float64}(undef, n, n)
+    T = eltype(parent(first(basis.functions).A))
+    S = Matrix{T}(undef, n, n)
     for i in 1:n, j in 1:i
         val = _compute_overlap_element(basis.functions[i], basis.functions[j])
         S[i, j] = val
@@ -18,7 +19,8 @@ end
 
 function _build_operator_matrix(basis::BasisSet{<:GaussianBase}, op::FewBodyHamiltonians.Operator)
     n = length(basis.functions)
-    H = Matrix{Float64}(undef, n, n)
+    T = eltype(parent(first(basis.functions).A))
+    H = Matrix{T}(undef, n, n)
     for i in 1:n, j in 1:i
         val = _compute_matrix_element(basis.functions[i], basis.functions[j], op)
         H[i, j] = val
@@ -29,7 +31,8 @@ end
 
 function build_hamiltonian_matrix(basis::BasisSet{<:GaussianBase}, operators::AbstractVector{<:FewBodyHamiltonians.Operator})
     n = length(basis.functions)
-    H = zeros(Float64, n, n)
+    T = eltype(parent(first(basis.functions).A))
+    H = zeros(T, n, n)
     for op in operators
         H .+= _build_operator_matrix(basis, op)
     end

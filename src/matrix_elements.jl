@@ -7,7 +7,7 @@ Compute the matrix element ⟨bra|op|ket⟩ using analytic expressions.
 """
 
 function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian)
-    A, B = bra.A, ket.A
+    A, B = parent(bra.A), parent(ket.A)
     a, b = bra.s, ket.s
     S = A + B
     R = inv(S)
@@ -74,7 +74,7 @@ function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian)
 end
 
 function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::KineticOperator)
-    A, B = bra.A, ket.A
+    A, B = parent(bra.A), parent(ket.A)
     a, b = bra.s, ket.s
     K = op.K
     S = A + B
@@ -178,7 +178,7 @@ function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::Kin
 end
 
 function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::CoulombOperator)
-    A, B = bra.A, ket.A
+    A, B = parent(bra.A), parent(ket.A)
     a, b = bra.s, ket.s
     w = op.w
     S = A + B
