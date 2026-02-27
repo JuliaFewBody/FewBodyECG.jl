@@ -24,7 +24,7 @@ function _params_to_matrix(θ::AbstractVector, n::Int)
             idx += 1
         end
     end
-    return @assert(isposdef(Symmetric(L * L')))
+    return Symmetric(L * L')
 end
 
 function _encode_basis(basis::BasisSet{<:Rank0Gaussian})
@@ -32,20 +32,23 @@ function _encode_basis(basis::BasisSet{<:Rank0Gaussian})
     for g in basis.functions
         C = cholesky(Symmetric(Matrix(g.A)))
         append!(params, _chol_to_params(Matrix(C.L)))
+        append!(params, Float64.(g.s))   # shift vector (unconstrained)
     end
     return params
 end
 
-# Decode a flat parameter vector back into a BasisSet{Rank0Gaussian} with
-# zero shift vectors.
+# Decode a flat parameter vector back into a BasisSet{Rank0Gaussian}.
+# Layout per Gaussian: [n_chol Cholesky params | n_dim shift params].
 function _decode_basis(θ::AbstractVector, n_basis::Int, n_dim::Int)
     T = eltype(θ)
     n_chol = n_dim * (n_dim + 1) ÷ 2
+    n_per = n_chol + n_dim
     fns = Vector{Rank0Gaussian{T, Matrix{T}, Vector{T}}}(undef, n_basis)
     for i in 1:n_basis
-        start = (i - 1) * n_chol + 1
+        start = (i - 1) * n_per + 1
         A = _params_to_matrix(θ[start:(start + n_chol - 1)], n_dim)
-        fns[i] = Rank0Gaussian(Matrix(A), zeros(T, n_dim))
+        s = θ[(start + n_chol):(start + n_per - 1)]
+        fns[i] = Rank0Gaussian(Matrix(A), Vector(s))
     end
     return BasisSet(fns)
 end
@@ -192,7 +195,8 @@ function solve_ECG_variational(
 
     # Infer the Jacobi-coordinate dimension from the kinetic operator.
     n_dim = size(first(op for op in operators if op isa KineticOperator).K, 1)
-    n_chol = n_dim * (n_dim + 1) ÷ 2   # free parameters per Gaussian
+    n_chol = n_dim * (n_dim + 1) ÷ 2   # Cholesky params per Gaussian
+    n_per  = n_chol + n_dim             # total params per Gaussian (A + shift)
 
     # ---- build initial basis ------------------------------------------------
     if initial_basis !== nothing
@@ -214,6 +218,17 @@ function solve_ECG_variational(
 
     θ0 = _encode_basis(basis_init)
 
+    # Pre-allocate GradientConfig with a tuned chunk size.
+    # Grouping ~5 Gaussians per chunk gives ~10 passes for n=50 in 2D
+    # (vs the ForwardDiff default of 13), with larger gains for higher n_dim.
+    _chunk = min(n_per * 5, length(θ0))
+    _grad_cfg = ForwardDiff.GradientConfig(nothing, θ0, ForwardDiff.Chunk(_chunk))
+
+    # Accumulates the objective value at every successful primal fg evaluation.
+    # Reduced to a cumulative minimum after optimisation so convergence_history()
+    # returns a monotone curve.
+    energy_log = Float64[]
+
     # ---- combined value + ForwardDiff gradient (OptimKit interface) ---------
     # The LBFGS line search probes regions that can produce degenerate A
     # matrices; returning (Inf, zero-gradient) acts as an infinite-cost barrier.
@@ -233,9 +248,10 @@ function solve_ECG_variational(
                 return Inf, zeros(Float64, length(θ))
             end
             isfinite(val) || return Inf, zeros(Float64, length(θ))
+            push!(energy_log, val)
             # Gradient via Hellmann-Feynman: ∂λ/∂θ = cᵀ(∂H/∂θ − λ·∂S/∂θ)c
             G = try
-                ForwardDiff.gradient(θ) do θ_ad
+                ForwardDiff.gradient(θ, _grad_cfg, Val(false)) do θ_ad
                     basis_ad = _decode_basis(θ_ad, n, n_dim)
                     H_ad = build_hamiltonian_matrix(basis_ad, operators)
                     S_ad = build_overlap_matrix(basis_ad)
@@ -257,8 +273,9 @@ function solve_ECG_variational(
                 return Inf, zeros(Float64, length(θ))
             end
             isfinite(val_t) || return Inf, zeros(Float64, length(θ))
+            push!(energy_log, val_t)
             G = try
-                ForwardDiff.gradient(θ) do θ_ad
+                ForwardDiff.gradient(θ, _grad_cfg, Val(false)) do θ_ad
                     basis_ad = _decode_basis(θ_ad, n, n_dim)
                     H_ad = build_hamiltonian_matrix(basis_ad, operators)
                     S_ad = build_overlap_matrix(basis_ad)
@@ -294,6 +311,10 @@ function solve_ECG_variational(
 
     @info "Variational ECG complete" E₀ = ground_state n_basis = n
 
+    # Reduce energy_log to a cumulative minimum so convergence_history() returns
+    # a monotone decreasing curve regardless of line-search noise.
+    fg_history = isempty(energy_log) ? Float64[] : accumulate(min, energy_log)
+
     return SolverResults(
         Vector{GaussianBase}(basis_opt.functions),
         n,
@@ -304,5 +325,6 @@ function solve_ECG_variational(
         ground_state,
         [ground_state],   # single-point; no greedy build-up history
         [evecs],
+        fg_history,
     )
 end

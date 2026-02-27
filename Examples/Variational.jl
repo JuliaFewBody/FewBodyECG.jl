@@ -117,12 +117,29 @@ println("  Exact        E₀ = $E_exact_tdμ")
 
 
 using Plots
+import FewBodyECG: convergence_history
+
+# --- Variational convergence (energy vs fg evaluations) ---
+n_fg, E_fg = convergence_history(sr_var)
+p1 = plot(n_fg, E_fg;
+    label = "Variational (cummin)",
+    xlabel = "fg evaluations",
+    ylabel = "Energy (Ha)",
+    title = "H⁻ variational convergence  (n = $n)",
+    lw = 2,
+)
+hline!(p1, [E_exact_Hm]; label = "Exact", linestyle = :dot, color = :black, lw = 1)
+
+# --- Stochastic greedy convergence (energy vs basis size) ---
 n_s, E_s = convergence(sr_stoch)
-plot(n_s, E_s;
-    label = "Stochastic",
+p2 = plot(n_s, E_s;
+    label = "Stochastic greedy",
     xlabel = "Basis size",
     ylabel = "Energy (Ha)",
-    title = "H⁻ convergence  (n = $n)",
+    title = "H⁻ stochastic convergence  (n = $n)",
+    lw = 2,
 )
-hline!([sr_var.ground_state]; label = "Variational (n=$n)", linestyle = :dash)
-hline!([E_exact_Hm]; label = "Exact", linestyle = :dot, color = :black)
+hline!(p2, [sr_var.ground_state]; label = "Variational (n=$n)", linestyle = :dash, lw = 1)
+hline!(p2, [E_exact_Hm]; label = "Exact", linestyle = :dot, color = :black, lw = 1)
+
+plot(p1, p2; layout = (2, 1), size = (700, 600))

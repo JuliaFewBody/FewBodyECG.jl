@@ -8,6 +8,11 @@ struct SolverResults
     ground_state::Float64
     energies::Vector{Float64}
     eigenvectors::Vector{Matrix{Float64}}
+    # Per-call objective history (energy for :energy loss, trace for :trace loss).
+    # For solve_ECG this mirrors energies; for solve_ECG_variational it records
+    # the cumulative minimum at every primal fg evaluation so the curve is
+    # monotone and plottable via convergence_history().
+    fg_history::Vector{Float64}
 end
 
 function ψ₀(r::AbstractVector, c::AbstractVector, basis_fns::Vector{<:GaussianBase})
@@ -24,6 +29,14 @@ end
 
 function convergence(sr::SolverResults)
     return 1:sr.n_basis, sr.energies
+end
+
+# Per-fg-evaluation objective history.  For solve_ECG_variational with
+# loss_type = :energy this is the energy at each primal solve, already
+# reduced to a cumulative minimum so the curve is monotone.  x-axis is
+# the fg-call index, not the basis size.
+function convergence_history(sr::SolverResults)
+    return 1:length(sr.fg_history), sr.fg_history
 end
 
 function correlation_function(

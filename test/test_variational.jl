@@ -41,32 +41,51 @@ end
 end
 
 @testset "_encode_basis / _decode_basis round-trip" begin
-    # 2-body (n_dim=1): 1×1 A matrices
+    # 2-body (n_dim=1): 1×1 A matrices, 1-D shift vectors
+    # n_per = n_chol(1) + n_dim(1) = 2 params per function
     g1 = Rank0Gaussian([2.0;;], [0.0])
     g2 = Rank0Gaussian([5.0;;], [0.0])
     basis = BasisSet([g1, g2])
 
     θ = _encode_basis(basis)
-    @test length(θ) == 2   # n_chol(1) = 1 per function, 2 functions
+    @test length(θ) == 4   # 2 functions × (n_chol=1 + n_dim=1)
 
     basis2 = _decode_basis(θ, 2, 1)
     @test length(basis2.functions) == 2
     for (orig, recon) in zip(basis.functions, basis2.functions)
         @test Matrix(orig.A) ≈ Matrix(recon.A) rtol = 1.0e-10
+        @test recon.s ≈ orig.s rtol = 1.0e-10
     end
 end
 
 @testset "_encode_basis / _decode_basis round-trip (2D)" begin
-    # 3-body (n_dim=2): 2×2 A matrices
+    # 3-body (n_dim=2): 2×2 A matrices, 2-D shift vectors
+    # n_per = n_chol(2) + n_dim(2) = 5 params per function
     A = [3.0 0.5; 0.5 2.0]
     g = Rank0Gaussian(A, [0.0, 0.0])
     basis = BasisSet([g])
 
     θ = _encode_basis(basis)
-    @test length(θ) == 3   # n_chol(2) = 3
+    @test length(θ) == 5   # 1 function × (n_chol=3 + n_dim=2)
 
     basis2 = _decode_basis(θ, 1, 2)
     @test Matrix(basis2.functions[1].A) ≈ A rtol = 1.0e-8
+    @test basis2.functions[1].s ≈ g.s rtol = 1.0e-10
+end
+
+@testset "_encode_basis / _decode_basis round-trip with non-zero shifts" begin
+    # Verify shift vectors are correctly preserved through the encode/decode cycle.
+    A = [3.0 0.5; 0.5 2.0]
+    s = [0.3, -0.1]
+    g = Rank0Gaussian(A, s)
+    basis = BasisSet([g])
+
+    θ = _encode_basis(basis)
+    @test length(θ) == 5
+
+    basis2 = _decode_basis(θ, 1, 2)
+    @test Matrix(basis2.functions[1].A) ≈ A rtol = 1.0e-8
+    @test basis2.functions[1].s ≈ s rtol = 1.0e-10
 end
 
 # ---------------------------------------------------------------------------
@@ -111,6 +130,10 @@ end
     @test sr.energies[1] == sr.ground_state
     @test length(sr.eigenvectors) == 1
     @test size(sr.eigenvectors[1]) == (5, 5)
+    # fg_history records cumulative-minimum energies from primal evaluations.
+    @test !isempty(sr.fg_history)
+    @test last(sr.fg_history) <= sr.ground_state + 1.0e-8
+    @test issorted(sr.fg_history; rev = true)   # monotone non-increasing
 end
 
 # ---------------------------------------------------------------------------

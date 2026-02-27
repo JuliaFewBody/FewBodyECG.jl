@@ -45,7 +45,8 @@ function create_mock_solver_results(;
         scale,
         energies[end],
         energies,
-        eigenvectors
+        eigenvectors,
+        energies   # fg_history mirrors energies for mock/stochastic results
     )
 end
 
@@ -78,8 +79,8 @@ end
         basis_fns = [Rank0Gaussian([1.0;;], [0.0])]
         ops = Operator[KineticOperator([0.5;;])]
 
-        sr_halton = SolverResults(basis_fns, 1, ops, :quasirandom, HaltonSample(), 1.0, -0.5, [-0.5], [ones(1, 1)])
-        sr_sobol = SolverResults(basis_fns, 1, ops, :quasirandom, SobolSample(), 1.0, -0.5, [-0.5], [ones(1, 1)])
+        sr_halton = SolverResults(basis_fns, 1, ops, :quasirandom, HaltonSample(), 1.0, -0.5, [-0.5], [ones(1, 1)], [-0.5])
+        sr_sobol = SolverResults(basis_fns, 1, ops, :quasirandom, SobolSample(), 1.0, -0.5, [-0.5], [ones(1, 1)], [-0.5])
 
         @test sr_halton.sampler isa HaltonSample
         @test sr_sobol.sampler isa SobolSample
@@ -389,7 +390,7 @@ end
 
         sr = SolverResults(
             basis_fns, 1, ops, :quasirandom, HaltonSample(),
-            1.0, -0.5, [-0.5], eigvecs
+            1.0, -0.5, [-0.5], eigvecs, [-0.5]
         )
 
         # All utilities should work

@@ -58,7 +58,6 @@ function solve_generalized_eigenproblem(
 
     cond_S = cond(S_sym)
     if cond_S > max_condition
-        @warn "Overlap matrix poorly conditioned (κ=$cond_S), adding regularization"
         if regularization == 0.0
             regularization = maximum(abs.(diag(S_sym))) * 1.0e-10
         end
@@ -178,6 +177,11 @@ function solve_ECG(
     n_pairs = length(w_list)
     d = length(w_list[1])
 
+    # Pre-allocate full matrices; fill one row/column per accepted function.
+    # S_full[j,j] doubles as a cache of self-overlaps for the independence check.
+    H_full = zeros(Float64, n, n)
+    S_full = zeros(Float64, n, n)
+
     n_accepted = 0
     n_rejected = 0
     attempt = 0
@@ -190,61 +194,76 @@ function solve_ECG(
         s = generate_shift(method, attempt, d, scale; qmc_sampler = sampler)
         candidate = Rank0Gaussian(A, s)
 
-        # Check linear independence
-        if !isempty(basis_fns)
-            existing_basis = BasisSet{Rank0Gaussian}(basis_fns)
-            if !is_linearly_independent(candidate, existing_basis; threshold = threshold)
+        k  = n_accepted   # current accepted count
+        ki = k + 1        # index if this candidate is accepted
+
+        # Compute new diagonal overlap (needed for independence check).
+        s_diag = _compute_matrix_element(candidate, candidate)
+
+        # Compute new overlap column; check linear independence in the same pass.
+        s_col = Vector{Float64}(undef, k)
+        for j in 1:k
+            s_col[j] = _compute_matrix_element(candidate, basis_fns[j])
+        end
+        if k > 0
+            # S_full[j,j] holds the self-overlap of the j-th accepted function.
+            max_norm = maximum(j -> abs(s_col[j]) / sqrt(s_diag * S_full[j, j]), 1:k)
+            if max_norm > threshold
                 n_rejected += 1
                 verbose && @warn "Rejected basis function $attempt (overlap > $threshold)"
                 continue
             end
         end
 
-        push!(basis_fns, candidate)
+        # Compute new Hamiltonian column.
+        h_col = Vector{Float64}(undef, k)
+        for j in 1:k
+            h_col[j] = sum(_compute_matrix_element(candidate, basis_fns[j], op) for op in operators)
+        end
+        h_diag = sum(_compute_matrix_element(candidate, candidate, op) for op in operators)
 
-        local H, S, λs, Us
-        try
-            basis = BasisSet{Rank0Gaussian}(basis_fns)
-            H = build_hamiltonian_matrix(basis, operators)
-            S = build_overlap_matrix(basis)
-
-            # Check for NaN/Inf BEFORE eigensolve
-            if any(!isfinite, H)
-                @warn "Hamiltonian contains NaN/Inf at step $(n_accepted + 1), rejecting basis function"
-                pop!(basis_fns)
-                n_rejected += 1
-                continue
-            end
-
-            if any(!isfinite, S)
-                @warn "Overlap contains NaN/Inf at step $(n_accepted + 1), rejecting basis function"
-                pop!(basis_fns)
-                n_rejected += 1
-                continue
-            end
-
-            # Check condition number
-            cond_S = cond(Symmetric(S))
-            if cond_S > max_condition
-                @warn "Overlap poorly conditioned (κ=$cond_S) at step $(n_accepted + 1), rejecting"
-                pop!(basis_fns)
-                n_rejected += 1
-                continue
-            end
-
-            # Try to solve
-            λs, Us = solve_generalized_eigenproblem(H, S; max_condition)
-
-        catch e
-            @warn "Failed at step $(n_accepted + 1): $e"
-            pop!(basis_fns)  # Remove problematic function
+        # Reject before touching the matrices if any element is non-finite.
+        if !isfinite(s_diag) || !isfinite(h_diag) ||
+                (k > 0 && (!all(isfinite, s_col) || !all(isfinite, h_col)))
+            @warn "NaN/Inf in matrix elements at step $ki, rejecting basis function"
             n_rejected += 1
             continue
         end
 
+        # Fill the new row/column into the pre-allocated matrices.
+        for j in 1:k
+            S_full[ki, j] = s_col[j]
+            S_full[j, ki] = s_col[j]
+            H_full[ki, j] = h_col[j]
+            H_full[j, ki] = h_col[j]
+        end
+        S_full[ki, ki] = s_diag
+        H_full[ki, ki] = h_diag
+
+        # Extract ki×ki submatrices (copy needed: eigensolver may alias internally).
+        H_k = H_full[1:ki, 1:ki]
+        S_k = S_full[1:ki, 1:ki]
+
+        # Condition check on the overlap submatrix.
+        cond_S = cond(Symmetric(S_k))
+        if cond_S > max_condition
+            @warn "Overlap poorly conditioned (κ=$cond_S) at step $ki, rejecting"
+            n_rejected += 1
+            continue
+        end
+
+        local λs, Us
+        try
+            λs, Us = solve_generalized_eigenproblem(H_k, S_k; max_condition)
+        catch e
+            @warn "Failed at step $ki: $e"
+            n_rejected += 1
+            continue
+        end
+
+        push!(basis_fns, candidate)
         n_accepted += 1
         E0 = minimum(λs)
-
         push!(E_hist, E0)
         push!(vecs_list, Us)
         verbose && @info "Step $n_accepted" E₀ = E0 attempts = attempt rejected = n_rejected
@@ -256,5 +275,5 @@ function solve_ECG(
 
     Emin = last(E_hist)
     @info "Optimization complete" E₀ = Emin n_basis = n_accepted
-    return SolverResults(basis_fns, n_accepted, operators, method, sampler, b₁, Emin, E_hist, vecs_list)
+    return SolverResults(basis_fns, n_accepted, operators, method, sampler, b₁, Emin, E_hist, vecs_list, E_hist)
 end
