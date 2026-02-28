@@ -5,6 +5,7 @@
 ```@docs
 solve_ECG
 solve_ECG_variational
+solve_ECG_sequential
 ```
 
 ## Operators

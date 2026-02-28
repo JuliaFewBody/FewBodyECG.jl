@@ -17,7 +17,7 @@ export build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenpr
 
 export ψ₀, SolverResults, convergence, convergence_history, correlation_function, ψ
 
-export solve_ECG_variational
+export solve_ECG_variational, solve_ECG_sequential
 
 include("types.jl")
 include("coordinates.jl")

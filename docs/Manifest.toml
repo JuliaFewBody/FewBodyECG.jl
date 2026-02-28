@@ -2,7 +2,7 @@
 
 julia_version = "1.12.5"
 manifest_format = "2.0"
-project_hash = "3d39bcf94fc41feb6a82ef07b456752f08ca6ada"
+project_hash = "c38ab8011052630e07e27b80b1686e1283e03d26"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "f7304359109c768cf32dc5fa2d371565bb63b68a"
@@ -382,7 +382,7 @@ uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
 version = "8.0.1+0"
 
 [[deps.FewBodyECG]]
-deps = ["FewBodyHamiltonians", "ForwardDiff", "LinearAlgebra", "Logging", "OptimKit", "QuasiMonteCarlo", "SpecialFunctions"]
+deps = ["FewBodyHamiltonians", "ForwardDiff", "LinearAlgebra", "OptimKit", "QuasiMonteCarlo", "SpecialFunctions"]
 path = ".."
 uuid = "083b1810-24a1-4a79-9a41-145bb2bb8ceb"
 version = "1.0.5"

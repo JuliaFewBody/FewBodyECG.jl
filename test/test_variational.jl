@@ -1,7 +1,7 @@
 using Test
 using LinearAlgebra
 using FewBodyECG
-import FewBodyECG: _jacobi_transform, _encode_basis, _decode_basis, _chol_to_params, _params_to_matrix, convergence_history
+import FewBodyECG: _jacobi_transform, _encode_basis, _decode_basis, _chol_to_params, _params_to_matrix, convergence_history, solve_ECG_sequential
 
 # ---------------------------------------------------------------------------
 # Shared 2-body (hydrogen) and 3-body (H⁻) operator fixtures
@@ -275,4 +275,96 @@ end
         @test length(g.s) == 1
         @test isfinite(g.s[1])
     end
+end
+
+# ---------------------------------------------------------------------------
+# solve_ECG_sequential tests
+# ---------------------------------------------------------------------------
+
+@testset "solve_ECG_sequential argument validation" begin
+    ops = _hydrogen_ops()
+    @test_throws ArgumentError solve_ECG_sequential(
+        ops, 3; loss_type = :bad, verbose = false
+    )
+end
+
+@testset "solve_ECG_sequential returns valid SolverResults" begin
+    ops = _hydrogen_ops()
+    sr = solve_ECG_sequential(ops, 4;
+        n_candidates = 3, scale = 1.0, max_iterations_step = 10, verbose = false
+    )
+
+    @test sr isa SolverResults
+    @test sr.n_basis == 4
+    @test length(sr.basis_functions) == 4
+    @test isfinite(sr.ground_state)
+    @test sr.ground_state < 0.0
+    @test sr.method === :sequential
+    # energies has one entry per sequential step
+    @test length(sr.energies) == 4
+    # eigenvectors: one final matrix
+    @test length(sr.eigenvectors) == 1
+    @test size(sr.eigenvectors[1]) == (4, 4)
+    @test !isempty(sr.fg_history)
+end
+
+@testset "solve_ECG_sequential convergence is monotone" begin
+    # By the variational principle, adding a linearly independent function
+    # and then re-optimising cannot raise the ground-state energy.
+    ops = _hydrogen_ops()
+    sr = solve_ECG_sequential(ops, 6;
+        n_candidates = 3, scale = 1.0, max_iterations_step = 20, verbose = false
+    )
+    for i in 2:length(sr.energies)
+        @test sr.energies[i] <= sr.energies[i - 1] + 1.0e-8
+    end
+end
+
+@testset "solve_ECG_sequential respects variational bound (hydrogen)" begin
+    ops = _hydrogen_ops()
+    E_exact = -0.5   # hydrogen 1s ground state
+
+    sr = solve_ECG_sequential(ops, 6;
+        n_candidates = 5, scale = 1.0, max_iterations_step = 50, verbose = false
+    )
+
+    @test sr.ground_state >= E_exact - 1.0e-6   # cannot go below exact
+    @test sr.ground_state < E_exact + 0.01       # should be close with 6 functions
+end
+
+@testset "solve_ECG_sequential convergence_history is monotone" begin
+    ops = _hydrogen_ops()
+    sr = solve_ECG_sequential(ops, 4;
+        n_candidates = 3, scale = 1.0, max_iterations_step = 15, verbose = false
+    )
+    xs, ys = convergence_history(sr)
+    @test length(xs) == length(ys)
+    @test issorted(ys; rev = true)
+end
+
+@testset "solve_ECG_sequential beats stochastic (hydrogen, same n)" begin
+    ops = _hydrogen_ops()
+
+    sr_stoch = solve_ECG(ops, 6; scale = 1.0, verbose = false)
+    sr_seq   = solve_ECG_sequential(ops, 6;
+        n_candidates = 5, scale = 1.0, max_iterations_step = 50, verbose = false
+    )
+
+    @test sr_seq.ground_state <= sr_stoch.ground_state + 1.0e-4
+end
+
+@testset "ψ₀ and correlation_function work with sequential SolverResults" begin
+    ops = _hminus_ops()
+    sr = solve_ECG_sequential(ops, 4;
+        n_candidates = 3, scale = 1.0, max_iterations_step = 10, verbose = false
+    )
+
+    r_vec = [0.5, 0.3]
+    psi = ψ₀(r_vec, sr; state = 1)
+    @test isfinite(psi)
+
+    r_grid, rho = correlation_function(sr; npoints = 30)
+    @test length(r_grid) == 30
+    @test all(isfinite, rho)
+    @test all(rho .>= 0.0)
 end

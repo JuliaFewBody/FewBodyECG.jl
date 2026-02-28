@@ -334,3 +334,238 @@ function solve_ECG_variational(
         fg_history,
     )
 end
+
+# ---------------------------------------------------------------------------
+# Sequential (SVM-style) solver
+# ---------------------------------------------------------------------------
+
+"""
+    solve_ECG_sequential(operators, n=50; kwargs...) -> SolverResults
+
+Build an ECG basis of `n` `Rank0Gaussian` functions using **sequential variational
+optimisation** (the Stochastic Variational Method, SVM).
+
+At each step `k = 1, …, n`:
+1. `n_candidates` quasi-random `Rank0Gaussian` functions are generated.
+2. The candidate giving the lowest ground-state energy (evaluated without further
+   optimisation) is appended to the current basis.
+3. **All** `k × n_per` parameters of the combined basis are jointly optimised
+   by an L-BFGS minimisation of the chosen `loss_type`.
+
+Compared to [`solve_ECG_variational`](@ref), which optimises all `n` functions
+simultaneously from a cold start, the sequential approach:
+* Avoids the high-dimensional landscape of a full cold start.
+* Produces a monotone non-increasing convergence curve (`energies[k]` after each step).
+* Closely mirrors the SVM algorithm of the ECG literature (see e.g. Suzuki & Varga 1998).
+
+# Arguments
+- `operators` : `Vector{<:Operator}` — kinetic + Coulomb operators
+- `n`         : number of basis functions (default 50)
+
+# Keyword arguments
+| keyword               | default   | description |
+|:----------------------|:----------|:------------|
+| `n_candidates`        | `10`      | candidates sampled per step; the one giving the lowest pre-optimisation energy is accepted |
+| `loss_type`           | `:energy` | `:energy` (λ_min) or `:trace` (Tr(S⁻¹H)) |
+| `scale`               | `0.2`     | characteristic length scale for quasi-random Gaussian widths |
+| `optimizer`           | `nothing` | any OptimKit algorithm; `nothing` builds L-BFGS from `max_iterations_step` and `gradient_tol` |
+| `max_iterations_step` | `100`     | L-BFGS iterations per sequential step (ignored if `optimizer` given) |
+| `gradient_tol`        | `1e-6`    | gradient-norm tolerance per step (ignored if `optimizer` given) |
+| `regularization`      | `1e-10`   | Tikhonov shift added to S |
+| `verbose`             | `true`    | print per-step info messages |
+
+# Example
+
+```julia
+using FewBodyECG
+masses = [1.0e15, 1.0, 1.0]   # H⁻ (fixed nucleus + two electrons)
+Λmat   = Λ(masses)
+_, U   = _jacobi_transform(masses)
+w_list = [[1,-1,0],[1,0,-1],[0,1,-1]]
+w_raw  = [U'*Float64.(w) for w in w_list]
+ops    = Operator[KineticOperator(Λmat);
+                  [CoulombOperator(c,w) for (c,w) in zip([-1.,-1.,1.], w_raw)]...]
+
+sr = solve_ECG_sequential(ops, 30; scale=1.0, verbose=false)
+println(sr.ground_state)   # converges toward -0.52775... Ha
+```
+"""
+function solve_ECG_sequential(
+        operators::Vector{<:FewBodyHamiltonians.Operator},
+        n::Int = 50;
+        n_candidates::Int = 10,
+        loss_type::Symbol = :energy,
+        scale::Real = 0.2,
+        optimizer = nothing,
+        max_iterations_step::Int = 100,
+        gradient_tol::Real = 1.0e-6,
+        regularization::Real = 1.0e-10,
+        verbose::Bool = true
+    )
+
+    loss_type in (:energy, :trace) ||
+        throw(ArgumentError("loss_type must be :energy or :trace, got :$loss_type"))
+
+    n_dim  = size(first(op for op in operators if op isa KineticOperator).K, 1)
+    n_chol = n_dim * (n_dim + 1) ÷ 2
+    n_per  = n_chol + n_dim
+    w_list = [op.w for op in operators if op isa CoulombOperator]
+
+    # Per-step optimiser: verbosity 0 — we emit our own step-level @info.
+    method = if optimizer !== nothing
+        optimizer
+    else
+        LBFGS(; maxiter = max_iterations_step, gradtol = float(gradient_tol),
+                verbosity = 0)
+    end
+
+    energy_log = Float64[]   # all fg values across all steps → cummin history
+    E_history  = Float64[]   # ground-state energy after each step's optimisation
+    θ_running  = Float64[]   # parameter vector; grows by n_per each step
+
+    verbose && @info "Starting sequential ECG" n_basis = n n_candidates n_per_gaussian = n_per loss_type
+
+    for step in 1:n
+        k = step   # basis size after this step
+
+        # ── candidate selection ──────────────────────────────────────────────
+        # Sample n_candidates quasi-random Gaussians; pick the one giving the
+        # lowest ground-state energy before optimisation.
+        best_E_cand = Inf
+        best_θ_cand = Float64[]
+
+        for c in 1:n_candidates
+            attempt = (step - 1) * n_candidates + c
+            bij  = generate_bij(:quasirandom, attempt, length(w_list), float(scale))
+            A    = _generate_A_matrix(bij, w_list)
+            s    = generate_shift(:quasirandom, attempt, n_dim, float(scale))
+            cand = Rank0Gaussian(A, s)
+            θ_c  = _encode_basis(BasisSet([cand]))
+            θ_t  = [θ_running; θ_c]
+            try
+                b_t      = _decode_basis(θ_t, k, n_dim)
+                H_t      = build_hamiltonian_matrix(b_t, operators)
+                S_t      = build_overlap_matrix(b_t)
+                ev_t, _  = solve_generalized_eigenproblem(H_t, S_t; regularization)
+                E_t      = minimum(ev_t)
+                if E_t < best_E_cand
+                    best_E_cand = E_t
+                    best_θ_cand = θ_c
+                end
+            catch
+                continue
+            end
+        end
+
+        isempty(best_θ_cand) &&
+            error("All $n_candidates candidates failed at sequential step $step")
+
+        θ_running = [θ_running; best_θ_cand]
+
+        # ── optimise all k-function parameters ──────────────────────────────
+        _chunk    = min(n_per * 5, length(θ_running))
+        _grad_cfg = ForwardDiff.GradientConfig(nothing, θ_running,
+                                               ForwardDiff.Chunk(_chunk))
+        step_log = Float64[]
+
+        # Build the fg closure for the current k-function basis.
+        # Capture k, _grad_cfg, step_log, and other constants by reference;
+        # each loop iteration creates a fresh set of these locals.
+        fg_k = if loss_type === :energy
+            (θ::AbstractVector) -> begin
+                local val::Float64, c::Vector{Float64}
+                try
+                    b  = _decode_basis(θ, k, n_dim)
+                    H  = build_hamiltonian_matrix(b, operators)
+                    S  = build_overlap_matrix(b)
+                    ev, ev_vecs = solve_generalized_eigenproblem(H, S; regularization)
+                    idx = argmin(ev)
+                    val = ev[idx]
+                    c   = ev_vecs[:, idx]
+                catch
+                    return Inf, zeros(Float64, length(θ))
+                end
+                isfinite(val) || return Inf, zeros(Float64, length(θ))
+                push!(step_log, val)
+                G = try
+                    ForwardDiff.gradient(θ, _grad_cfg, Val(false)) do θ_ad
+                        b_ad = _decode_basis(θ_ad, k, n_dim)
+                        H_ad = build_hamiltonian_matrix(b_ad, operators)
+                        S_ad = build_overlap_matrix(b_ad)
+                        dot(c, H_ad * c) - val * dot(c, S_ad * c)
+                    end
+                catch
+                    zeros(Float64, length(θ))
+                end
+                return val, G
+            end
+        else  # :trace
+            (θ::AbstractVector) -> begin
+                local val_t::Float64
+                try
+                    b  = _decode_basis(θ, k, n_dim)
+                    H  = build_hamiltonian_matrix(b, operators)
+                    S  = build_overlap_matrix(b)
+                    v  = tr((S + regularization * I) \ H)
+                    val_t = isfinite(v) ? v : Inf
+                catch
+                    return Inf, zeros(Float64, length(θ))
+                end
+                isfinite(val_t) || return Inf, zeros(Float64, length(θ))
+                push!(step_log, val_t)
+                G = try
+                    ForwardDiff.gradient(θ, _grad_cfg, Val(false)) do θ_ad
+                        b_ad = _decode_basis(θ_ad, k, n_dim)
+                        H_ad = build_hamiltonian_matrix(b_ad, operators)
+                        S_ad = build_overlap_matrix(b_ad)
+                        tr((S_ad + regularization * I) \ H_ad)
+                    end
+                catch
+                    zeros(Float64, length(θ))
+                end
+                return val_t, G
+            end
+        end
+
+        θ_opt, _, _, _, _ = Base.CoreLogging.with_logger(
+            Base.CoreLogging.ConsoleLogger(Base.stderr, Base.CoreLogging.Error)
+        ) do
+            optimize(fg_k, θ_running, method)
+        end
+        θ_running = θ_opt
+        append!(energy_log, step_log)
+
+        # Record the ground-state energy after this step's full optimisation.
+        b_k      = _decode_basis(θ_running, k, n_dim)
+        H_k      = build_hamiltonian_matrix(b_k, operators)
+        S_k      = build_overlap_matrix(b_k)
+        ev_k, _  = solve_generalized_eigenproblem(H_k, S_k; regularization)
+        push!(E_history, minimum(ev_k))
+
+        verbose && @info "Step $step/$n" E₀ = last(E_history) fg_evals = length(step_log)
+    end
+
+    # ── final reconstruction ─────────────────────────────────────────────────
+    basis_opt    = _decode_basis(θ_running, n, n_dim)
+    H_opt        = build_hamiltonian_matrix(basis_opt, operators)
+    S_opt        = build_overlap_matrix(basis_opt)
+    evals, evecs = solve_generalized_eigenproblem(H_opt, S_opt)
+    ground_state = minimum(evals)
+
+    verbose && @info "Sequential ECG complete" E₀ = ground_state n_basis = n
+
+    fg_history = isempty(energy_log) ? Float64[] : accumulate(min, energy_log)
+
+    return SolverResults(
+        Vector{GaussianBase}(basis_opt.functions),
+        n,
+        operators,
+        :sequential,
+        HaltonSample(),
+        float(scale),
+        ground_state,
+        E_history,   # one energy per sequential step — use convergence()
+        [evecs],
+        fg_history,
+    )
+end
