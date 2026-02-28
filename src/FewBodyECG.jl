@@ -15,7 +15,7 @@ export Operator
 
 export build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem, solve_ECG, convergence
 
-export ψ₀, SolverResults, convergence, correlation_function, ψ
+export ψ₀, SolverResults, convergence, convergence_history, correlation_function, ψ
 
 export solve_ECG_variational
 

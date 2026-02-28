@@ -123,9 +123,9 @@ Two loss types are available via the `loss_type` keyword:
 
 The `A` matrices of the basis functions are parameterised through their
 Cholesky factors (log-diagonal) which keeps them positive-definite for
-any parameter vector, giving a smooth unconstrained problem.  Shift
-vectors are fixed at zero, which is appropriate for ground states with
-spherical symmetry.
+any parameter vector.  Shift vectors `s` are also included in the
+optimised parameter vector (unconstrained), so the full variational
+freedom of each Gaussian is exploited.
 
 After optimisation the full generalised eigenvalue problem `Hc = λSc`
 is solved once to produce the ground-state energy and eigenvectors, so
@@ -298,7 +298,13 @@ function solve_ECG_variational(
 
     verbose && @info "Starting variational ECG optimisation" n_basis = n n_params = length(θ0) loss_type
 
-    θ_opt, f_opt, _, _, _ = optimize(fg, θ0, method)
+    # OptimKit emits @warn for linesearch bisection failures that it handles
+    # gracefully internally.  Suppress them to keep output clean.
+    θ_opt, f_opt, _, _, _ = Base.CoreLogging.with_logger(
+        Base.CoreLogging.ConsoleLogger(Base.stderr, Base.CoreLogging.Error)
+    ) do
+        optimize(fg, θ0, method)
+    end
 
     verbose && @info "Optimisation done" loss = f_opt
 

@@ -186,7 +186,11 @@ function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::Cou
     M = _compute_matrix_element(bra, ket)
     β = 1 / (w' * R * w)
     q = 0.5 * (w' * R * (a + b))
-    f = abs(q) < 1.0e-12 ? (2 * sqrt(β / π)) : (erf(sqrt(β) * q) / q)
+    # Use the limiting form 2√(β/π) when the scaled argument x = √β·q is
+    # small so that erf(x)/q = √β·erf(x)/x → 2√(β/π) accurately.
+    # Thresholding on x (not q alone) correctly handles all β values.
+    x = sqrt(β) * q
+    f = abs(x) < 1.0e-7 ? (2 * sqrt(β / π)) : (erf(x) / q)
     return op.coefficient * f * M
 end
 

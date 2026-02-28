@@ -1,7 +1,7 @@
 using Test
 using LinearAlgebra
 using FewBodyECG
-import FewBodyECG: _jacobi_transform, _encode_basis, _decode_basis, _chol_to_params, _params_to_matrix
+import FewBodyECG: _jacobi_transform, _encode_basis, _decode_basis, _chol_to_params, _params_to_matrix, convergence_history
 
 # ---------------------------------------------------------------------------
 # Shared 2-body (hydrogen) and 3-body (H⁻) operator fixtures
@@ -238,4 +238,41 @@ end
     @test length(rho) == 50
     @test all(isfinite, rho)
     @test all(rho .>= 0.0)
+end
+
+# ---------------------------------------------------------------------------
+# convergence_history
+# ---------------------------------------------------------------------------
+
+@testset "convergence_history returns correct axes" begin
+    ops = _hydrogen_ops()
+    sr = solve_ECG_variational(ops, 5;
+        scale = 1.0, max_iterations = 30, verbose = false
+    )
+
+    xs, ys = convergence_history(sr)
+    @test length(xs) == length(ys)
+    @test length(xs) == length(sr.fg_history)
+    @test xs == 1:length(sr.fg_history)
+    @test ys === sr.fg_history
+    @test issorted(ys; rev = true)   # monotone non-increasing by construction
+end
+
+# ---------------------------------------------------------------------------
+# Shift vectors are optimised (not pinned to zero)
+# ---------------------------------------------------------------------------
+
+@testset "shift vectors are included in optimised parameters" begin
+    # _encode_basis should pack n_chol + n_dim params per Gaussian.
+    # For a 1-D (hydrogen) basis: n_chol=1, n_dim=1 → 2 params per function.
+    # The second param is the shift; _decode_basis should round-trip it.
+    ops = _hydrogen_ops()
+    sr = solve_ECG_variational(ops, 4;
+        scale = 1.0, max_iterations = 50, verbose = false
+    )
+    # Each basis function has a 1-D shift vector stored in s.
+    for g in sr.basis_functions
+        @test length(g.s) == 1
+        @test isfinite(g.s[1])
+    end
 end

@@ -1,3 +1,25 @@
+"""
+    SolverResults
+
+Output of [`solve_ECG`](@ref) and [`solve_ECG_variational`](@ref).
+
+# Fields
+| field             | type                                  | description |
+|:------------------|:--------------------------------------|:------------|
+| `basis_functions` | `Vector{GaussianBase}`                | optimised basis |
+| `n_basis`         | `Int`                                 | number of accepted/optimised functions |
+| `operators`       | `Vector{Operator}`                    | kinetic + Coulomb operators passed to the solver |
+| `method`          | `Symbol`                              | `:quasirandom`, `:random`, or `:variational` |
+| `sampler`         | `DeterministicSamplingAlgorithm`      | QMC sampler used (placeholder for variational results) |
+| `length_scale`    | `Float64`                             | Gaussian width scale |
+| `ground_state`    | `Float64`                             | lowest eigenvalue (ground-state energy in Hartree) |
+| `energies`        | `Vector{Float64}`                     | energy at each greedy step (stochastic) or `[ground_state]` (variational) |
+| `eigenvectors`    | `Vector{Matrix{Float64}}`             | eigenvector matrices at each step |
+| `fg_history`      | `Vector{Float64}`                     | cumulative-minimum energy per objective call (variational) or mirrors `energies` (stochastic) |
+
+Use [`convergence`](@ref), [`convergence_history`](@ref), [`correlation_function`](@ref),
+and [`ψ₀`](@ref) to analyse the result.
+"""
 struct SolverResults
     basis_functions::Vector{GaussianBase}
     n_basis::Int
@@ -15,6 +37,18 @@ struct SolverResults
     fg_history::Vector{Float64}
 end
 
+"""
+    ψ₀(r, c, basis_fns)
+    ψ₀(r, sr; state=1)
+
+Evaluate the ground-state wavefunction at Jacobi-coordinate point `r`.
+
+The wavefunction is the linear combination
+``\\psi_0(\\mathbf{r}) = \\sum_i c_i \\exp(-\\mathbf{r}^T A_i \\mathbf{r} + \\mathbf{s}_i^T \\mathbf{r})``.
+
+When called with a [`SolverResults`](@ref), the eigenvector for the requested
+`state` (default 1, i.e. the ground state) is used automatically.
+"""
 function ψ₀(r::AbstractVector, c::AbstractVector, basis_fns::Vector{<:GaussianBase})
     return sum(
         c[i] * exp(-r' * basis_fns[i].A * r + basis_fns[i].s' * r)
@@ -27,18 +61,50 @@ function ψ₀(r::AbstractVector, sr::SolverResults; state::Int = 1)
     return ψ₀(r, c, sr.basis_functions)
 end
 
+"""
+    convergence(sr::SolverResults) -> (indices, energies)
+
+Return the greedy build-up convergence curve from a stochastic [`solve_ECG`](@ref) run.
+
+Returns `(1:n_basis, sr.energies)`: the energy after each basis function was
+added.  For variational results `energies` contains only one entry
+`[ground_state]`; use [`convergence_history`](@ref) instead.
+"""
 function convergence(sr::SolverResults)
     return 1:sr.n_basis, sr.energies
 end
 
-# Per-fg-evaluation objective history.  For solve_ECG_variational with
-# loss_type = :energy this is the energy at each primal solve, already
-# reduced to a cumulative minimum so the curve is monotone.  x-axis is
-# the fg-call index, not the basis size.
+"""
+    convergence_history(sr::SolverResults) -> (indices, energies)
+
+Return the per-objective-call convergence history.
+
+For [`solve_ECG_variational`](@ref) results this is the cumulative-minimum
+energy at every primal `fg` evaluation, giving a monotone non-increasing curve
+suitable for plotting optimisation progress.  The x-axis is the fg-call index.
+
+For [`solve_ECG`](@ref) results this mirrors `convergence`.
+"""
 function convergence_history(sr::SolverResults)
     return 1:length(sr.fg_history), sr.fg_history
 end
 
+"""
+    correlation_function(sr; rmin=0.01, rmax=10.0, npoints=400,
+                         coord_index=1, normalize=true)
+
+Compute the one-body radial density ``\\rho(r) = r^2 |\\psi_0(r)|^2`` along
+a single Jacobi coordinate.
+
+# Arguments
+- `sr`           : [`SolverResults`](@ref) from either solver.
+- `rmin`, `rmax` : radial grid range (a.u.).
+- `npoints`      : number of grid points.
+- `coord_index`  : which Jacobi coordinate to scan (default 1).
+- `normalize`    : if `true`, normalise so that ``\\int \\rho(r)\\,dr = 1``.
+
+Returns `(r_grid, ρ)` as plain `Vector{Float64}`.
+"""
 function correlation_function(
         sr::SolverResults;
         rmin::Real = 0.01,

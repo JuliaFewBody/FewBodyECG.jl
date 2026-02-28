@@ -122,7 +122,7 @@ import FewBodyECG: convergence_history
 # --- Variational convergence (energy vs fg evaluations) ---
 n_fg, E_fg = convergence_history(sr_var)
 p1 = plot(n_fg, E_fg;
-    label = "Variational (cummin)",
+    label = "Variational",
     xlabel = "fg evaluations",
     ylabel = "Energy (Ha)",
     title = "H⁻ variational convergence  (n = $n)",

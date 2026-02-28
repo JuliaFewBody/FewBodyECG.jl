@@ -64,58 +64,38 @@ function solve_generalized_eigenproblem(
     end
 
     if regularization > 0
-        S_sym = S_sym + regularization * I
+        S_sym = Symmetric(Matrix(S_sym) + regularization * I)
     end
 
     if !isposdef(S_sym)
         @warn "Overlap matrix not positive definite, adding regularization"
         ε = maximum(abs.(diag(S_sym))) * 1.0e-8
-        S_sym = S_sym + ε * I
+        S_sym = Symmetric(Matrix(S_sym) + ε * I)
 
         if !isposdef(S_sym)
             error("Overlap matrix not positive definite even after regularization")
         end
     end
 
-    # Cholesky decomposition with error handling
-    local F
+    # Solve the generalised symmetric eigenvalue problem H c = λ S c via
+    # LAPACK's divide-and-conquer driver (dsygvd).  This is more reliable than
+    # manually factorising S and back-transforming, and returns eigenvectors
+    # normalised so that vᵀ S v = I.
+    local evals, vecs
     try
-        F = cholesky(S_sym)
+        F = eigen(H_sym, S_sym)
+        evals = real.(F.values)
+        vecs = real.(F.vectors)
     catch e
-        @error "Cholesky decomposition failed" exception = e
-        @error "Overlap matrix info" condition = cond(S_sym) min_eigval = minimum(eigvals(S_sym))
+        @error "Generalised eigenvalue decomposition failed" exception = e
         rethrow(e)
     end
 
-    L = F.L
-
-    # Transform to standard eigenvalue problem
-    A = (L \ Matrix(H_sym)) / L'
-    A_sym = Symmetric((A + A') / 2)
-
-    # Check for NaN/Inf after transformation
-    if any(!isfinite, A_sym)
-        error("Transformed matrix contains NaN or Inf after Cholesky transformation")
+    if any(!isfinite, evals) || any(!isfinite, vecs)
+        error("Eigenvalues or eigenvectors contain NaN or Inf")
     end
 
-    # Solve standard eigenvalue problem
-    local evals, evecs
-    try
-        evals, evecs = eigen(A_sym)
-    catch e
-        @error "Eigenvalue decomposition failed" exception = e
-        @error "Transformed matrix info" condition = cond(A_sym)
-        rethrow(e)
-    end
-
-    # Transform eigenvectors back
-    vecs = L' \ evecs
-
-    # Ensure real
-    evals_real = real.(evals)
-    vecs_real = real.(vecs)
-
-    return evals_real, vecs_real
+    return evals, vecs
 end
 
 function normalized_overlap(A::GaussianBase, B::GaussianBase)
@@ -156,6 +136,46 @@ function default_scale(masses::Vector{<:Real})
     return 1 / sqrt(μ)
 end
 
+"""
+    solve_ECG(operators, n=50; kwargs...) -> SolverResults
+
+Build an ECG basis of `n` `Rank0Gaussian` functions using **stochastic greedy
+search** and return the ground-state energy.
+
+Candidate Gaussians are generated from a quasi-random sequence (Halton by
+default).  Each candidate is accepted if it is linearly independent from the
+existing basis (normalised overlap < `threshold`) and does not make the overlap
+matrix ill-conditioned.  The ground-state energy after each accepted function
+is stored in `SolverResults.energies`.
+
+# Arguments
+- `operators` : `Vector{<:Operator}` — kinetic + Coulomb operators (see [`KineticOperator`](@ref), [`CoulombOperator`](@ref)).
+- `n`         : target number of basis functions (default 50).
+
+# Keyword arguments
+| keyword         | default        | description |
+|:----------------|:---------------|:------------|
+| `sampler`       | `HaltonSample()` | QuasiMonteCarlo sampler for generating candidates |
+| `method`        | `:quasirandom` | `:quasirandom` or `:random` |
+| `scale`         | `0.2`          | characteristic Gaussian width (a.u.) |
+| `threshold`     | `0.95`         | normalised overlap above which a candidate is rejected |
+| `max_attempts`  | `10n`          | maximum number of candidate draws |
+| `max_condition` | `1e12`         | maximum condition number of the overlap matrix |
+| `verbose`       | `true`         | print per-step info messages |
+
+# Example
+
+```julia
+using FewBodyECG
+masses = [1.0e15, 1.0]   # hydrogen atom (fixed nucleus)
+Λmat = Λ(masses)
+_, U = _jacobi_transform(masses)
+w = U' * [1.0, -1.0]
+ops = Operator[KineticOperator(Λmat); CoulombOperator(-1.0, w)]
+sr = solve_ECG(ops, 30; scale=1.0, verbose=false)
+println(sr.ground_state)   # ≈ -0.5 Ha
+```
+"""
 function solve_ECG(
         operators::Vector{<:FewBodyHamiltonians.Operator},
         n::Int = 50;
@@ -261,9 +281,20 @@ function solve_ECG(
             continue
         end
 
+        E0 = minimum(λs)
+
+        # Variational principle: adding any linearly independent function to the
+        # basis cannot raise the ground-state energy.  If it does, the candidate
+        # is numerically near-degenerate with the existing basis (not caught by
+        # the overlap / condition-number checks above), so reject it.
+        if n_accepted > 0 && E0 > E_hist[end] + 1.0e-10
+            @warn "Candidate raises energy at step $ki, rejecting" ΔE = E0 - E_hist[end]
+            n_rejected += 1
+            continue
+        end
+
         push!(basis_fns, candidate)
         n_accepted += 1
-        E0 = minimum(λs)
         push!(E_hist, E0)
         push!(vecs_list, Us)
         verbose && @info "Step $n_accepted" E₀ = E0 attempts = attempt rejected = n_rejected
