@@ -18,5 +18,5 @@ coulomb_ops = [CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw)]
 ops = Operator[kin; coulomb_ops...]
 scale = default_scale(masses)
 
-result = solve_ECG(ops, 300, sampler = SobolSample(); scale = scale)
+result = solve_ECG(ops, 300, sampler = SobolSample(); scale = scale, verbose=false)
 println("E ≈ ", result.ground_state)

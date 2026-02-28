@@ -40,6 +40,20 @@ end
 
 end
 
+@testset "Rank1Gaussian matrix polarization constructor" begin
+    A = [3.0 0.0; 0.0 4.0]
+    a_mat = [0.1 0.3 0.5; 0.2 0.4 0.6]
+    s = [1.0, 2.0]
+
+    g1 = Rank1Gaussian(A, a_mat, s)
+    @test isa(g1, Rank1Gaussian)
+    @test g1.a == a_mat
+    @test g1.s == s
+
+    @test_throws ArgumentError Rank1Gaussian(A, [0.1 0.3], s)
+    @test_throws ArgumentError Rank1Gaussian(A, a_mat, [1.0])
+end
+
 
 @testset "Rank0Gaussian constructor and validate!" begin
     A = [2.0 0.0; 0.0 3.0]
@@ -102,6 +116,24 @@ end
     A_indef = [0.0 -1.0; -1.0 0.0]
     g2_indef = Rank2Gaussian(A_indef, a, b, s)
     @test_throws LinearAlgebra.PosDefException validate!(g2_indef)
+end
+
+@testset "Rank2Gaussian matrix polarization constructor" begin
+    A = [4.0 0.0; 0.0 5.0]
+    a_mat = [0.1 0.3 0.5; 0.2 0.4 0.6]
+    b_mat = [0.7 0.9 1.1; 0.8 1.0 1.2]
+    s = [1.0, 2.0]
+
+    g2 = Rank2Gaussian(A, a_mat, b_mat, s)
+    @test isa(g2, Rank2Gaussian)
+    @test g2.a == a_mat
+    @test g2.b == b_mat
+    @test g2.s == s
+
+    @test_throws ArgumentError Rank2Gaussian(A, [0.1 0.3], b_mat, s)
+    @test_throws ArgumentError Rank2Gaussian(A, a_mat, [0.7 0.9], s)
+    @test_throws ArgumentError Rank2Gaussian(A, a_mat, [0.7; 0.8], s)
+    @test_throws ArgumentError Rank2Gaussian(A, a_mat, b_mat[:, 1:2], s)
 end
 
 @testset "validate! for Rank0 and Rank1 positive/negative-definite" begin

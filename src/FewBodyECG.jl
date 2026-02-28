@@ -1,6 +1,7 @@
 module FewBodyECG
 
 using LinearAlgebra
+import Antique
 using FewBodyHamiltonians
 
 export Λ, _jacobi_transform

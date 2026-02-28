@@ -267,7 +267,7 @@ function solve_ECG(
         # Condition check on the overlap submatrix.
         cond_S = cond(Symmetric(S_k))
         if cond_S > max_condition
-            @warn "Overlap poorly conditioned (κ=$cond_S) at step $ki, rejecting"
+                if verbose == true @warn "Overlap poorly conditioned (κ=$cond_S) at step $ki, rejecting" end
             n_rejected += 1
             continue
         end

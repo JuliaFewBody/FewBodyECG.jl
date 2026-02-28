@@ -32,5 +32,7 @@ correlation_function
 _jacobi_transform
 GaussianBase
 Rank0Gaussian
+Rank1Gaussian
+Rank2Gaussian
 BasisSet
 ```

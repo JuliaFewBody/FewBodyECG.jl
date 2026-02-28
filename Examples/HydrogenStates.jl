@@ -1,6 +1,9 @@
 using FewBodyECG
+import Antique
 using LinearAlgebra
 using Plots
+
+atom = Antique.HydrogenAtom()
 
 masses = [1.0e15, 1.0]
 Λmat   = Λ(masses)
@@ -14,8 +17,8 @@ sr_1s = solve_ECG_sequential(ops, 16;
 
 E_1s = sr_1s.ground_state
 println("\n  E(1s)       = $(round(E_1s; digits = 8)) Ha")
-println("  E_exact(1s) = -0.50000000 Ha")
-println("  |ΔE|        = $(round(abs(E_1s + 0.5); sigdigits = 2))\n")
+println("  E_exact(1s) = $(round(Antique.E(atom; n = 1); digits = 8)) Ha")
+println("  |ΔE|        = $(round(abs(E_1s - Antique.E(atom; n = 1)); sigdigits = 2))\n")
 
 a_p    = [1.0]
 s_zero = [0.0]
@@ -42,19 +45,19 @@ end
 E_2p = minimum(E_2p_conv)
 c_2p = vecs_2p[:, 1]
 println("\n  E(2p)       = $(round(E_2p; digits = 8)) Ha")
-println("  E_exact(2p) = -0.12500000 Ha")
-println("  |ΔE|        = $(round(abs(E_2p + 0.125); sigdigits = 2))\n")
+println("  E_exact(2p) = $(round(Antique.E(atom; n = 2); digits = 8)) Ha")
+println("  |ΔE|        = $(round(abs(E_2p - Antique.E(atom; n = 2)); sigdigits = 2))\n")
 
-a_d      = [1.0]
-# α range chosen for the 3d orbital spatial scale: peak of r⁶exp(−2αr²) is at
-# r = √(3/α), so α ≈ 1/27 ≈ 0.037 for the 3d state (peak at r ≈ 9 a₀).
-alphas_d = exp10.(range(log10(0.002), log10(0.8), length = 12))
+# Orthogonal polarization vectors define a pure d-wave channel.
+a_d = reshape([1.0, 0.0, 0.0], 1, 3)
+b_d = reshape([0.0, 0.0, 1.0], 1, 3)
+alphas_d = exp10.(range(log10(0.002), log10(0.8), length = 24))
 basis_d   = GaussianBase[]
 E_3d_conv = Float64[]
 vecs_3d   = Matrix{Float64}(undef, 0, 0)
 
 for (k, α) in enumerate(alphas_d)
-    push!(basis_d, Rank2Gaussian([α;;], a_d, a_d, s_zero))
+    push!(basis_d, Rank2Gaussian([α;;], a_d, b_d, s_zero))
     bset = BasisSet(basis_d)
     H = build_hamiltonian_matrix(bset, ops)
     S = build_overlap_matrix(bset)
@@ -62,16 +65,15 @@ for (k, α) in enumerate(alphas_d)
     E_k = minimum(vals)
     push!(E_3d_conv, E_k)
     global vecs_3d = vecs
-    note = E_k < -1 / 18 ? "  ← below −1/18" : ""
     println("  step $(lpad(k, 2))  α = $(rpad(round(α; digits = 4), 7))" *
-            "  E = $(round(E_k; digits = 6))" * note)
+            "  E = $(round(E_k; digits = 8))")
 end
 
 E_rank2 = minimum(E_3d_conv)
 c_rank2 = vecs_3d[:, 1]
-println("\n  E(Rank2)      = $(round(E_rank2; digits = 6)) Ha")
-println("  E_exact(3d)   = $(round(-1/18; digits = 6)) Ha")
-println("  (energy lies below 3d due to L=0 mixing)\n")
+println("\n  E(3d, Rank2 pure d) = $(round(E_rank2; digits = 8)) Ha")
+println("  E_exact(3d)         = $(round(Antique.E(atom; n = 3); digits = 8)) Ha")
+println("  |ΔE|                = $(round(abs(E_rank2 - Antique.E(atom; n = 3)); sigdigits = 2))\n")
 
 function ψ_rank1(rval, c, bfs)
     r_vec = [rval]
@@ -83,10 +85,16 @@ function ψ_rank1(rval, c, bfs)
 end
 
 function ψ_rank2(rval, c, bfs)
+    # Directional profile for the pure d-wave basis: r̂ = (x+z)/√2.
+    θ_d, φ_d = π / 4, 0.0
+    r_cart = rval .* [sin(θ_d) * cos(φ_d), sin(θ_d) * sin(φ_d), cos(θ_d)]
     r_vec = [rval]
     return sum(
-        c[i] * dot(bfs[i].a, r_vec) * dot(bfs[i].b, r_vec) *
-            exp(-dot(r_vec, parent(bfs[i].A) * r_vec) + dot(bfs[i].s, r_vec))
+        c[i] * (
+            bfs[i].a isa AbstractMatrix ?
+            dot(vec(bfs[i].a), r_cart) * dot(vec(bfs[i].b), r_cart) :
+            dot(bfs[i].a, r_vec) * dot(bfs[i].b, r_vec)
+        ) * exp(-dot(r_vec, parent(bfs[i].A) * r_vec) + dot(bfs[i].s, r_vec))
             for i in eachindex(bfs)
     )
 end
@@ -104,9 +112,21 @@ r_3d = range(0.01, 35.0, length = 600)
 ρ_ecg_2p   = normalise([r^2 * abs2(ψ_rank1(r, c_2p, basis_p)) for r in r_2p], r_2p)
 ρ_ecg_rank2 = normalise([r^2 * abs2(ψ_rank2(r, c_rank2, basis_d)) for r in r_3d], r_3d)
 
-ρ_exact_1s = normalise([r^2 * exp(-2r)       for r in r_1s], r_1s)
-ρ_exact_2p = normalise([r^4 * exp(-r)        for r in r_2p], r_2p)
-ρ_exact_3d = normalise([r^6 * exp(-2r / 3)  for r in r_3d], r_3d)
+θ_p, φ_p = 0.0, 0.0
+θ_d, φ_d = π / 4, 0.0
+
+ρ_exact_1s = normalise(
+    [r^2 * abs2(Antique.ψ(atom, r, 0.0, 0.0; n = 1, l = 0, m = 0)) for r in r_1s],
+    r_1s,
+)
+ρ_exact_2p = normalise(
+    [r^2 * abs2(Antique.ψ(atom, r, θ_p, φ_p; n = 2, l = 1, m = 0)) for r in r_2p],
+    r_2p,
+)
+ρ_exact_3d = normalise(
+    [r^2 * abs2(Antique.ψ(atom, r, θ_d, φ_d; n = 3, l = 2, m = 1)) for r in r_3d],
+    r_3d,
+)
 
 p = plot(
     layout = (3, 1),
@@ -119,26 +139,25 @@ p = plot(
 plot!(p[1], collect(r_1s), ρ_ecg_1s;
     label = "ECG  Rank0 (16 fn.)", lw = 2.5, color = :steelblue)
 plot!(p[1], collect(r_1s), ρ_exact_1s;
-    label = "Exact 1s", lw = 1.8, ls = :dash, color = :black)
+    label = "Antique 1s", lw = 1.8, ls = :dash, color = :black)
 xlabel!(p[1], "r (a.u.)")
 ylabel!(p[1], "r²|ψ(r)|²")
-title!(p[1], "1s  (L=0)  E = $(round(E_1s; digits=6)) Ha  |  exact = −0.5")
+title!(p[1], "1s  (L=0)  E = $(round(E_1s; digits=6)) Ha  |  exact = $(round(Antique.E(atom; n = 1); digits = 6))")
 
 plot!(p[2], collect(r_2p), ρ_ecg_2p;
     label = "ECG  Rank1 (16 fn.)", lw = 2.5, color = :tomato)
 plot!(p[2], collect(r_2p), ρ_exact_2p;
-    label = "Exact 2p", lw = 1.8, ls = :dash, color = :black)
+    label = "Antique 2p (θ=0)", lw = 1.8, ls = :dash, color = :black)
 xlabel!(p[2], "r (a.u.)")
 ylabel!(p[2], "r²|ψ(r)|²")
-title!(p[2], "2p  (L=1)  E = $(round(E_2p; digits=6)) Ha  |  exact = −0.125")
+title!(p[2], "2p  (L=1)  E = $(round(E_2p; digits=6)) Ha  |  exact = $(round(Antique.E(atom; n = 2); digits = 6))")
 
 plot!(p[3], collect(r_3d), ρ_ecg_rank2;
     label = "ECG  Rank2 (12 fn.)", lw = 2.5, color = :seagreen)
 plot!(p[3], collect(r_3d), ρ_exact_3d;
-    label = "Exact 3d shape  (r⁶ e^{−2r/3})", lw = 1.8, ls = :dash, color = :black)
+    label = "Antique 3d (θ=π/4, m=1)", lw = 1.8, ls = :dash, color = :black)
 xlabel!(p[3], "r (a.u.)")
 ylabel!(p[3], "r²|ψ(r)|²")
-title!(p[3], "d-wave-like  Rank2  E = $(round(E_rank2; digits=5)) Ha  |" *
-             "  exact 3d = $(round(-1/18; digits=5))  (L=0/L=2 mixed)")
+title!(p[3], "pure d-wave  Rank2  E = $(round(E_rank2; digits=6)) Ha  |  exact 3d = $(round(Antique.E(atom; n = 3); digits = 6))")
 
 display(p)

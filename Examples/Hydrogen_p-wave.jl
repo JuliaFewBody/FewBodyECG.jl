@@ -2,7 +2,7 @@ using FewBodyECG
 using LinearAlgebra
 using Plots
 
-masses = [1.0e15, 1.0]
+masses = [1e12, 1.0]
 
 Λmat = Λ(masses)
 kin = KineticOperator(Λmat)
@@ -21,8 +21,6 @@ ops = Operator[
 a_vec = [1.0]
 s_zero = [0.0]
 
-# Use a range of Gaussian widths that spans the spatial extent of the 2p orbital.
-# The 2p state is more diffuse than 1s, so we need wider Gaussians (smaller α).
 alphas = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0]
 
 basis_fns = GaussianBase[]

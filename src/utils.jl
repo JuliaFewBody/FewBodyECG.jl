@@ -1,25 +1,3 @@
-"""
-    SolverResults
-
-Output of [`solve_ECG`](@ref), [`solve_ECG_variational`](@ref), and [`solve_ECG_sequential`](@ref).
-
-# Fields
-| field             | type                                  | description |
-|:------------------|:--------------------------------------|:------------|
-| `basis_functions` | `Vector{GaussianBase}`                | optimised basis |
-| `n_basis`         | `Int`                                 | number of accepted/optimised functions |
-| `operators`       | `Vector{Operator}`                    | kinetic + Coulomb operators passed to the solver |
-| `method`          | `Symbol`                              | `:quasirandom`, `:random`, `:variational`, or `:sequential` |
-| `sampler`         | `DeterministicSamplingAlgorithm`      | QMC sampler used (placeholder for variational/sequential results) |
-| `length_scale`    | `Float64`                             | Gaussian width scale |
-| `ground_state`    | `Float64`                             | lowest eigenvalue (ground-state energy in Hartree) |
-| `energies`        | `Vector{Float64}`                     | energy at each greedy/sequential step, or `[ground_state]` (variational) |
-| `eigenvectors`    | `Vector{Matrix{Float64}}`             | eigenvector matrices (one per step for stochastic/sequential; one for variational) |
-| `fg_history`      | `Vector{Float64}`                     | cumulative-minimum energy per objective call (variational/sequential) or mirrors `energies` (stochastic) |
-
-Use [`convergence`](@ref), [`convergence_history`](@ref), [`correlation_function`](@ref),
-and [`ψ₀`](@ref) to analyse the result.
-"""
 struct SolverResults
     basis_functions::Vector{GaussianBase}
     n_basis::Int
@@ -30,10 +8,6 @@ struct SolverResults
     ground_state::Float64
     energies::Vector{Float64}
     eigenvectors::Vector{Matrix{Float64}}
-    # Per-call objective history (energy for :energy loss, trace for :trace loss).
-    # For solve_ECG this mirrors energies; for solve_ECG_variational it records
-    # the cumulative minimum at every primal fg evaluation so the curve is
-    # monotone and plottable via convergence_history().
     fg_history::Vector{Float64}
 end
 

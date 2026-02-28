@@ -16,7 +16,7 @@ abstract type GaussianBase end
 Basis function ``g(\\mathbf{r}) = \\exp(-\\mathbf{r}^T A\\,\\mathbf{r} + \\mathbf{s}^T\\mathbf{r})``.
 
 # Fields
-- `A` : symmetric positive-definite ``n_{\\text{dim}} \\times n_{\\text{dim}}`` matrix controlling the Gaussian width and inter-particle correlations.
+- `A` : symmetric positive-definite ``n_{\\text{dim}} \\times n_{\\text{dim}}`` matrix controlling the Gaussian width and correlations.
 - `s` : shift vector ``\\mathbf{s} \\in \\mathbb{R}^{n_{\\text{dim}}}``; controls the location of the Gaussian maximum.
 """
 struct Rank0Gaussian{T <: Real, M <: AbstractMatrix{T}, V <: AbstractVector{T}} <: GaussianBase
@@ -29,28 +29,115 @@ struct Rank0Gaussian{T <: Real, M <: AbstractMatrix{T}, V <: AbstractVector{T}} 
     end
 end
 
-struct Rank1Gaussian{T <: Real, M <: AbstractMatrix{T}, V <: AbstractVector{T}} <: GaussianBase
+const Polarization{T} = Union{AbstractVector{T}, AbstractMatrix{T}}
+
+_pol_nrows(a::AbstractVector) = length(a)
+_pol_nrows(a::AbstractMatrix) = size(a, 1)
+_pol_ncomp(a::AbstractVector) = 1
+_pol_ncomp(a::AbstractMatrix) = size(a, 2)
+_pol_cols(a::AbstractVector) = reshape(a, :, 1)
+_pol_cols(a::AbstractMatrix) = a
+
+_polarization_components(a::Union{AbstractVector, AbstractMatrix}) = _pol_ncomp(a)
+_polarization_matrix(a::Union{AbstractVector, AbstractMatrix}) = _pol_cols(a)
+
+function _check_polarization_compat(
+        a::Union{AbstractVector, AbstractMatrix},
+        b::Union{AbstractVector, AbstractMatrix}
+    )
+    _pol_ncomp(a) == _pol_ncomp(b) ||
+        throw(DimensionMismatch("polarizations must have the same number of components"))
+    return nothing
+end
+
+function _polar_contract(
+        a::Union{AbstractVector, AbstractMatrix},
+        M::AbstractMatrix,
+        b::Union{AbstractVector, AbstractMatrix}
+    )
+    _check_polarization_compat(a, b)
+    A = _pol_cols(a)
+    B = _pol_cols(b)
+    return tr(transpose(A) * M * B)
+end
+
+function _polar_projection(
+        a::Union{AbstractVector, AbstractMatrix},
+        x::AbstractVector
+    )
+    A = _pol_cols(a)
+    return transpose(A) * x
+end
+
+function _polar_project_dot(
+        a::Union{AbstractVector, AbstractMatrix},
+        x::AbstractVector,
+        b::Union{AbstractVector, AbstractMatrix},
+        y::AbstractVector
+    )
+    _check_polarization_compat(a, b)
+    return dot(_polar_projection(a, x), _polar_projection(b, y))
+end
+
+"""
+    Rank1Gaussian(A, a, s)
+
+Rank-1 (p-wave-like) ECG basis function with linear prefactor.
+
+`a` can be either:
+- a vector of length `size(A,1)` (single polarization component), or
+- a matrix of size `size(A,1) × ncomp` (multi-component polarization).
+"""
+struct Rank1Gaussian{
+    T <: Real,
+    M <: AbstractMatrix{T},
+    P <: Polarization{T},
+    V <: AbstractVector{T},
+} <: GaussianBase
     A::Symmetric{T, M}
-    a::V
+    a::P
     s::V
-    function Rank1Gaussian(A::AbstractMatrix{T}, a::AbstractVector{T}, s::AbstractVector{T}) where {T <: Real}
+    function Rank1Gaussian(A::AbstractMatrix{T}, a::Polarization{T}, s::AbstractVector{T}) where {T <: Real}
         size(A, 1) == size(A, 2) || throw(ArgumentError("A must be square"))
-        (length(a) == size(A, 1) && length(s) == size(A, 1)) ||
-            throw(ArgumentError("length(a) and length(s) must equal size(A,1)"))
-        return new{T, typeof(A), typeof(a)}(Symmetric(A), a, s)
+        _pol_nrows(a) == size(A, 1) ||
+            throw(ArgumentError("size(a,1) (or length(a)) must equal size(A,1)"))
+        length(s) == size(A, 1) ||
+            throw(ArgumentError("length(s) must equal size(A,1)"))
+        return new{T, typeof(A), typeof(a), typeof(s)}(Symmetric(A), a, s)
     end
 end
 
-struct Rank2Gaussian{T <: Real, M <: AbstractMatrix{T}, V <: AbstractVector{T}} <: GaussianBase
+"""
+    Rank2Gaussian(A, a, b, s)
+
+Rank-2 (d-wave-like) ECG basis function with quadratic prefactor.
+
+`a` and `b` can each be either vectors or matrices. Their first dimension must
+match `size(A,1)`. For matrix polarizations, `a` and `b` must have the same
+number of columns (`ncomp`), enabling multi-component pure d-wave channels.
+"""
+struct Rank2Gaussian{
+    T <: Real,
+    M <: AbstractMatrix{T},
+    P <: Polarization{T},
+    Q <: Polarization{T},
+    V <: AbstractVector{T},
+} <: GaussianBase
     A::Symmetric{T, M}
-    a::V
-    b::V
+    a::P
+    b::Q
     s::V
-    function Rank2Gaussian(A::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector{T}, s::AbstractVector{T}) where {T <: Real}
+    function Rank2Gaussian(A::AbstractMatrix{T}, a::Polarization{T}, b::Polarization{T}, s::AbstractVector{T}) where {T <: Real}
         size(A, 1) == size(A, 2) || throw(ArgumentError("A must be square"))
-        (length(a) == size(A, 1) && length(b) == size(A, 1) && length(s) == size(A, 1)) ||
-            throw(ArgumentError("length(a), length(b), length(s) must equal size(A,1)"))
-        return new{T, typeof(A), typeof(a)}(Symmetric(A), a, b, s)
+        _pol_nrows(a) == size(A, 1) ||
+            throw(ArgumentError("size(a,1) (or length(a)) must equal size(A,1)"))
+        _pol_nrows(b) == size(A, 1) ||
+            throw(ArgumentError("size(b,1) (or length(b)) must equal size(A,1)"))
+        _pol_ncomp(a) == _pol_ncomp(b) ||
+            throw(ArgumentError("a and b must have the same number of polarization components"))
+        length(s) == size(A, 1) ||
+            throw(ArgumentError("length(s) must equal size(A,1)"))
+        return new{T, typeof(A), typeof(a), typeof(b), typeof(s)}(Symmetric(A), a, b, s)
     end
 end
 
