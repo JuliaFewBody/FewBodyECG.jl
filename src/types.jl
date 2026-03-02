@@ -31,15 +31,10 @@ end
 
 const Polarization{T} = Union{AbstractVector{T}, AbstractMatrix{T}}
 
-_pol_nrows(a::AbstractVector) = length(a)
-_pol_nrows(a::AbstractMatrix) = size(a, 1)
 _pol_ncomp(a::AbstractVector) = 1
 _pol_ncomp(a::AbstractMatrix) = size(a, 2)
 _pol_cols(a::AbstractVector) = reshape(a, :, 1)
 _pol_cols(a::AbstractMatrix) = a
-
-_polarization_components(a::Union{AbstractVector, AbstractMatrix}) = _pol_ncomp(a)
-_polarization_matrix(a::Union{AbstractVector, AbstractMatrix}) = _pol_cols(a)
 
 function _check_polarization_compat(
         a::Union{AbstractVector, AbstractMatrix},
@@ -99,7 +94,7 @@ struct Rank1Gaussian{
     s::V
     function Rank1Gaussian(A::AbstractMatrix{T}, a::Polarization{T}, s::AbstractVector{T}) where {T <: Real}
         size(A, 1) == size(A, 2) || throw(ArgumentError("A must be square"))
-        _pol_nrows(a) == size(A, 1) ||
+        size(a, 1) == size(A, 1) ||
             throw(ArgumentError("size(a,1) (or length(a)) must equal size(A,1)"))
         length(s) == size(A, 1) ||
             throw(ArgumentError("length(s) must equal size(A,1)"))
@@ -129,9 +124,9 @@ struct Rank2Gaussian{
     s::V
     function Rank2Gaussian(A::AbstractMatrix{T}, a::Polarization{T}, b::Polarization{T}, s::AbstractVector{T}) where {T <: Real}
         size(A, 1) == size(A, 2) || throw(ArgumentError("A must be square"))
-        _pol_nrows(a) == size(A, 1) ||
+        size(a, 1) == size(A, 1) ||
             throw(ArgumentError("size(a,1) (or length(a)) must equal size(A,1)"))
-        _pol_nrows(b) == size(A, 1) ||
+        size(b, 1) == size(A, 1) ||
             throw(ArgumentError("size(b,1) (or length(b)) must equal size(A,1)"))
         _pol_ncomp(a) == _pol_ncomp(b) ||
             throw(ArgumentError("a and b must have the same number of polarization components"))

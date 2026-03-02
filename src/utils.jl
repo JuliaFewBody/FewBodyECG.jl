@@ -1,3 +1,21 @@
+"""
+    SolverResults
+
+Container returned by all ECG solvers ([`solve_ECG`](@ref),
+[`solve_ECG_variational`](@ref), [`solve_ECG_sequential`](@ref)).
+
+# Fields
+- `basis_functions` : accepted basis functions.
+- `n_basis`         : number of accepted basis functions.
+- `operators`       : the operator list used during the solve.
+- `method`          : solver symbol (`:quasirandom`, `:random`, `:variational`, `:sequential`).
+- `sampler`         : quasi-/pseudo-random sampler used for basis generation.
+- `length_scale`    : Gaussian width scale passed at construction.
+- `ground_state`    : lowest eigenvalue (ground-state energy in a.u.).
+- `energies`        : energy after each accepted basis function (stochastic) or after each step (sequential).
+- `eigenvectors`    : list of eigenvector matrices; `eigenvectors[end][:, 1]` is the ground-state coefficient vector.
+- `fg_history`      : monotone-decreasing objective value after each gradient evaluation (variational solvers).
+"""
 struct SolverResults
     basis_functions::Vector{GaussianBase}
     n_basis::Int
