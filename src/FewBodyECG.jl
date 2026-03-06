@@ -1,6 +1,7 @@
 module FewBodyECG
 
 using LinearAlgebra
+import Antique
 using FewBodyHamiltonians
 
 export Λ, _jacobi_transform
@@ -15,7 +16,11 @@ export Operator
 
 export build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem, solve_ECG, convergence
 
-export ψ₀, SolverResults, convergence, correlation_function, ψ
+export ψ₀, SolverResults, convergence, convergence_history, correlation_function, ψ
+
+export solve_ECG_variational, solve_ECG_sequential
+
+export Operators, coulomb_weights
 
 include("types.jl")
 include("coordinates.jl")
@@ -23,6 +28,7 @@ include("matrix_elements.jl")
 include("hamiltonian.jl")
 include("sampling.jl")
 include("utils.jl")
+include("variational.jl")
 
 
 end

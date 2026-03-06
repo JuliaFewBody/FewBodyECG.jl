@@ -7,7 +7,7 @@ Compute the matrix element ⟨bra|op|ket⟩ using analytic expressions.
 """
 
 function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian)
-    A, B = bra.A, ket.A
+    A, B = parent(bra.A), parent(ket.A)
     a, b = bra.s, ket.s
     S = A + B
     R = inv(S)
@@ -27,12 +27,26 @@ function _compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian)
     Rt = R * t
     I0 = exp(0.25 * t' * R * t) * (π^n / det(S))^(3 / 2)
 
-    cov = 0.5 * dot(bra.a, R * ket.a)
-    mean_term = 0.25 * dot(bra.a, Rt) * dot(ket.a, Rt)
+    cov = 0.5 * _polar_contract(bra.a, R, ket.a)
+    mean_term = 0.25 * _polar_project_dot(
+        bra.a,
+        Rt,
+        ket.a,
+        Rt,
+    )
     return (cov + mean_term) * I0
 end
 
 function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian)
+    _check_polarization_compat(bra.a, bra.b)
+    _check_polarization_compat(ket.a, ket.b)
+    _check_polarization_compat(bra.a, ket.a)
+    if (any(!iszero, bra.s) || any(!iszero, ket.s)) && _pol_ncomp(bra.a) > 1
+        throw(ArgumentError(
+            "Rank2 overlap with nonzero shifts currently requires single-component polarizations"
+        ))
+    end
+
     A, B = bra.A, ket.A
     a, b = bra.s, ket.s
     S = A + B
@@ -45,12 +59,12 @@ function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian)
 
     μ = 0.5 * Rt
 
-    Xμ = dot(bra.a, μ)
-    Yμ = dot(bra.b, μ)
-    Zμ = dot(ket.a, μ)
-    Wμ = dot(ket.b, μ)
+    Xμ = sum(_polar_projection(bra.a, μ))
+    Yμ = sum(_polar_projection(bra.b, μ))
+    Zμ = sum(_polar_projection(ket.a, μ))
+    Wμ = sum(_polar_projection(ket.b, μ))
 
-    cov(v, w) = 0.5 * dot(v, R * w)
+    cov(v, w) = 0.5 * _polar_contract(v, R, w)
     XY = cov(bra.a, bra.b)
     XZ = cov(bra.a, ket.a)
     XW = cov(bra.a, ket.b)
@@ -74,7 +88,7 @@ function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian)
 end
 
 function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::KineticOperator)
-    A, B = bra.A, ket.A
+    A, B = parent(bra.A), parent(ket.A)
     a, b = bra.s, ket.s
     K = op.K
     S = A + B
@@ -94,19 +108,22 @@ function _compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::Kin
     end
 
     A, B = bra.A, ket.A
-    a = vec(bra.a)
-    b = vec(ket.a)
+    a = bra.a
+    b = ket.a
     K = op.K
     R = inv(A + B)
     n = size(R, 1)
     M0 = (π^n / det(A + B))^(3 / 2)
-    M1 = 0.5 * dot(a, R * b) * M0
+    M1 = 0.5 * _polar_contract(a, R, b) * M0
 
     T1 = 6 * tr(B * K * A * R) * M1
-    T2 = dot(a, K * b) * M0
-    T3 = (dot(b, R * A * K * B * R * a) + dot(a, R * A * K * B * R * b)) * M0
-    T4 = -dot(a, R * A * K * b) * M0
-    T5 = -dot(b, R * B * K * a) * M0
+    T2 = _polar_contract(a, K, b) * M0
+    T3 = (
+        _polar_contract(b, R * A * K * B * R, a) +
+        _polar_contract(a, R * A * K * B * R, b)
+    ) * M0
+    T4 = -_polar_contract(a, R * A * K, b) * M0
+    T5 = -_polar_contract(b, R * B * K, a) * M0
 
     return T1 + T2 + T3 + T4 + T5
 end
@@ -118,67 +135,101 @@ function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::Kin
 
     A, B = bra.A, ket.A
     a, b, c, d = bra.a, bra.b, ket.a, ket.b
+    _check_polarization_compat(a, b)
+    _check_polarization_compat(c, d)
+    _check_polarization_compat(a, c)
     K = op.K
     R = inv(A + B)
     n = size(R, 1)
     M0 = (π^n / det(A + B))^(3 / 2)
 
     M2 = 0.25 * (
-        dot(a, R * b) * dot(c, R * d) +
-            dot(a, R * c) * dot(b, R * d) +
-            dot(a, R * d) * dot(b, R * c)
+        _polar_contract(a, R, b) *
+            _polar_contract(c, R, d) +
+            _polar_contract(a, R, c) *
+            _polar_contract(b, R, d) +
+            _polar_contract(a, R, d) *
+            _polar_contract(b, R, c)
     ) * M0
 
     T1 = 6 * tr(B * K * A * R) * M2
 
     T2 = 0.5 * (
-        dot(a, K * c) * dot(b, R * d) +
-            dot(a, K * d) * dot(b, R * c) +
-            dot(b, K * c) * dot(a, R * d) +
-            dot(b, K * d) * dot(a, R * c)
+        _polar_contract(a, K, c) *
+            _polar_contract(b, R, d) +
+            _polar_contract(a, K, d) *
+            _polar_contract(b, R, c) +
+            _polar_contract(b, K, c) *
+            _polar_contract(a, R, d) +
+            _polar_contract(b, K, d) *
+            _polar_contract(a, R, c)
     ) * M0
 
     RAKBR = R * A * K * B * R
     T3 = 0.5 * (
-        dot(a, RAKBR * b) * dot(c, R * d) +
-            dot(a, RAKBR * c) * dot(b, R * d) +
-            dot(a, RAKBR * d) * dot(b, R * c) +
-            dot(b, RAKBR * a) * dot(c, R * d) +
-            dot(b, RAKBR * c) * dot(a, R * d) +
-            dot(b, RAKBR * d) * dot(a, R * c) +
-            dot(c, RAKBR * a) * dot(b, R * d) +
-            dot(c, RAKBR * b) * dot(a, R * d) +
-            dot(c, RAKBR * d) * dot(a, R * b) +
-            dot(d, RAKBR * a) * dot(b, R * c) +
-            dot(d, RAKBR * b) * dot(a, R * c) +
-            dot(d, RAKBR * c) * dot(a, R * b)
+        _polar_contract(a, RAKBR, b) *
+            _polar_contract(c, R, d) +
+            _polar_contract(a, RAKBR, c) *
+            _polar_contract(b, R, d) +
+            _polar_contract(a, RAKBR, d) *
+            _polar_contract(b, R, c) +
+            _polar_contract(b, RAKBR, a) *
+            _polar_contract(c, R, d) +
+            _polar_contract(b, RAKBR, c) *
+            _polar_contract(a, R, d) +
+            _polar_contract(b, RAKBR, d) *
+            _polar_contract(a, R, c) +
+            _polar_contract(c, RAKBR, a) *
+            _polar_contract(b, R, d) +
+            _polar_contract(c, RAKBR, b) *
+            _polar_contract(a, R, d) +
+            _polar_contract(c, RAKBR, d) *
+            _polar_contract(a, R, b) +
+            _polar_contract(d, RAKBR, a) *
+            _polar_contract(b, R, c) +
+            _polar_contract(d, RAKBR, b) *
+            _polar_contract(a, R, c) +
+            _polar_contract(d, RAKBR, c) *
+            _polar_contract(a, R, b)
     ) * M0
 
     RAK = R * A * K
     T4 = -0.5 * (
-        dot(c, RAK * d) * dot(a, R * b) +
-            dot(d, RAK * c) * dot(a, R * b) +
-            dot(a, RAK * c) * dot(d, R * b) +
-            dot(a, RAK * d) * dot(c, R * b) +
-            dot(b, RAK * c) * dot(d, R * a) +
-            dot(b, RAK * d) * dot(a, R * c)
+        _polar_contract(c, RAK, d) *
+            _polar_contract(a, R, b) +
+            _polar_contract(d, RAK, c) *
+            _polar_contract(a, R, b) +
+            _polar_contract(a, RAK, c) *
+            _polar_contract(d, R, b) +
+            _polar_contract(a, RAK, d) *
+            _polar_contract(c, R, b) +
+            _polar_contract(b, RAK, c) *
+            _polar_contract(d, R, a) +
+            _polar_contract(b, RAK, d) *
+            _polar_contract(a, R, c)
     ) * M0
 
     KBR = K * B * R
     T5 = -0.5 * (
-        dot(a, KBR * c) * dot(d, R * b) +
-            dot(a, KBR * d) * dot(c, R * b) +
-            dot(a, KBR * b) * dot(c, R * d) +
-            dot(b, KBR * c) * dot(d, R * a) +
-            dot(b, KBR * d) * dot(c, R * a) +
-            dot(b, KBR * a) * dot(c, R * d)
+        _polar_contract(a, KBR, c) *
+            _polar_contract(d, R, b) +
+            _polar_contract(a, KBR, d) *
+            _polar_contract(c, R, b) +
+            _polar_contract(a, KBR, b) *
+            _polar_contract(c, R, d) +
+            _polar_contract(b, KBR, c) *
+            _polar_contract(d, R, a) +
+            _polar_contract(b, KBR, d) *
+            _polar_contract(c, R, a) +
+            _polar_contract(b, KBR, a) *
+            _polar_contract(c, R, d)
     ) * M0
 
     return T1 + T2 + T3 + T4 + T5
 end
 
 function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::CoulombOperator)
-    A, B = bra.A, ket.A
+    A, B = parent(bra.A), parent(ket.A)
     a, b = bra.s, ket.s
     w = op.w
     S = A + B
@@ -186,7 +237,11 @@ function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::Cou
     M = _compute_matrix_element(bra, ket)
     β = 1 / (w' * R * w)
     q = 0.5 * (w' * R * (a + b))
-    f = abs(q) < 1.0e-12 ? (2 * sqrt(β / π)) : (erf(sqrt(β) * q) / q)
+    # Use the limiting form 2√(β/π) when the scaled argument x = √β·q is
+    # small so that erf(x)/q = √β·erf(x)/x → 2√(β/π) accurately.
+    # Thresholding on x (not q alone) correctly handles all β values.
+    x = sqrt(β) * q
+    f = abs(x) < 1.0e-7 ? (2 * sqrt(β / π)) : (erf(x) / q)
     return op.coefficient * f * M
 end
 
@@ -200,10 +255,14 @@ function _compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::Cou
     n = size(R, 1)
     β = 1 / (dot(w, R * w))
     M0 = (π^n / det(A + B))^(3 / 2)
-    M1 = 0.5 * dot(a, R * b) * M0
+    M1 = 0.5 * _polar_contract(a, R, b) * M0
     Rw = R * w
 
-    return op.coefficient * (2 * sqrt(β / π) * M1 - sqrt(β / π) * β / 3 * dot(a, Rw) * dot(Rw, b) * M0)
+    return op.coefficient * (
+        2 * sqrt(β / π) * M1 -
+        sqrt(β / π) * β / 3 *
+        _polar_project_dot(a, Rw, b, Rw) * M0
+    )
 end
 
 function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::CoulombOperator)
@@ -213,6 +272,9 @@ function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::Cou
 
     A, B = bra.A, ket.A
     a, b, c, d = bra.a, bra.b, ket.a, ket.b
+    _check_polarization_compat(a, b)
+    _check_polarization_compat(c, d)
+    _check_polarization_compat(a, c)
     w = op.w
     R = inv(A + B)
     n = size(R, 1)
@@ -222,27 +284,39 @@ function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::Cou
     Rw = R * w
 
     M2 = 0.25 * (
-        dot(a, R * b) * dot(c, R * d) +
-            dot(a, R * c) * dot(b, R * d) +
-            dot(a, R * d) * dot(b, R * c)
+        _polar_contract(a, R, b) *
+            _polar_contract(c, R, d) +
+            _polar_contract(a, R, c) *
+            _polar_contract(b, R, d) +
+            _polar_contract(a, R, d) *
+            _polar_contract(b, R, c)
     ) * M0
 
     term1 = 2 * sqrt(β / π) * M2
 
-    q2_1 = dot(a, Rw) * dot(Rw, b) * dot(c, R * d)
-    q2_2 = dot(a, Rw) * dot(Rw, c) * dot(b, R * d)
-    q2_3 = dot(a, Rw) * dot(Rw, d) * dot(b, R * c)
-    q2_4 = dot(b, Rw) * dot(Rw, c) * dot(a, R * d)
-    q2_5 = dot(b, Rw) * dot(Rw, d) * dot(a, R * c)
-    q2_6 = dot(c, Rw) * dot(Rw, d) * dot(a, R * b)
+    q2_1 = _polar_project_dot(a, Rw, b, Rw) *
+        _polar_contract(c, R, d)
+    q2_2 = _polar_project_dot(a, Rw, c, Rw) *
+        _polar_contract(b, R, d)
+    q2_3 = _polar_project_dot(a, Rw, d, Rw) *
+        _polar_contract(b, R, c)
+    q2_4 = _polar_project_dot(b, Rw, c, Rw) *
+        _polar_contract(a, R, d)
+    q2_5 = _polar_project_dot(b, Rw, d, Rw) *
+        _polar_contract(a, R, c)
+    q2_6 = _polar_project_dot(c, Rw, d, Rw) *
+        _polar_contract(a, R, b)
 
     term2 = -2 * sqrt(β / π) * β / 3 * 0.25 * (
         q2_1 + q2_2 + q2_3 + q2_4 + q2_5 + q2_6
     ) * M0
 
-    q4_1 = dot(a, Rw) * dot(Rw, b) * dot(c, Rw) * dot(Rw, d)
-    q4_2 = dot(a, Rw) * dot(Rw, c) * dot(b, Rw) * dot(Rw, d)
-    q4_3 = dot(a, Rw) * dot(Rw, d) * dot(b, Rw) * dot(Rw, c)
+    q4_1 = _polar_project_dot(a, Rw, b, Rw) *
+        _polar_project_dot(c, Rw, d, Rw)
+    q4_2 = _polar_project_dot(a, Rw, c, Rw) *
+        _polar_project_dot(b, Rw, d, Rw)
+    q4_3 = _polar_project_dot(a, Rw, d, Rw) *
+        _polar_project_dot(b, Rw, c, Rw)
 
     term3 = 2 * sqrt(β / π) * β^2 / 10 * 0.5 * (
         q4_1 + q4_2 + q4_3
