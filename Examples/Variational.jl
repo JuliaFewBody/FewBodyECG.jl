@@ -21,21 +21,13 @@
 
 using FewBodyECG
 using LinearAlgebra
-using QuasiMonteCarlo
 import FewBodyECG: default_scale, BasisSet, Rank0Gaussian
 
 masses_Hm = [1.0e15, 1.0, 1.0]   # fixed nucleus + 2 electrons
-Λ_Hm = Λ(masses_Hm)
-_, U_Hm = _jacobi_transform(masses_Hm)
 
-w_pairs = [[1, -1, 0], [1, 0, -1], [0, 1, -1]]
-w_raw_Hm = [U_Hm' * Float64.(w) for w in w_pairs]
-coeffs_Hm = [-1.0, -1.0, +1.0]   # e-nucleus (×2) and e-e repulsion
-
-ops_Hm = Operator[
-    KineticOperator(Λ_Hm);
-    [CoulombOperator(c, w) for (c, w) in zip(coeffs_Hm, w_raw_Hm)]...
-]
+ops_Hm = Operators(masses_Hm, [+1, -1, -1])   # proton, e₁, e₂
+ops_Hm += "Kinetic"
+ops_Hm += "Coulomb"
 
 E_exact_Hm = -0.527751016523
 n = 30
@@ -67,16 +59,10 @@ r_grid, ρ = correlation_function(sr_var; rmin = 0.01, rmax = 15.0, npoints = 20
 println("\n  Correlation function computed: $(length(r_grid)) points, max ρ at r = $(round(r_grid[argmax(ρ)], digits=3)) a.u.")
 
 masses_tdμ = [5496.918, 3670.481, 206.7686]   # t, d, μ in electron masses
-Λ_tdμ = Λ(masses_tdμ)
-_, U_tdμ = _jacobi_transform(masses_tdμ)
 
-w_raw_tdμ = [U_tdμ' * Float64.(w) for w in w_pairs]
-coeffs_tdμ = [+1.0, -1.0, -1.0]   # t-d repulsion, t-μ and d-μ attraction
-
-ops_tdμ = Operator[
-    KineticOperator(Λ_tdμ);
-    [CoulombOperator(c, w) for (c, w) in zip(coeffs_tdμ, w_raw_tdμ)]...
-]
+ops_tdμ = Operators(masses_tdμ, [+1, +1, -1])   # triton, deuteron, muon
+ops_tdμ += "Kinetic"
+ops_tdμ += "Coulomb"   # t-d repulsion (+1), t-μ and d-μ attraction (-1)
 
 E_exact_tdμ = -111.36444
 scale_tdμ = 0.03   # nuclear scale

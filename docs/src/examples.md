@@ -4,25 +4,13 @@ Suppose you want to calculate the ground state energy of the hydrogen anion in t
 
 ```@example example1
 using FewBodyECG
-using LinearAlgebra
 using Plots
-using QuasiMonteCarlo
 
 masses = [1.0e15, 1.0, 1.0]
 
-Λmat = Λ(masses)
-kin = KineticOperator(Λmat)
-J, U = _jacobi_transform(masses)
-
-w_list = [[1, -1, 0], [1, 0, -1], [0, 1, -1]]
-
-w_raw = [U' * w for w in w_list]
-coeffs = [-1.0, -1.0, +1.0]
-
-ops = Operator[
-    kin;
-    (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
-]
+ops = Operators(masses, [+1, -1, -1])   # proton, e₁, e₂
+ops += "Kinetic"
+ops += "Coulomb"   # adds all 3 pairwise interactions automatically
 
 result = solve_ECG(ops, 250, scale = 1.0)
 
@@ -46,20 +34,13 @@ L-BFGS via [OptimKit.jl](https://github.com/Jutho/OptimKit.jl).
 
 ```@example example_var_fresh
 using FewBodyECG
-using LinearAlgebra
 using Plots
 
 masses = [1.0e15, 1.0, 1.0]   # H⁻: fixed nucleus + 2 electrons
 
-Λmat = Λ(masses)
-kin  = KineticOperator(Λmat)
-J, U = _jacobi_transform(masses)
-
-w_list = [[1, -1, 0], [1, 0, -1], [0, 1, -1]]
-w_raw  = [U' * w for w in w_list]
-coeffs = [-1.0, -1.0, +1.0]
-
-ops = Operator[kin; [CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw)]...]
+ops = Operators(masses, [+1, -1, -1])
+ops += "Kinetic"
+ops += "Coulomb"
 
 sr = solve_ECG_variational(ops, 20; scale = 1.0, max_iterations = 200, verbose = false)
 
@@ -85,15 +66,13 @@ Here we apply it to the hydrogen atom ground state (1s):
 
 ```@example example_seq
 using FewBodyECG
-using LinearAlgebra
 using Plots
 
-masses = [1.0e15, 1.0]           # hydrogen: heavy nucleus + electron
-Λmat   = Λ(masses)
-_, U   = _jacobi_transform(masses)
-w      = U' * Float64.([1, -1])  # electron–nucleus separation
+masses = [1.0e15, 1.0]   # hydrogen: heavy nucleus + electron
 
-ops = Operator[KineticOperator(Λmat); CoulombOperator(-1.0, w)]
+ops = Operators(masses)
+ops += "Kinetic"
+ops += ("Coulomb", 1, 2, -1.0)   # electron–nucleus attraction
 
 sr = solve_ECG_sequential(ops, 12;
     n_candidates = 8, scale = 1.0, max_iterations_step = 80, verbose = false)
@@ -126,10 +105,9 @@ using LinearAlgebra
 using Plots
 
 masses = [1.0e15, 1.0]
-Λmat   = Λ(masses)
-_, U   = _jacobi_transform(masses)
-w      = U' * Float64.([1, -1])
-ops    = Operator[KineticOperator(Λmat); CoulombOperator(-1.0, w)]
+ops    = Operators(masses)
+ops   += "Kinetic"
+ops   += ("Coulomb", 1, 2, -1.0)
 
 a_p    = [1.0]    # polarisation along the single Jacobi coordinate
 s_zero = [0.0]
@@ -169,10 +147,9 @@ using LinearAlgebra
 using Plots
 
 masses = [1.0e15, 1.0]
-Λmat   = Λ(masses)
-_, U   = _jacobi_transform(masses)
-w      = U' * Float64.([1, -1])
-ops    = Operator[KineticOperator(Λmat); CoulombOperator(-1.0, w)]
+ops    = Operators(masses)
+ops   += "Kinetic"
+ops   += ("Coulomb", 1, 2, -1.0)
 
 # Orthogonal Cartesian directions → pure d-wave channel (a ⊥ b)
 a_d    = reshape([1.0, 0.0, 0.0], 1, 3)
@@ -212,21 +189,13 @@ be passed directly via the `scale` keyword.
 
 ```@example example_tdmu
 using FewBodyECG
-using LinearAlgebra
 using Plots
 
 masses = [5496.918, 3670.481, 206.7686]   # t, d, μ in electron masses
-Λmat   = Λ(masses)
-_, U   = _jacobi_transform(masses)
 
-w_pairs = [[1, -1, 0], [1, 0, -1], [0, 1, -1]]
-w_raw   = [U' * Float64.(w) for w in w_pairs]
-coeffs  = [+1.0, -1.0, -1.0]   # t-d repulsion; t-μ and d-μ attraction
-
-ops = Operator[
-    KineticOperator(Λmat);
-    [CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw)]...
-]
+ops = Operators(masses, [+1, +1, -1])   # triton, deuteron, muon
+ops += "Kinetic"
+ops += "Coulomb"   # t-d repulsion (+1), t-μ and d-μ attraction (-1)
 
 result = solve_ECG(ops, 100; scale = 0.03, verbose = false)
 
@@ -248,13 +217,12 @@ fresh L-BFGS run.
 
 ```@example example_var_warm
 using FewBodyECG
-using LinearAlgebra
 
 masses = [1.0e15, 1.0, 1.0]
-Λmat = Λ(masses); kin = KineticOperator(Λmat)
-J, U = _jacobi_transform(masses)
-w_raw = [U' * w for w in [[1,-1,0],[1,0,-1],[0,1,-1]]]
-ops = Operator[kin; [CoulombOperator(c,w) for (c,w) in zip([-1.,-1.,1.], w_raw)]...]
+
+ops = Operators(masses, [+1, -1, -1])
+ops += "Kinetic"
+ops += "Coulomb"
 
 sr_stoch = solve_ECG(ops, 20; scale = 1.0, verbose = false)
 basis0   = BasisSet(Rank0Gaussian[sr_stoch.basis_functions...])

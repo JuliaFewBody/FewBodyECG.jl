@@ -11,6 +11,8 @@ solve_ECG_sequential
 ## Operators
 
 ```@docs
+Operators
+coulomb_weights
 KineticOperator
 CoulombOperator
 ```

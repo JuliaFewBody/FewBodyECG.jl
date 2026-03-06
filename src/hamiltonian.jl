@@ -319,31 +319,40 @@ function solve_ECG(
     return SolverResults(basis_fns, n_accepted, operators, method, sampler, b₁, Emin, state, E_hist, vecs_list, E_hist)
 end
 
-# ---------------------------------------------------------------------------
-# Operators — ITensors-style accumulator for building a Hamiltonian
-# ---------------------------------------------------------------------------
-
 """
     Operators
 
 Accumulates `KineticOperator` and `CoulombOperator` terms to build a Hamiltonian.
+Handles Jacobi coordinate transforms internally so that callers can work
+with physical particle indices rather than Jacobi-frame weight vectors.
 
 # Constructors
 
-    Operators()           # system-unaware; add pre-built operators with `+=`
-    Operators(masses)     # system-aware; enables string/index shorthand
+    Operators()                    # system-unaware; add pre-built operators with `+=`
+    Operators(masses)              # system-aware; enables string/index shorthand
+    Operators(masses, charges)     # fully automatic; enables `ops += "Coulomb"` shorthand
 
-# System-aware interface (requires `Operators(masses)`)
+# System-aware interface
+
+Particle indices follow the original ordering of `masses`.  All Jacobi
+transforms are computed internally.
 
 ```julia
 ops = Operators([m₁, m₂, m₃])
 ops += "Kinetic"
-ops += "Coulomb", 1, 2, +1.0   # pair (1,2) with coupling coefficient +1.0
-ops += "Coulomb", 1, 3, -1.0
+ops += ("Coulomb", 1, 2, +1.0)   # pair (1,2) with coupling coefficient +1.0
+ops += ("Coulomb", 1, 3, -1.0)
 ```
 
-Particle indices follow the original ordering of `masses`.
-The Jacobi transform is handled internally.
+When charges are also supplied, the fully-automatic shorthand `ops += "Coulomb"`
+adds all ``N(N-1)/2`` pairwise terms with coefficients ``q_i q_j``:
+
+```julia
+# Helium atom: nucleus (Z=2), two electrons
+ops = Operators([1e15, 1.0, 1.0], [+2, -1, -1])
+ops += "Kinetic"
+ops += "Coulomb"   # adds (1,2)→-2, (1,3)→-2, (2,3)→+1 automatically
+```
 
 # System-unaware interface (pre-built operators)
 
@@ -353,8 +362,10 @@ ops += KineticOperator(Λmat)
 ops += CoulombOperator(-1.0, w)
 ```
 
-Both interfaces can be mixed freely. Pass `ops` directly to `solve_ECG`,
-`solve_ECG_variational`, `solve_ECG_sequential`, or `build_hamiltonian_matrix`.
+Both interfaces can be mixed freely.  Pass `ops` directly to [`solve_ECG`](@ref),
+[`solve_ECG_variational`](@ref), [`solve_ECG_sequential`](@ref), or
+`build_hamiltonian_matrix`.  Use [`coulomb_weights`](@ref) to retrieve
+the Jacobi-frame weight vectors for manual basis construction.
 """
 mutable struct Operators
     terms::Vector{FewBodyHamiltonians.Operator}
