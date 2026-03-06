@@ -11,9 +11,10 @@ Container returned by all ECG solvers ([`solve_ECG`](@ref),
 - `method`          : solver symbol (`:quasirandom`, `:random`, `:variational`, `:sequential`).
 - `sampler`         : quasi-/pseudo-random sampler used for basis generation.
 - `length_scale`    : Gaussian width scale passed at construction.
-- `ground_state`    : lowest eigenvalue (ground-state energy in a.u.).
+- `ground_state`    : energy of the target eigenstate (ground state by default).
+- `state`           : which eigenstate was targeted (1 = ground state, 2 = first excited, …).
 - `energies`        : energy after each accepted basis function (stochastic) or after each step (sequential).
-- `eigenvectors`    : list of eigenvector matrices; `eigenvectors[end][:, 1]` is the ground-state coefficient vector.
+- `eigenvectors`    : list of eigenvector matrices; `eigenvectors[end][:, state]` is the target-state coefficient vector.
 - `fg_history`      : monotone-decreasing objective value after each gradient evaluation (variational solvers).
 """
 struct SolverResults
@@ -24,6 +25,7 @@ struct SolverResults
     sampler::QuasiMonteCarlo.DeterministicSamplingAlgorithm
     length_scale::Float64
     ground_state::Float64
+    state::Int
     energies::Vector{Float64}
     eigenvectors::Vector{Matrix{Float64}}
     fg_history::Vector{Float64}
@@ -48,7 +50,7 @@ function ψ₀(r::AbstractVector, c::AbstractVector, basis_fns::Vector{<:Gaussia
     )
 end
 
-function ψ₀(r::AbstractVector, sr::SolverResults; state::Int = 1)
+function ψ₀(r::AbstractVector, sr::SolverResults; state::Int = sr.state)
     c = sr.eigenvectors[end][:, state]
     return ψ₀(r, c, sr.basis_functions)
 end

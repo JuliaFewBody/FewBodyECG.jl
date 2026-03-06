@@ -329,6 +329,7 @@ function solve_ECG_variational(
         HaltonSample(),   # placeholder: no stochastic sampler is used
         float(scale),
         ground_state,
+        1,
         [ground_state],   # single-point; no greedy build-up history
         [evecs],
         fg_history,
@@ -564,6 +565,7 @@ function solve_ECG_sequential(
         HaltonSample(),
         float(scale),
         ground_state,
+        1,
         E_history,   # one energy per sequential step — use convergence()
         [evecs],
         fg_history,

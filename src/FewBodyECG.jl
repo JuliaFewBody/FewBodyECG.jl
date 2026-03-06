@@ -20,6 +20,8 @@ export ψ₀, SolverResults, convergence, convergence_history, correlation_funct
 
 export solve_ECG_variational, solve_ECG_sequential
 
+export Operators, coulomb_weights
+
 include("types.jl")
 include("coordinates.jl")
 include("matrix_elements.jl")

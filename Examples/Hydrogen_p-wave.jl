@@ -4,20 +4,10 @@ using Plots
 
 masses = [1e12, 1.0]
 
-Λmat = Λ(masses)
-kin = KineticOperator(Λmat)
+os = Operators(masses)
+os += "Kinetic"
+os += "Coulomb", 1, 2, -1.0   # p-e (attraction)
 
-J, U = _jacobi_transform(masses)
-
-w_raw = [U' * [1, -1]]
-coeffs = [-1.0]
-
-ops = Operator[
-    kin;
-    (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
-]
-
-# Polarization vector for p-wave (selects one spatial direction)
 a_vec = [1.0]
 s_zero = [0.0]
 
@@ -31,7 +21,7 @@ for (i, α) in enumerate(alphas)
 
     basis = BasisSet(basis_fns)
 
-    H = build_hamiltonian_matrix(basis, ops)
+    H = build_hamiltonian_matrix(basis, os)
     S = build_overlap_matrix(basis)
 
     global vals, vecs = solve_generalized_eigenproblem(H, S)
