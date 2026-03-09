@@ -2,6 +2,7 @@ using Documenter, FewBodyECG
 
 makedocs(
     build = "build",
+    modules = [FewBodyECG],
     sitename = "FewBodyECG.jl",
     pages = [
         "Home" => "index.md",

@@ -1,3 +1,16 @@
+"""
+    _jacobi_transform(masses) -> (J, U)
+
+Compute the Jacobi coordinate transformation matrix `J` and its pseudo-inverse `U`
+for a system with the given particle `masses`.
+
+Returns `(J, U)` where:
+- `J` is the ``(N-1) \\times N`` matrix mapping particle coordinates to Jacobi
+  relative coordinates (centre-of-mass motion is factored out).
+- `U = \\operatorname{pinv}(J)` is the ``N \\times (N-1)`` back-transformation.
+
+The weight vectors for `CoulombOperator` are constructed as `U' * charge_vector`.
+"""
 function _jacobi_transform(masses::Vector{Float64})::Tuple{Matrix{Float64}, Matrix{Float64}}
     N = length(masses)
     @assert N ≥ 2 "At least two masses are required for Jacobi transformation."
@@ -22,6 +35,16 @@ function _jacobi_transform(masses::Vector{Float64})::Tuple{Matrix{Float64}, Matr
     return J, U
 end
 
+"""
+    Λ(masses) -> Symmetric matrix
+
+Compute the kinetic-energy matrix in Jacobi coordinates for a system with the
+given particle `masses` (in atomic units).
+
+Returns the symmetric matrix ``\\Lambda = J M^{-1} J^T / 2``, where ``J`` is
+the Jacobi transformation matrix and ``M = \\operatorname{diag}(m_i)``.
+Pass the result directly to `KineticOperator`.
+"""
 function Λ(masses::Vector{<:Real})
     J, _ = _jacobi_transform(masses)
     Minv = Diagonal(0.5 ./ masses)

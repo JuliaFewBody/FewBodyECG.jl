@@ -66,22 +66,23 @@ end
     @test abs(E_best - E_exact) < 0.01
 end
 
-@testset "Rank2 Hamiltonian matrix is symmetric" begin
-    # Rank2 with scalar polarizations gives r²·exp(-αr²) (mixed s+d wave).
-    # Pure d-wave requires 3D polarization vectors (a·b=0), which is beyond scalar code.
-    # Here we just test that the Hamiltonian and overlap matrices are well-formed.
-    a_vec = [1.0]
-    b_vec = [1.0]
-    alphas = [0.1, 0.5, 1.0, 3.0]
-    basis_fns = [Rank2Gaussian([α;;], a_vec, b_vec, s_zero) for α in alphas]
+@testset "Hydrogen d-wave (Rank2) pure-state convergence" begin
+    # Matrix polarizations with a⋅b = 0 enforce a pure d-wave channel.
+    a_mat = reshape([1.0, 0.0, 0.0], 1, 3)
+    b_mat = reshape([0.0, 1.0, 0.0], 1, 3)
+    alphas = exp10.(range(log10(0.002), log10(0.8), length = 24))
+    basis_fns = [Rank2Gaussian([α;;], a_mat, b_mat, s_zero) for α in alphas]
 
     basis = BasisSet(basis_fns)
     H = build_hamiltonian_matrix(basis, ops)
     S = build_overlap_matrix(basis)
+    E_best = _solve_gep(H, S)
+    E_exact = -1 / 18  # 3d state
 
     @test H ≈ H'
     @test S ≈ S'
     @test all(diag(S) .> 0)
+    @test abs(E_best - E_exact) < 1.0e-4
 end
 
 @testset "Rank1 overlap is correct" begin

@@ -7,18 +7,11 @@ import FewBodyECG: _generate_A_matrix
 
 masses = [5496.918, 3670.481, 206.7686]
 
-Λmat = Λ(masses)
-kin = KineticOperator(Λmat)
+os = Operators(masses, [+1, +1, -1])   # triton, deuteron, muon
+os += "Kinetic"
+os += "Coulomb"   # auto: t-d (+1), t-μ (-1), d-μ (-1)
 
-J, U = _jacobi_transform(masses)
-
-w_pairs = [[1, -1, 0], [1, 0, -1], [0, 1, -1]]
-
-w_jac = [U' * Float64.(w) for w in w_pairs]
-
-coeffs = [+1.0, -1.0, -1.0]
-
-ops = Operator[kin; [CoulombOperator(c, w) for (c, w) in zip(coeffs, w_jac)]...]
+w_jac = coulomb_weights(os)
 
 E_exact = -111.36444
 
@@ -46,7 +39,7 @@ function compute_energy(points, n_basis, b₀)
     end
 
     basis = BasisSet(basis_fns)
-    H = build_hamiltonian_matrix(basis, ops)
+    H = build_hamiltonian_matrix(basis, os)
     S = build_overlap_matrix(basis)
 
     try

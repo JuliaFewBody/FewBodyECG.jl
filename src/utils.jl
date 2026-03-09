@@ -1,3 +1,22 @@
+"""
+    SolverResults
+
+Container returned by all ECG solvers ([`solve_ECG`](@ref),
+[`solve_ECG_variational`](@ref), [`solve_ECG_sequential`](@ref)).
+
+# Fields
+- `basis_functions` : accepted basis functions.
+- `n_basis`         : number of accepted basis functions.
+- `operators`       : the operator list used during the solve.
+- `method`          : solver symbol (`:quasirandom`, `:random`, `:variational`, `:sequential`).
+- `sampler`         : quasi-/pseudo-random sampler used for basis generation.
+- `length_scale`    : Gaussian width scale passed at construction.
+- `ground_state`    : energy of the target eigenstate (ground state by default).
+- `state`           : which eigenstate was targeted (1 = ground state, 2 = first excited, …).
+- `energies`        : energy after each accepted basis function (stochastic) or after each step (sequential).
+- `eigenvectors`    : list of eigenvector matrices; `eigenvectors[end][:, state]` is the target-state coefficient vector.
+- `fg_history`      : monotone-decreasing objective value after each gradient evaluation (variational solvers).
+"""
 struct SolverResults
     basis_functions::Vector{GaussianBase}
     n_basis::Int
@@ -6,10 +25,24 @@ struct SolverResults
     sampler::QuasiMonteCarlo.DeterministicSamplingAlgorithm
     length_scale::Float64
     ground_state::Float64
+    state::Int
     energies::Vector{Float64}
     eigenvectors::Vector{Matrix{Float64}}
+    fg_history::Vector{Float64}
 end
 
+"""
+    ψ₀(r, c, basis_fns)
+    ψ₀(r, sr; state=1)
+
+Evaluate the ground-state wavefunction at Jacobi-coordinate point `r`.
+
+The wavefunction is the linear combination
+``\\psi_0(\\mathbf{r}) = \\sum_i c_i \\exp(-\\mathbf{r}^T A_i \\mathbf{r} + \\mathbf{s}_i^T \\mathbf{r})``.
+
+When called with a [`SolverResults`](@ref), the eigenvector for the requested
+`state` (default 1, i.e. the ground state) is used automatically.
+"""
 function ψ₀(r::AbstractVector, c::AbstractVector, basis_fns::Vector{<:GaussianBase})
     return sum(
         c[i] * exp(-r' * basis_fns[i].A * r + basis_fns[i].s' * r)
@@ -17,15 +50,55 @@ function ψ₀(r::AbstractVector, c::AbstractVector, basis_fns::Vector{<:Gaussia
     )
 end
 
-function ψ₀(r::AbstractVector, sr::SolverResults; state::Int = 1)
+function ψ₀(r::AbstractVector, sr::SolverResults; state::Int = sr.state)
     c = sr.eigenvectors[end][:, state]
     return ψ₀(r, c, sr.basis_functions)
 end
 
+"""
+    convergence(sr::SolverResults) -> (indices, energies)
+
+Return the greedy build-up convergence curve from a stochastic [`solve_ECG`](@ref) run.
+
+Returns `(1:n_basis, sr.energies)`: the energy after each basis function was
+added.  For variational results `energies` contains only one entry
+`[ground_state]`; use [`convergence_history`](@ref) instead.
+"""
 function convergence(sr::SolverResults)
     return 1:sr.n_basis, sr.energies
 end
 
+"""
+    convergence_history(sr::SolverResults) -> (indices, energies)
+
+Return the per-objective-call convergence history.
+
+For [`solve_ECG_variational`](@ref) results this is the cumulative-minimum
+energy at every primal `fg` evaluation, giving a monotone non-increasing curve
+suitable for plotting optimisation progress.  The x-axis is the fg-call index.
+
+For [`solve_ECG`](@ref) results this mirrors `convergence`.
+"""
+function convergence_history(sr::SolverResults)
+    return 1:length(sr.fg_history), sr.fg_history
+end
+
+"""
+    correlation_function(sr; rmin=0.01, rmax=10.0, npoints=400,
+                         coord_index=1, normalize=true)
+
+Compute the one-body radial density ``\\rho(r) = r^2 |\\psi_0(r)|^2`` along
+a single Jacobi coordinate.
+
+# Arguments
+- `sr`           : [`SolverResults`](@ref) from either solver.
+- `rmin`, `rmax` : radial grid range (a.u.).
+- `npoints`      : number of grid points.
+- `coord_index`  : which Jacobi coordinate to scan (default 1).
+- `normalize`    : if `true`, normalise so that ``\\int \\rho(r)\\,dr = 1``.
+
+Returns `(r_grid, ρ)` as plain `Vector{Float64}`.
+"""
 function correlation_function(
         sr::SolverResults;
         rmin::Real = 0.01,

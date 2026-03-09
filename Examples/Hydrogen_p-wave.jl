@@ -2,27 +2,15 @@ using FewBodyECG
 using LinearAlgebra
 using Plots
 
-masses = [1.0e15, 1.0]
+masses = [1e12, 1.0]
 
-Λmat = Λ(masses)
-kin = KineticOperator(Λmat)
+os = Operators(masses)
+os += "Kinetic"
+os += "Coulomb", 1, 2, -1.0   # p-e (attraction)
 
-J, U = _jacobi_transform(masses)
-
-w_raw = [U' * [1, -1]]
-coeffs = [-1.0]
-
-ops = Operator[
-    kin;
-    (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
-]
-
-# Polarization vector for p-wave (selects one spatial direction)
 a_vec = [1.0]
 s_zero = [0.0]
 
-# Use a range of Gaussian widths that spans the spatial extent of the 2p orbital.
-# The 2p state is more diffuse than 1s, so we need wider Gaussians (smaller α).
 alphas = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0]
 
 basis_fns = GaussianBase[]
@@ -33,7 +21,7 @@ for (i, α) in enumerate(alphas)
 
     basis = BasisSet(basis_fns)
 
-    H = build_hamiltonian_matrix(basis, ops)
+    H = build_hamiltonian_matrix(basis, os)
     S = build_overlap_matrix(basis)
 
     global vals, vecs = solve_generalized_eigenproblem(H, S)

@@ -1,1 +1,40 @@
-# API 
+# API Reference
+
+## Solvers
+
+```@docs
+solve_ECG
+solve_ECG_variational
+solve_ECG_sequential
+```
+
+## Operators
+
+```@docs
+Operators
+coulomb_weights
+KineticOperator
+CoulombOperator
+```
+
+## Results and utilities
+
+```@docs
+SolverResults
+convergence
+convergence_history
+correlation_function
+ψ₀
+```
+
+## Coordinates and basis
+
+```@docs
+Λ
+_jacobi_transform
+GaussianBase
+Rank0Gaussian
+Rank1Gaussian
+Rank2Gaussian
+BasisSet
+```

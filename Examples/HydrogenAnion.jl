@@ -5,25 +5,26 @@ using QuasiMonteCarlo
 
 masses = [1.0e15, 1.0, 1.0]
 
-Λmat = Λ(masses)
-kin = KineticOperator(Λmat)
-J, U = _jacobi_transform(masses)
+os = Operators(masses, [+1, -1, -1])   # proton, e₁, e₂
+os += "Kinetic"
+os += "Coulomb"
 
-w_list = [[1, -1, 0], [1, 0, -1], [0, 1, -1]]
+result = solve_ECG(os, 250, scale = 1.0, verbose=false)
 
-w_raw = [U' * w for w in w_list]
-coeffs = [-1.0, -1.0, +1.0]
-
-ops = Operator[
-    kin;
-    (CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw))...
-]
-
-result = solve_ECG(ops, 250, scale = 1.0)
-
-E = -0.527751016523
-ΔE = abs(result.ground_state - E)
+E_exact = -0.527751016523
+ΔE = abs(result.ground_state - E_exact)
 @info "Energy difference" ΔE
 
-n, E = convergence(result)
-plot(n, E)
+n_conv, E_conv = convergence(result)
+p1 = plot(n_conv, E_conv,
+    xlabel = "Basis size", ylabel = "E (Ha)",
+    label = "Ground state", lw = 2,
+    title = "Hydrogen anion convergence")
+display(p1)
+
+r_grid, ρ = correlation_function(result; rmax = 10.0)
+p2 = plot(r_grid, ρ,
+    xlabel = "r (a.u.)", ylabel = "r²|ψ(r)|²",
+    label = "Hydrogen anion", lw = 2,
+    title = "Hydrogen radial correlation")
+display(p2)
