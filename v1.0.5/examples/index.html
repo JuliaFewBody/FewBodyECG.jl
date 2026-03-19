@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Examples · FewBodyECG.jl</title><meta name="title" content="Examples · FewBodyECG.jl"/><meta property="og:title" content="Examples · FewBodyECG.jl"/><meta property="twitter:title" content="Examples · FewBodyECG.jl"/><meta name="description" content="Documentation for FewBodyECG.jl."/><meta property="og:description" content="Documentation for FewBodyECG.jl."/><meta property="twitter:description" content="Documentation for FewBodyECG.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">FewBodyECG.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../theory/">Theory</a></li><li class="is-active"><a class="tocitem" href>Examples</a><ul class="internal"><li><a class="tocitem" href="#Variational-optimisation-with-solve_ECG_variational"><span>Variational optimisation with <code>solve_ECG_variational</code></span></a></li><li><a class="tocitem" href="#Sequential-variational-solver-(solve_ECG_sequential)"><span>Sequential variational solver (<code>solve_ECG_sequential</code>)</span></a></li><li><a class="tocitem" href="#Higher-angular-momentum:-Rank1Gaussian-(p-wave)-and-Rank2Gaussian-(d-wave)"><span>Higher angular momentum: <code>Rank1Gaussian</code> (p-wave) and <code>Rank2Gaussian</code> (d-wave)</span></a></li><li><a class="tocitem" href="#Muonic-molecule-tdμ"><span>Muonic molecule tdμ</span></a></li><li><a class="tocitem" href="#Warm-start:-stochastic-basis-variational-refinement"><span>Warm start: stochastic basis + variational refinement</span></a></li></ul></li><li><a class="tocitem" href="../resources/">Resources</a></li><li><a class="tocitem" href="../API/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Examples</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Examples</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/JuliaFewBody/FewBodyECG.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/JuliaFewBody/FewBodyECG.jl/blob/main/docs/src/examples.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Examples"><a class="docs-heading-anchor" href="#Examples">Examples</a><a id="Examples-1"></a><a class="docs-heading-anchor-permalink" href="#Examples" title="Permalink"></a></h1><p>Suppose you want to calculate the ground state energy of the hydrogen anion in the rest-frame of the proton. </p><pre><code class="language-julia hljs">using FewBodyECG
+using Plots
+
+masses = [1.0e15, 1.0, 1.0]
+
+ops = Operators(masses, [+1, -1, -1])   # proton, e₁, e₂
+ops += &quot;Kinetic&quot;
+ops += &quot;Coulomb&quot;   # adds all 3 pairwise interactions automatically
+
+result = solve_ECG(ops, 250, scale = 1.0)
+
+E = -0.527751016523
+ΔE = abs(result.ground_state - E)
+@info &quot;Energy difference&quot; ΔE
+
+n, E = convergence(result)
+plot(n, E)</code></pre><img src="cdf91c58.svg" alt="Example block output"/><h2 id="Variational-optimisation-with-solve_ECG_variational"><a class="docs-heading-anchor" href="#Variational-optimisation-with-solve_ECG_variational">Variational optimisation with <code>solve_ECG_variational</code></a><a id="Variational-optimisation-with-solve_ECG_variational-1"></a><a class="docs-heading-anchor-permalink" href="#Variational-optimisation-with-solve_ECG_variational" title="Permalink"></a></h2><p>The stochastic solver above builds the basis greedily from random samples. <code>solve_ECG_variational</code> instead treats all Gaussian parameters (the <code>A</code> matrices encoded through their Cholesky factors, and the shift vectors <code>s</code>) as continuous variables and minimises the ground-state energy directly with L-BFGS via <a href="https://github.com/Jutho/OptimKit.jl">OptimKit.jl</a>.</p><h3 id="Fresh-start"><a class="docs-heading-anchor" href="#Fresh-start">Fresh start</a><a id="Fresh-start-1"></a><a class="docs-heading-anchor-permalink" href="#Fresh-start" title="Permalink"></a></h3><pre><code class="language-julia hljs">using FewBodyECG
+using Plots
+
+masses = [1.0e15, 1.0, 1.0]   # H⁻: fixed nucleus + 2 electrons
+
+ops = Operators(masses, [+1, -1, -1])
+ops += &quot;Kinetic&quot;
+ops += &quot;Coulomb&quot;
+
+sr = solve_ECG_variational(ops, 20; scale = 1.0, max_iterations = 200, verbose = false)
+
+E_exact = -0.527751016523
+println(&quot;Variational E₀ = &quot;, round(sr.ground_state, digits=8),
+        &quot;  ΔE = &quot;, round(sr.ground_state - E_exact, sigdigits=3))
+
+xs, ys = convergence_history(sr)
+plot(xs, ys; xlabel=&quot;fg evaluations&quot;, ylabel=&quot;Energy (Ha)&quot;,
+     label=&quot;Variational&quot;, lw=2)
+hline!([E_exact]; label=&quot;Exact&quot;, linestyle=:dot, color=:black)</code></pre><img src="aab35ec2.svg" alt="Example block output"/><h2 id="Sequential-variational-solver-(solve_ECG_sequential)"><a class="docs-heading-anchor" href="#Sequential-variational-solver-(solve_ECG_sequential)">Sequential variational solver (<code>solve_ECG_sequential</code>)</a><a id="Sequential-variational-solver-(solve_ECG_sequential)-1"></a><a class="docs-heading-anchor-permalink" href="#Sequential-variational-solver-(solve_ECG_sequential)" title="Permalink"></a></h2><p><code>solve_ECG_sequential</code> builds the basis one function at a time.  At each step it samples <code>n_candidates</code> quasi-random Gaussians, picks the one that lowers the energy the most, appends it to the current basis, and then jointly optimises all accumulated parameters with L-BFGS.  This combines the diversity of stochastic sampling with gradient-based refinement at every step.</p><p>Here we apply it to the hydrogen atom ground state (1s):</p><pre><code class="language-julia hljs">using FewBodyECG
+using Plots
+
+masses = [1.0e15, 1.0]   # hydrogen: heavy nucleus + electron
+
+ops = Operators(masses)
+ops += &quot;Kinetic&quot;
+ops += (&quot;Coulomb&quot;, 1, 2, -1.0)   # electron–nucleus attraction
+
+sr = solve_ECG_sequential(ops, 12;
+    n_candidates = 8, scale = 1.0, max_iterations_step = 80, verbose = false)
+
+println(&quot;E(1s) = &quot;, round(sr.ground_state; digits = 8), &quot; Ha&quot;)
+println(&quot;Exact = -0.50000000 Ha&quot;)
+
+n_steps, E_steps = convergence(sr)
+plot(n_steps, E_steps;
+    xlabel = &quot;Basis size&quot;, ylabel = &quot;Energy (Ha)&quot;,
+    label = &quot;Sequential ECG&quot;, lw = 2, marker = :circle)
+hline!([-0.5]; label = &quot;Exact&quot;, ls = :dash, color = :black)</code></pre><img src="3e014f5c.svg" alt="Example block output"/><hr/><h2 id="Higher-angular-momentum:-Rank1Gaussian-(p-wave)-and-Rank2Gaussian-(d-wave)"><a class="docs-heading-anchor" href="#Higher-angular-momentum:-Rank1Gaussian-(p-wave)-and-Rank2Gaussian-(d-wave)">Higher angular momentum: <code>Rank1Gaussian</code> (p-wave) and <code>Rank2Gaussian</code> (d-wave)</a><a id="Higher-angular-momentum:-Rank1Gaussian-(p-wave)-and-Rank2Gaussian-(d-wave)-1"></a><a class="docs-heading-anchor-permalink" href="#Higher-angular-momentum:-Rank1Gaussian-(p-wave)-and-Rank2Gaussian-(d-wave)" title="Permalink"></a></h2><p>Rank0 Gaussians are spherically symmetric.  Non-zero angular momentum states require polynomial prefactors.</p><h3 id="p-wave-with-Rank1Gaussian"><a class="docs-heading-anchor" href="#p-wave-with-Rank1Gaussian">p-wave with <code>Rank1Gaussian</code></a><a id="p-wave-with-Rank1Gaussian-1"></a><a class="docs-heading-anchor-permalink" href="#p-wave-with-Rank1Gaussian" title="Permalink"></a></h3><p><code>Rank1Gaussian(A, a, s)</code> adds a linear prefactor <code>(a⋅r)</code> selecting a spatial direction.  For the hydrogen 2p state (exact energy −1/8 Ha):</p><pre><code class="language-julia hljs">using FewBodyECG
+using LinearAlgebra
+using Plots
+
+masses = [1.0e15, 1.0]
+ops    = Operators(masses)
+ops   += &quot;Kinetic&quot;
+ops   += (&quot;Coulomb&quot;, 1, 2, -1.0)
+
+a_p    = [1.0]    # polarisation along the single Jacobi coordinate
+s_zero = [0.0]
+
+alphas = exp10.(range(log10(0.003), log10(3.0), length = 12))
+basis  = GaussianBase[]
+E_conv = Float64[]
+
+for α in alphas
+    push!(basis, Rank1Gaussian([α;;], a_p, s_zero))
+    bset      = BasisSet(basis)
+    H         = build_hamiltonian_matrix(bset, ops)
+    S         = build_overlap_matrix(bset)
+    vals, _   = solve_generalized_eigenproblem(H, S)
+    push!(E_conv, minimum(vals))
+end
+
+println(&quot;E(2p) = &quot;, round(minimum(E_conv); digits = 8), &quot; Ha&quot;)
+println(&quot;Exact = -0.12500000 Ha&quot;)
+
+plot(1:length(E_conv), E_conv;
+    xlabel = &quot;Basis size&quot;, ylabel = &quot;Energy (Ha)&quot;,
+    label = &quot;ECG Rank1 (2p)&quot;, lw = 2, marker = :circle)
+hline!([-0.125]; label = &quot;Exact 2p&quot;, ls = :dash, color = :black)</code></pre><img src="8c5225b2.svg" alt="Example block output"/><h3 id="d-wave-with-Rank2Gaussian"><a class="docs-heading-anchor" href="#d-wave-with-Rank2Gaussian">d-wave with <code>Rank2Gaussian</code></a><a id="d-wave-with-Rank2Gaussian-1"></a><a class="docs-heading-anchor-permalink" href="#d-wave-with-Rank2Gaussian" title="Permalink"></a></h3><p><code>Rank2Gaussian(A, a, b, s)</code> adds a quadratic prefactor <code>(a⋅r)(b⋅r)</code>.  For a pure d-wave channel the two polarisation vectors must be <strong>orthogonal</strong>.  In a 1D Jacobi system (two-body) the three Cartesian directions are encoded as columns of a <code>1 × 3</code> polarisation matrix:</p><pre><code class="language-julia hljs">using FewBodyECG
+using LinearAlgebra
+using Plots
+
+masses = [1.0e15, 1.0]
+ops    = Operators(masses)
+ops   += &quot;Kinetic&quot;
+ops   += (&quot;Coulomb&quot;, 1, 2, -1.0)
+
+# Orthogonal Cartesian directions → pure d-wave channel (a ⊥ b)
+a_d    = reshape([1.0, 0.0, 0.0], 1, 3)
+b_d    = reshape([0.0, 0.0, 1.0], 1, 3)
+s_zero = [0.0]
+
+alphas = exp10.(range(log10(0.002), log10(0.8), length = 16))
+basis  = GaussianBase[]
+E_conv = Float64[]
+
+for α in alphas
+    push!(basis, Rank2Gaussian([α;;], a_d, b_d, s_zero))
+    bset    = BasisSet(basis)
+    H       = build_hamiltonian_matrix(bset, ops)
+    S       = build_overlap_matrix(bset)
+    vals, _ = solve_generalized_eigenproblem(H, S)
+    push!(E_conv, minimum(vals))
+end
+
+println(&quot;E(3d) = &quot;, round(minimum(E_conv); digits = 8), &quot; Ha&quot;)
+println(&quot;Exact = &quot;, round(-1/18; digits = 8), &quot; Ha&quot;)
+
+plot(1:length(E_conv), E_conv;
+    xlabel = &quot;Basis size&quot;, ylabel = &quot;Energy (Ha)&quot;,
+    label = &quot;ECG Rank2 (pure d-wave)&quot;, lw = 2, marker = :circle)
+hline!([-1/18]; label = &quot;Exact 3d&quot;, ls = :dash, color = :black)</code></pre><img src="5ec322ae.svg" alt="Example block output"/><hr/><h2 id="Muonic-molecule-tdμ"><a class="docs-heading-anchor" href="#Muonic-molecule-tdμ">Muonic molecule tdμ</a><a id="Muonic-molecule-tdμ-1"></a><a class="docs-heading-anchor-permalink" href="#Muonic-molecule-tdμ" title="Permalink"></a></h2><p>The muonic three-body molecule tdμ (triton + deuteron + muon) is a nuclear-scale system with masses three orders of magnitude larger than an atomic system.  A much smaller Gaussian width scale (~0.03 in nuclear units) is required; this can be passed directly via the <code>scale</code> keyword.</p><pre><code class="language-julia hljs">using FewBodyECG
+using Plots
+
+masses = [5496.918, 3670.481, 206.7686]   # t, d, μ in electron masses
+
+ops = Operators(masses, [+1, +1, -1])   # triton, deuteron, muon
+ops += &quot;Kinetic&quot;
+ops += &quot;Coulomb&quot;   # t-d repulsion (+1), t-μ and d-μ attraction (-1)
+
+result = solve_ECG(ops, 100; scale = 0.03, verbose = false)
+
+println(&quot;E(tdμ) = &quot;, round(result.ground_state; digits = 5), &quot; Ha&quot;)
+println(&quot;SVM ref = -111.36444 Ha  (Suzuki &amp; Varga 1998, Table 8.1)&quot;)
+
+n, E = convergence(result)
+plot(n, E;
+    xlabel = &quot;Basis size&quot;, ylabel = &quot;Energy (Ha)&quot;,
+    label = &quot;ECG stochastic&quot;, lw = 2)
+hline!([-111.36444]; label = &quot;SVM reference&quot;, ls = :dash, color = :black)</code></pre><img src="ae714aee.svg" alt="Example block output"/><h2 id="Warm-start:-stochastic-basis-variational-refinement"><a class="docs-heading-anchor" href="#Warm-start:-stochastic-basis-variational-refinement">Warm start: stochastic basis + variational refinement</a><a id="Warm-start:-stochastic-basis-variational-refinement-1"></a><a class="docs-heading-anchor-permalink" href="#Warm-start:-stochastic-basis-variational-refinement" title="Permalink"></a></h2><p>When the stochastic solver has already found a reasonable basis, refining it with <code>loss_type = :trace</code> (minimise <code>Tr(S⁻¹H)</code>) often converges faster than a fresh L-BFGS run.</p><pre><code class="language-julia hljs">using FewBodyECG
+
+masses = [1.0e15, 1.0, 1.0]
+
+ops = Operators(masses, [+1, -1, -1])
+ops += &quot;Kinetic&quot;
+ops += &quot;Coulomb&quot;
+
+sr_stoch = solve_ECG(ops, 20; scale = 1.0, verbose = false)
+basis0   = BasisSet(Rank0Gaussian[sr_stoch.basis_functions...])
+
+sr_warm  = solve_ECG_variational(ops, 20;
+    initial_basis = basis0,
+    loss_type     = :trace,
+    max_iterations = 200,
+    verbose        = false,
+)
+
+E_exact = -0.527751016523
+println(&quot;Stochastic E₀ = &quot;, round(sr_stoch.ground_state, digits=8),
+        &quot;  ΔE = &quot;, round(sr_stoch.ground_state - E_exact, sigdigits=3))
+println(&quot;Warm-start E₀ = &quot;, round(sr_warm.ground_state,  digits=8),
+        &quot;  ΔE = &quot;, round(sr_warm.ground_state  - E_exact, sigdigits=3))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr36"><span class="sgr1">┌ Info: </span></span>Optimization complete
+<span class="sgr36"><span class="sgr1">│ </span></span>  E₀ = -0.33451268710357074
+<span class="sgr36"><span class="sgr1">│ </span></span>  n_basis = 20
+<span class="sgr36"><span class="sgr1">└ </span></span>  state = 1
+<span class="sgr36"><span class="sgr1">┌ Info: </span></span>Variational ECG complete
+<span class="sgr36"><span class="sgr1">│ </span></span>  E₀ = -2.2204460492503436e-16
+<span class="sgr36"><span class="sgr1">└ </span></span>  n_basis = 20
+Stochastic E₀ = -0.33451269  ΔE = 0.193
+Warm-start E₀ = -0.0  ΔE = 0.528</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../theory/">« Theory</a><a class="docs-footer-nextpage" href="../resources/">Resources »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 19 March 2026 18:59">Thursday 19 March 2026</span>. Using Julia version 1.12.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
