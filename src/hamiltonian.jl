@@ -195,7 +195,7 @@ function solve_ECG(
     E_hist = Float64[]
     vecs_list = Any[]
 
-    w_list = [op.w for op in operators if op isa CoulombOperator]
+    w_list = [op.w for op in operators if op isa Union{CoulombOperator, GaussianOperator}]
     n_pairs = length(w_list)
     d = length(w_list[1])
 
@@ -434,6 +434,25 @@ function Base.:+(ops::Operators, name::AbstractString)
     return ops
 end
 
+function Base.:+(ops::Operators, term::Tuple{<:AbstractString, <:Integer, <:Integer, <:Real, <:Real})
+    name, i, j, coeff, γ = term
+    name == "Gaussian" ||
+        throw(ArgumentError("Unknown operator \"$name\". Supported: \"Gaussian\"."))
+    ops.masses !== nothing ||
+        throw(ArgumentError("\"Gaussian\" requires Operators(masses)."))
+    i != j || throw(ArgumentError("Particle indices must be distinct, got i = j = $i."))
+    N = length(ops.masses)
+    1 ≤ i ≤ N || throw(ArgumentError("Particle index i=$i out of range [1, $N]."))
+    1 ≤ j ≤ N || throw(ArgumentError("Particle index j=$j out of range [1, $N]."))
+    Float64(γ) > 0 || throw(ArgumentError("γ must be positive, got γ = $γ."))
+    e_ij = zeros(Float64, N)
+    e_ij[i] = 1.0
+    e_ij[j] = -1.0
+    w = ops._U' * e_ij
+    push!(ops.terms, GaussianOperator(Float64(coeff), Float64(γ), w))
+    return ops
+end
+
 function Base.:+(ops::Operators, term::Tuple{<:AbstractString, <:Integer, <:Integer, <:Real})
     name, i, j, coeff = term
     name == "Coulomb" ||
@@ -475,6 +494,8 @@ function Base.show(io::IO, ops::Operators)
             println(io, "  + Kinetic")
         elseif op isa CoulombOperator
             println(io, "  + $(op.coefficient) × Coulomb(w = $(round.(op.w; digits = 3)))")
+        elseif op isa GaussianOperator
+            println(io, "  + $(op.coefficient) × Gaussian(γ = $(round(op.γ; digits = 3)), w = $(round.(op.w; digits = 3)))")
         else
             println(io, "  + $(typeof(op))")
         end

@@ -324,3 +324,14 @@ function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::Cou
 
     return op.coefficient * (term1 + term2 + term3)
 end
+
+function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::GaussianOperator)
+    A, B = parent(bra.A), parent(ket.A)
+    a, b = bra.s, ket.s
+    γ, w = op.γ, op.w
+    n = size(A, 1)
+    # V(r_ij) = exp(-γ (w'r)²) shifts the exponent matrix S → S' = S + γ ww'
+    S_prime = Symmetric(A + B + γ * (w * w'))
+    R_prime = inv(S_prime)
+    return op.coefficient * exp(0.25 * (a + b)' * R_prime * (a + b)) * (π^n / det(S_prime))^(3 / 2)
+end

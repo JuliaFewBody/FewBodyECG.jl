@@ -8,7 +8,7 @@ export Λ, _jacobi_transform
 
 export generate_bij, _generate_A_matrix
 
-export GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet, ECG, KineticOperator, CoulombOperator
+export GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet, ECG, KineticOperator, CoulombOperator, GaussianOperator
 
 const Operator = FewBodyHamiltonians.Operator
 

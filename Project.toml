@@ -1,6 +1,6 @@
 name = "FewBodyECG"
 uuid = "083b1810-24a1-4a79-9a41-145bb2bb8ceb"
-version = "1.0.5"
+version = "1.0.6"
 authors = ["Shuhei Ohno", "Martin Mikkelsen"]
 
 [deps]

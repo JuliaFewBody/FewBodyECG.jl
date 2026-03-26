@@ -1,24 +1,3 @@
-# Variational ECG optimisation example
-#
-# Demonstrates solve_ECG_variational for two benchmark systems:
-#
-#   1. Hydrogen anion H⁻ (3-body: nucleus + 2 electrons)
-#      Exact ground-state energy: -0.527751016523 Ha
-#
-#   2. Muonic molecule tdμ (3-body: triton + deuteron + muon)
-#      Exact ground-state energy: -111.36444 Ha
-#
-# Two usage patterns are shown:
-#
-#   (a) Fresh optimisation with loss_type = :energy (default)
-#       — starts from a QMC-generated initial basis.
-#
-#   (b) Warm-start from solve_ECG result with loss_type = :trace
-#       — refines an already-good stochastic basis by minimising
-#         Tr(S⁻¹H).  Requires the initial trace to be negative,
-#         which is guaranteed when the stochastic basis is close
-#         to the physical ground state.
-
 using FewBodyECG
 using LinearAlgebra
 import FewBodyECG: default_scale, BasisSet, Rank0Gaussian

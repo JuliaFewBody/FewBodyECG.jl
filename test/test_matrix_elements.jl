@@ -424,3 +424,77 @@ end
         @test result1 ≈ result2 rtol = 1.0e-10
     end
 end
+
+@testset "Gaussian Potential ⟨g′|V|g⟩" begin
+
+    @testset "Analytic check: 1D zero-shift Gaussians" begin
+        # For g_i = exp(-α_i x²) and V = exp(-γ x²) with w=[1],
+        # the matrix element is exactly (π/(α₁+α₂+γ))^(1/2).
+        α1, α2, γ = 1.0, 1.5, 0.8
+        g1 = Rank0Gaussian([α1;;], [0.0])
+        g2 = Rank0Gaussian([α2;;], [0.0])
+        op = GaussianOperator(1.0, γ, [1.0])
+        expected = (π / (α1 + α2 + γ))^(3 / 2)
+        @test _compute_matrix_element(g1, g2, op) ≈ expected rtol = 1.0e-12
+    end
+
+    @testset "γ → 0 limit equals overlap" begin
+        # As γ → 0, exp(-γ r²) → 1 so the matrix element → overlap.
+        A1 = [1.0 0.0; 0.0 2.0]
+        A2 = [1.5 0.1; 0.1 1.5]
+        s1 = [0.1, -0.2]
+        s2 = [-0.3, 0.4]
+        g1 = Rank0Gaussian(A1, s1)
+        g2 = Rank0Gaussian(A2, s2)
+        w = [1.0, 0.0]
+        op_tiny = GaussianOperator(1.0, 1.0e-14, w)
+        @test _compute_matrix_element(g1, g2, op_tiny) ≈ _compute_matrix_element(g1, g2) rtol = 1.0e-10
+    end
+
+    @testset "Symmetry ⟨g′|V|g⟩ = ⟨g|V|g′⟩" begin
+        A1 = [1.0 0.0; 0.0 2.0]
+        A2 = [1.5 0.0; 0.0 1.5]
+        s1 = [0.1, 0.2]
+        s2 = [-0.1, 0.3]
+        g1 = Rank0Gaussian(A1, s1)
+        g2 = Rank0Gaussian(A2, s2)
+        op = GaussianOperator(-1.0, 2.0, [1.0, 0.0])
+        @test _compute_matrix_element(g1, g2, op) ≈ _compute_matrix_element(g2, g1, op) rtol = 1.0e-12
+    end
+
+    @testset "Scaling with coefficient" begin
+        A = [1.0 0.0; 0.0 1.0]
+        s = [0.0, 0.0]
+        g = Rank0Gaussian(A, s)
+        w = [1.0, 0.0]
+        op1 = GaussianOperator(-1.0, 1.0, w)
+        op2 = GaussianOperator(-3.0, 1.0, w)
+        @test _compute_matrix_element(g, g, op2) ≈ 3 * _compute_matrix_element(g, g, op1) rtol = 1.0e-12
+    end
+
+    @testset "Larger γ → smaller matrix element (more localised)" begin
+        A = [1.0;;]
+        s = [0.0]
+        g = Rank0Gaussian(A, s)
+        w = [1.0]
+        op_narrow = GaussianOperator(1.0, 10.0, w)
+        op_wide   = GaussianOperator(1.0, 0.1, w)
+        @test _compute_matrix_element(g, g, op_narrow) < _compute_matrix_element(g, g, op_wide)
+    end
+
+    @testset "Operators tuple interface" begin
+        masses = [1.0e15, 1.0]
+        ops = Operators(masses)
+        ops += ("Gaussian", 1, 2, -1.0, 2.0)
+        @test length(ops) == 1
+        @test ops[1] isa GaussianOperator
+        @test ops[1].coefficient ≈ -1.0
+        @test ops[1].γ ≈ 2.0
+    end
+
+    @testset "Operators tuple: γ ≤ 0 throws" begin
+        ops = Operators([1.0e15, 1.0])
+        @test_throws ArgumentError ops += ("Gaussian", 1, 2, -1.0, 0.0)
+        @test_throws ArgumentError ops += ("Gaussian", 1, 2, -1.0, -1.0)
+    end
+end
