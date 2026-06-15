@@ -18,7 +18,7 @@ export build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenpr
 
 export ψ₀, SolverResults, convergence, convergence_history, correlation_function, ψ
 
-export solve_ECG_variational, solve_ECG_sequential
+export solve_ECG_variational, solve_ECG_sequential, solve_ECG_competitive
 
 export Operators, coulomb_weights
 
@@ -26,8 +26,10 @@ include("types.jl")
 include("coordinates.jl")
 include("matrix_elements.jl")
 include("hamiltonian.jl")
+include("svm_eigen.jl")
 include("sampling.jl")
 include("utils.jl")
+include("svm_solver.jl")
 include("variational.jl")
 
 
