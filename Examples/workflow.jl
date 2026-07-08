@@ -1,25 +1,33 @@
-# # Stochastic to variational workflow
+# # Solver comparison on hydrogen
 #
-# A practical workflow is to explore cheaply with SVM, refine the sampled basis,
-# then optimize all Gaussian parameters jointly.
+# Hydrogen has an analytical ground-state energy, so it is a compact benchmark
+# for comparing solver methods.
 
 using FewBodyECG
+import Antique
 using Plots
 
-mₚ = 1836.15267343
-ops = Operators([mₚ, mₚ, 1.0], [+1.0, +1.0, -1.0])
+ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
 ops += "Kinetic"
 ops += "Coulomb"
 
-workflow = SVM(basis = 12, candidates = 15, scale = 1.0) →
-    Refine(sweeps = 1, candidates = 15, scale = 1.0) →
-    Variational(basis = 12, maxiter = 30)
+exact = Antique.E(Antique.HydrogenAtom(Z = 1), n = 1)
 
-sol = solve(ops, workflow)
-sol
-
-for (i, stage) in enumerate(sol.stages)
-    println("stage ", i, ": ", stage.method, " => ", last(stage.energies), " Ha")
+function run_method(label, alg, ops, exact)
+    sol = solve(ops, alg)
+    println(label, ": E0 = ", sol.E₀, " Ha, Δ = ", sol.E₀ - exact)
+    return sol
 end
 
-plot(sol, -0.597139)
+svm = run_method("SVM", SVM(basis = 25, candidates = 20, scale = 1.0), ops, exact)
+refined = run_method(
+    "SVM → Refine",
+    SVM(basis = 25, candidates = 20, scale = 1.0) →
+        Refine(sweeps = 1, candidates = 20, scale = 1.0),
+    ops,
+    exact,
+)
+variational = run_method("Variational", Variational(basis = 12, scale = 1.0, maxiter = 100), ops, exact)
+grown = run_method("GrowVariational", GrowVariational(basis = 8, candidates = 20, scale = 1.0), ops, exact)
+
+plot(grown, exact)

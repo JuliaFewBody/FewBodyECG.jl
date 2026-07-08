@@ -14,6 +14,7 @@ makedocs(
     sitename = "FewBodyECG.jl",
     pages = [
         "Home" => "index.md",
+        "Theory" => "theory.md",
         "Building systems" => "systems.md",
         "Choosing a solver" => "solvers.md",
         "Convergence" => "convergence.md",
@@ -26,7 +27,6 @@ makedocs(
             "Gaussian wells" => "examples/gaussian_well.md",
             "Workflow" => "examples/workflow.md",
         ],
-        "Theory" => "theory.md",
         "API" => "API.md",
     ],
     format = Documenter.HTML()

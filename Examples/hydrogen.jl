@@ -4,16 +4,23 @@
 # the lowest s, p and d states.
 
 using FewBodyECG
+import Antique
 using Plots
 
 ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
 ops += "Kinetic"
 ops += "Coulomb"
 
-sol = solve(ops, SVM(basis = 25, candidates = 20, scale = 1.0))
+H = Antique.HydrogenAtom(Z = 1)
+exact₁ = Antique.E(H, n = 1)
+exact₂ = Antique.E(H, n = 2)
+exact₃ = Antique.E(H, n = 3)
+
+sol = solve(ops, GrowVariational(basis = 10, candidates = 20, scale = 1.0))
+println("1s energy: ", sol.E₀, " Ha  (Antique ", exact₁, ", Δ = ", sol.E₀ - exact₁, ")")
 sol
 
-plot(sol, -0.5)
+plot(sol, exact₁)
 
 # ## p- and d-waves
 #
@@ -25,7 +32,8 @@ E₁, _ = solve_generalized_eigenproblem(
     build_hamiltonian_matrix(basis₁, ops),
     build_overlap_matrix(basis₁),
 )
-println("2p energy: ", minimum(E₁), "  (exact -0.125)")
+E₂p = minimum(E₁)
+println("2p energy: ", E₂p, " Ha  (Antique ", exact₂, ", Δ = ", E₂p - exact₂, ")")
 
 a = reshape([1.0, 0.0, 0.0], 1, 3)
 b = reshape([0.0, 1.0, 0.0], 1, 3)
@@ -35,6 +43,11 @@ E₂, _ = solve_generalized_eigenproblem(
     build_hamiltonian_matrix(basis₂, ops),
     build_overlap_matrix(basis₂),
 )
-println("3d energy: ", minimum(E₂), "  (exact -1/18 = ", -1 / 18, ")")
+E₃d = minimum(E₂)
+println("3d energy: ", E₃d, " Ha  (Antique ", exact₃, ", Δ = ", E₃d - exact₃, ")")
 
-plot(wavefunction(sol); coord = 1, rmax = 12.0)
+ψ = wavefunction(sol)
+rs = range(1.0e-3, 12.0, length = 400)
+p = plot(ψ; coord = 1, rmax = 12.0)
+plot!(p, rs, [r^2 * abs2(Antique.ψ(H, r, 0.0, 0.0; n = 1, l = 0, m = 0)) for r in rs]; linestyle = :dash, label = "Antique.jl")
+p

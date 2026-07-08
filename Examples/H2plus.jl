@@ -19,8 +19,9 @@ sol = solve(
 )
 sol
 
-println("H2+ E0 = ", sol.E₀, " Ha  (reference -0.597139)")
+h2p_ref = -0.597139
+println("H2+ E0 = ", sol.E₀, " Ha  (reference ", h2p_ref, ", Δ = ", sol.E₀ - h2p_ref, ")")
 println("bound below H + p+ threshold? ", sol.E₀ < -0.5)
 
-plot(sol, -0.597139)
+plot(sol, h2p_ref)
 plot(wavefunction(sol); coord = 1, rmax = 80.0)
