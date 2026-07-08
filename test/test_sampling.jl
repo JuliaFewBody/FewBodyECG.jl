@@ -2,6 +2,8 @@ using Test
 using FewBodyECG
 using LinearAlgebra
 
+import FewBodyECG: _generate_A_matrix, build_rank0, generate_bij, generate_shift
+
 @testset "Sampling Module Tests" begin
 
     @testset "generate bij" begin

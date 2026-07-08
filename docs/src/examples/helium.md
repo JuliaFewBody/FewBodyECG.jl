@@ -1,8 +1,13 @@
-# # Helium and H-
-#
-# A fixed nucleus plus two electrons exercises all three Coulomb pairs:
-# nucleus-electron attraction and electron-electron repulsion.
+```@meta
+EditURL = "../../../examples/helium.jl"
+```
 
+# Helium and H-
+
+A fixed nucleus plus two electrons exercises all three Coulomb pairs:
+nucleus-electron attraction and electron-electron repulsion.
+
+````@example helium
 using FewBodyECG
 using Plots
 
@@ -22,3 +27,9 @@ println("H- E0 = ", hm.E₀, " Ha  (reference -0.52775)")
 
 plot(he, -2.9037)
 plot(wavefunction(hm); coord = 1, rmax = 10.0)
+````
+
+---
+
+*This page was generated using [Literate.jl](https://github.com/fredrikekre/Literate.jl).*
+

@@ -3,7 +3,7 @@ using FewBodyECG
 using LinearAlgebra
 using QuasiMonteCarlo
 
-import FewBodyECG: _generate_A_matrix, _compute_overlap_element
+import FewBodyECG: _generate_A_matrix, _compute_overlap_element, generate_bij
 
 # Helper: solve generalized eigenvalue problem via symmetric inverse square root of S
 function _solve_gep(H, S)
@@ -18,7 +18,7 @@ end
 masses = [1.0e15, 1.0]
 Λmat = Λ(masses)
 K_transformed = Λmat
-J, U = _jacobi_transform(masses)
+J, U = jacobi_transform(masses)
 w_raw = [U' * [1, -1]]
 coeffs = [-1.0]
 

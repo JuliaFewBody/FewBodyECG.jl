@@ -1,30 +1,20 @@
-using FewBodyECG, LinearAlgebra
-using QuasiMonteCarlo
+# # Positronium
+#
+# Positronium is the two-body electron-positron Coulomb problem.  With equal
+# masses the exact ground-state energy is -0.25 Ha.
+
+using FewBodyECG
 using Plots
-import FewBodyECG: default_scale, convergence
 
-masses = [1.0, 1.0, 1.0]
+ops = Operators([1.0, 1.0], [+1.0, -1.0])
+ops += "Kinetic"
+ops += "Coulomb"
 
-os = Operators(masses, [+1, -1, -1])   # e⁺, e⁻, e⁻
-os += "Kinetic"
-os += "Coulomb"
+sol = solve(ops, SVM(basis = 25, candidates = 20, scale = 1.4))
+sol
 
-scale = default_scale(masses)
+println("E0 = ", sol.E₀, " Ha  (exact -0.25)")
+plot(sol, -0.25)
 
-# Ps⁻ has only one bound state; for excited-state examples see Helium.jl.
-result = solve_ECG(os, 300, sampler = SobolSample(); scale = scale, verbose=false, state = 1)
-println("E ≈ ", result.ground_state)
-
-n_conv, E_conv = convergence(result)
-p1 = plot(n_conv, E_conv,
-    xlabel = "Basis size", ylabel = "E (Ha)",
-    label = "Ground state", lw = 2,
-    title = "Positronium convergence")
-display(p1)
-
-r_grid, ρ = correlation_function(result; rmax = 15.0)
-p2 = plot(r_grid, ρ,
-    xlabel = "r (a.u.)", ylabel = "r²|ψ(r)|²",
-    label = "Positronium", lw = 2,
-    title = "Positronium radial correlation")
-display(p2)
+ψ = wavefunction(sol)
+plot(ψ; coord = 1, rmax = 15.0)

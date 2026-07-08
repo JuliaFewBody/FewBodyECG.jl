@@ -36,12 +36,12 @@ end
             # naive arrowhead eigenvectors let interior levels drift to ~1e-6
             # over many incremental steps (Gu-Eisenstat stabilisation would fix
             # this, deferred until excited states need it).
-            @test minimum(eig.ε) ≈ minimum(λ_ref) rtol = 1e-9
-            @test sort(eig.ε) ≈ λ_ref rtol = 1e-8
+            @test minimum(eig.ε) ≈ minimum(λ_ref) rtol = 1.0e-9
+            @test sort(eig.ε) ≈ λ_ref rtol = 1.0e-8
             # S-orthonormality and H-diagonalisation of the coefficient matrix.
             c = coefficients(eig)
-            @test c' * S * c ≈ I(n) atol = 1e-9
-            @test c' * H * c ≈ Diagonal(eig.ε) atol = 1e-8
+            @test c' * S * c ≈ I(n) atol = 1.0e-9
+            @test c' * H * c ≈ Diagonal(eig.ε) atol = 1.0e-8
         end
     end
 
@@ -58,7 +58,7 @@ end
             h_col = H[1:k, k + 1]
             E_score = score_candidate(eig, s_col, h_col, S[k + 1, k + 1], H[k + 1, k + 1])
             λ_ref = eigen(Symmetric(H[1:(k + 1), 1:(k + 1)]), Symmetric(S[1:(k + 1), 1:(k + 1)])).values
-            @test E_score ≈ minimum(λ_ref) rtol = 1e-9
+            @test E_score ≈ minimum(λ_ref) rtol = 1.0e-9
             commit_candidate!(eig, s_col, h_col, S[k + 1, k + 1], H[k + 1, k + 1])
         end
     end
@@ -81,9 +81,9 @@ end
             α = randn(rng)
             M = [Diagonal(ε) b; b' α]
             λ, V = full_arrowhead_eigen(ε, b, α)
-            @test sort(λ) ≈ eigen(Symmetric(Matrix(M))).values rtol = 1e-9
-            @test V' * V ≈ I(k + 1) atol = 1e-8
-            @test V' * Symmetric(Matrix(M)) * V ≈ Diagonal(λ) atol = 1e-7
+            @test sort(λ) ≈ eigen(Symmetric(Matrix(M))).values rtol = 1.0e-9
+            @test V' * V ≈ I(k + 1) atol = 1.0e-8
+            @test V' * Symmetric(Matrix(M)) * V ≈ Diagonal(λ) atol = 1.0e-7
         end
     end
 
@@ -91,10 +91,10 @@ end
         # The corruption bug (incremental energy drifting below the true ground
         # state under competitive selection) is caught by requiring the reported
         # energy to equal LAPACK on the solver's own basis.
-        ops = Operators([1e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
+        ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
 
-        sr = solve_ECG_competitive(ops, 30; n_candidates = 25, scale = 1.0, verbose = false)
-        basis = BasisSet(sr.basis_functions)
+        sol = solve(ops, SVM(basis = 30, candidates = 25, scale = 1.0))
+        basis = BasisSet(sol.basis.functions)
         H = build_hamiltonian_matrix(basis, ops)
         S = build_overlap_matrix(basis)
         # Compare against *unregularized* LAPACK: solve_generalized_eigenproblem
@@ -103,33 +103,33 @@ end
         # at cond(S) ~ 1e15.
         λ_ref = eigen(Symmetric(H), Symmetric(S)).values
 
-        @test sr.ground_state ≈ minimum(λ_ref) atol = 1e-5
-        @test sr.ground_state > -0.5 - 1e-6          # variational: above exact H ground state
+        @test sol.E₀ ≈ minimum(λ_ref) atol = 1.0e-5
+        @test sol.E₀ > -0.5 - 1.0e-6          # variational: above exact H ground state
         # Energy history is non-increasing (competitive selection keeps the best).
-        @test all(diff(sr.energies) .<= 1e-9)
-        # Stored eigenvectors are S-normalised → ψ₀ usable.
-        c = sr.eigenvectors[end][:, 1]
-        @test c' * S * c ≈ 1.0 atol = 1e-6
-        @test isfinite(ψ₀([0.5], sr))
+        @test all(diff(energies(sol)) .<= 1.0e-9)
+        # Stored coefficients are S-normalised → wavefunction usable.
+        c = sol.coefficients[:, 1]
+        @test c' * S * c ≈ 1.0 atol = 1.0e-6
+        @test isfinite(wavefunction(sol)([0.5]))
     end
 
     @testset "matches LAPACK on the hydrogen ECG system" begin
         masses = [1.0e15, 1.0]
         Λmat = Λ(masses)
-        _, U = _jacobi_transform(masses)
+        _, U = jacobi_transform(masses)
         w = U' * [1.0, -1.0]
         ops = Operator[KineticOperator(Λmat), CoulombOperator(-1.0, w)]
 
-        sr = solve_ECG(ops, 25; scale = 1.0, verbose = false)
-        basis = BasisSet(sr.basis_functions)
+        sol = solve(ops, SVM(basis = 25, candidates = 1, scale = 1.0))
+        basis = BasisSet(sol.basis.functions)
         H = build_hamiltonian_matrix(basis, ops)
         S = build_overlap_matrix(basis)
 
         eig = incremental_decomp(H, S)
         λ_ref, _ = solve_generalized_eigenproblem(H, S)
 
-        @test minimum(eig.ε) ≈ minimum(λ_ref) rtol = 1e-8   # the real test: vs LAPACK
-        @test minimum(eig.ε) ≈ -0.5 atol = 5e-2             # sanity: near hydrogen E₀
+        @test minimum(eig.ε) ≈ minimum(λ_ref) rtol = 1.0e-8   # the real test: vs LAPACK
+        @test minimum(eig.ε) ≈ -0.5 atol = 5.0e-2             # sanity: near hydrogen E₀
     end
 
 end

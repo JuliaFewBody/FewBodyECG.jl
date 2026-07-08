@@ -1,40 +1,53 @@
 # API Reference
 
-## Solvers
-
-```@docs
-solve_ECG
-solve_ECG_variational
-solve_ECG_sequential
-```
-
-## Operators
+## System building
 
 ```@docs
 Operators
 coulomb_weights
+Operator
 KineticOperator
 CoulombOperator
-```
-
-## Results and utilities
-
-```@docs
-SolverResults
-convergence
-convergence_history
-correlation_function
-ψ₀
-```
-
-## Coordinates and basis
-
-```@docs
-Λ
-_jacobi_transform
+GaussianOperator
 GaussianBase
 Rank0Gaussian
 Rank1Gaussian
 Rank2Gaussian
 BasisSet
+```
+
+## Solving
+
+```@docs
+solve
+SVM
+Refine
+Variational
+GrowVariational
+Pipeline
+→
+AutoDiff
+```
+
+## Results
+
+```@docs
+Solution
+ConvergenceReport
+StageResult
+converged
+energies
+wavefunction
+Wavefunction
+```
+
+## Power-user layer
+
+```@docs
+build_hamiltonian_matrix
+build_overlap_matrix
+solve_generalized_eigenproblem
+Λ
+jacobi_transform
+default_scale
 ```

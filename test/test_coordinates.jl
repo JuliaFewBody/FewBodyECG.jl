@@ -1,38 +1,38 @@
 using Test
 using FewBodyECG
 using LinearAlgebra
-import FewBodyECG: _jacobi_transform, _generate_A_matrix, _shift_vectors, _transform_coordinates, _inverse_transform_coordinates
+import FewBodyECG: jacobi_transform, _transform_coordinates, _inverse_transform_coordinates
 
 @testset "Coordinates Module Tests" begin
-    @testset "_jacobi_transform" begin
+    @testset "jacobi_transform" begin
         masses = [1.0, 1.0, 1.0]
-        J, U = _jacobi_transform(masses)
+        J, U = jacobi_transform(masses)
 
         @test size(J) == (2, 3)
         @test size(U) == (3, 2)
         @test J * U ≈ I(2) atol = 1.0e-10
 
         masses = [1.0, 2.0, 3.0]
-        J, U = _jacobi_transform(masses)
+        J, U = jacobi_transform(masses)
 
         @test size(J) == (2, 3)
         @test size(U) == (3, 2)
         @test J * U ≈ I(2) atol = 1.0e-10
 
         masses = [1.0, 2.0]
-        J, U = _jacobi_transform(masses)
+        J, U = jacobi_transform(masses)
 
         @test size(J) == (1, 2)
         @test size(U) == (2, 1)
         @test J * U ≈ [1.0] atol = 1.0e-10
 
-        @test_throws AssertionError _jacobi_transform([1.0])
+        @test_throws AssertionError jacobi_transform([1.0])
     end
 
 
     @testset "_transform_coordinates / _inverse_transform_coordinates" begin
         masses = [1.0, 2.0, 3.0]
-        J, U = _jacobi_transform(masses)
+        J, U = jacobi_transform(masses)
         r = [1.0, 2.0, 3.0]
 
         x = _transform_coordinates(J, r)
@@ -52,7 +52,7 @@ end
 @testset "Additional Jacobi Transform Tests" begin
     @testset "Numeric values for equal masses" begin
         masses = [1.0, 1.0, 1.0]
-        J, U = _jacobi_transform(masses)
+        J, U = jacobi_transform(masses)
 
         μ1 = 1 / sqrt(2)
         μ2 = sqrt(2 / 3)
@@ -69,7 +69,7 @@ end
 
     @testset "Numeric values for two masses" begin
         masses = [1.0, 2.0]
-        J, U = _jacobi_transform(masses)
+        J, U = jacobi_transform(masses)
 
         μ = sqrt(2.0 / 3.0)
         @test size(J) == (1, 2)
@@ -79,7 +79,7 @@ end
 
     @testset "Pseudoinverse (Moore–Penrose) properties" begin
         masses = [1.3, 2.5, 0.7, 4.1]
-        J, U = _jacobi_transform(masses)
+        J, U = jacobi_transform(masses)
 
         Ired = I(size(J, 1))
         @test isapprox(J * U, Ired; atol = 1.0e-10)
@@ -134,8 +134,8 @@ end
     end
 
 
-    @testset "Method errors on _jacobi_transform with non-Float64 masses" begin
-        @test_throws MethodError _jacobi_transform([1, 2, 3])             # Integer vector
-        @test_throws MethodError _jacobi_transform([1.0f0, 2.0f0, 3.0f0]) # Float32 vector
+    @testset "Method errors on jacobi_transform with non-Float64 masses" begin
+        @test_throws MethodError jacobi_transform([1, 2, 3])             # Integer vector
+        @test_throws MethodError jacobi_transform([1.0f0, 2.0f0, 3.0f0]) # Float32 vector
     end
 end

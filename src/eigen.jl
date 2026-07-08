@@ -111,8 +111,10 @@ end
 # Safeguarded Newton/bisection root finder for f on an open bracket (lo, hi)
 # where f(lo) > 0 > f(hi).  f is strictly decreasing on every pole-free
 # interval, so this is globally convergent.
-function _solve_secular_bracket(ε, b, α, lo::Float64, hi::Float64;
-                                maxiter::Int = 200, tol::Float64 = 1.0e-14)
+function _solve_secular_bracket(
+        ε, b, α, lo::Float64, hi::Float64;
+        maxiter::Int = 200, tol::Float64 = 1.0e-14
+    )
     # On entry f(lo) > 0 > f(hi); f is strictly decreasing between poles.
     λ = 0.5 * (lo + hi)
     for _ in 1:maxiter
@@ -140,8 +142,10 @@ a candidate basis function.  Deflation (b[i] ≈ 0) is handled so the routine is
 robust when a candidate is nearly S-orthogonal to an existing eigenvector.
 `ε` must be sorted ascending.
 """
-function smallest_arrowhead_eigval(ε::AbstractVector, b::AbstractVector, α::Real;
-                                   tol::Float64 = 1.0e-12)
+function smallest_arrowhead_eigval(
+        ε::AbstractVector, b::AbstractVector, α::Real;
+        tol::Float64 = 1.0e-12
+    )
     k = length(ε)
     scale = max(1.0, maximum(abs, ε; init = 0.0), abs(α))
     # Active (coupled) indices; deflated diagonals are themselves eigenvalues.
@@ -209,8 +213,10 @@ Eigenvectors use the Löwner-reconstructed border (see [`_lowner_border`](@ref))
 so they stay orthogonal even for nearly coincident eigenvalues.  Deflated
 coordinates (b[i] ≈ 0) contribute the unit eigenvector eᵢ.
 """
-function full_arrowhead_eigen(ε::AbstractVector{Float64}, b::AbstractVector{Float64}, α::Float64;
-                              tol::Float64 = 1.0e-12)
+function full_arrowhead_eigen(
+        ε::AbstractVector{Float64}, b::AbstractVector{Float64}, α::Float64;
+        tol::Float64 = 1.0e-12
+    )
     k = length(ε)
     n = k + 1
     scale = max(1.0, maximum(abs, ε; init = 0.0), abs(α))
@@ -281,8 +287,10 @@ whitened Hamiltonian the new row/column appears as an arrowhead with border `β`
 and corner `ω`; these feed the secular solver.  `y = R⁻¹r` is reused by the
 commit path.  All triangular solves are O(k²).
 """
-function _whiten_candidate(eig::SVMEigen, s_col::AbstractVector, h_col::AbstractVector,
-                           s_diag::Real, h_diag::Real)
+function _whiten_candidate(
+        eig::SVMEigen, s_col::AbstractVector, h_col::AbstractVector,
+        s_diag::Real, h_diag::Real
+    )
     k = eig.k
     if k == 0
         return (Float64[], h_diag / s_diag, float(s_diag), Float64[], Float64[])
@@ -311,8 +319,10 @@ or if its Cholesky residual `ρ²` is below `min_resid_ratio · s_diag` (a
 principled overlap-threshold independence cut; default 0 ⇒ only exact dependence
 is rejected).  For `state == 1` this uses the monotone smallest-root branch.
 """
-function score_candidate(eig::SVMEigen, s_col, h_col, s_diag, h_diag;
-                         state::Int = 1, min_resid_ratio::Real = 0.0)
+function score_candidate(
+        eig::SVMEigen, s_col, h_col, s_diag, h_diag;
+        state::Int = 1, min_resid_ratio::Real = 0.0
+    )
     β, ω, ρ2, _, _ = _whiten_candidate(eig, s_col, h_col, s_diag, h_diag)
     ρ2 <= max(0.0, min_resid_ratio * s_diag) && return nothing
     if eig.k == 0

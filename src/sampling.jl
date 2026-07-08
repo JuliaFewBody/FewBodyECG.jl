@@ -1,7 +1,5 @@
 using QuasiMonteCarlo
 
-export generate_bij, generate_shift, _generate_A_matrix, build_rank0
-
 function _qmc_point(i::Int, d::Int; sampler = HaltonSample())
     return QuasiMonteCarlo.sample(i + 1, d, sampler)[:, end]
 end

@@ -180,7 +180,7 @@ end
     @test cop.w == w
     @test cop isa FewBodyHamiltonians.PotentialTerm
 
-    ecg = ECG(bset, [kop, cop])
+    ecg = FewBodyECG.ECG(bset, [kop, cop])
     @test ecg.basis === bset
     @test ecg.operators == [kop, cop]
 end
