@@ -1,161 +1,282 @@
 # Theory
 
-## Basis expansion of the Schrödinger equation
+FewBodyECG.jl solves non-relativistic few-body Hamiltonians by expanding the
+wave function in explicitly correlated Gaussians and evaluating all matrix
+elements analytically.  The derivation below follows the shifted-Gaussian
+generating-function route used for rank-0, rank-1, and rank-2 matrix elements.
 
-We are going to solve the Schrödinger equation
+## Variational reduction
+
+We start from the Schrödinger equation
 
 ```math
-\hat{H}|\psi\rangle = \epsilon|\psi\rangle,
+\hat{H}|\psi\rangle = \epsilon|\psi\rangle.
 ```
 
-where $\hat{H}$ is the Hamiltonian of a quantum few-body system, $|\psi\rangle$ and $\epsilon$ are the eigenfunction and the eigenvalue to be found.
-
-We shall expand the wave-function $|\psi\rangle$ in terms of a set of basis functions $|i\rangle$ for $i = 1 \ldots n$,
+Approximate the wave function in a finite, non-orthogonal basis:
 
 ```math
-|\psi\rangle = \sum_{i=1}^{n} c_i |i\rangle.
+|\psi\rangle = \sum_{i=1}^{n} c_i |G_i\rangle.
 ```
 
-Inserting the expansion into the Schrödinger equation and multiplying from the left with $\langle k|$ for $1 \leq k \leq n$ gives
+Multiplying from the left by ``\langle G_k|`` gives
 
 ```math
-\sum_{i=1}^{n} \langle k|\hat{H}|i\rangle c_i = \epsilon \sum_{i=1}^{n} \langle k|i\rangle c_i.
+\sum_i \langle G_k|\hat{H}|G_i\rangle c_i
+=
+\epsilon \sum_i \langle G_k|G_i\rangle c_i.
 ```
 
-Or, in the matrix notation
+In matrix form,
 
 ```math
-Hc = \epsilon Nc,
+Hc = \epsilon N c,
+\qquad
+H_{ki} = \langle G_k|\hat{H}|G_i\rangle,
+\qquad
+N_{ki} = \langle G_k|G_i\rangle.
 ```
 
-where $H$ and $N$ are correspondingly the Hamiltonian and the overlap matrices with the matrix elements
+The lowest eigenvalue is a variational upper bound for the represented
+Hamiltonian.  Improving the basis can only lower or leave unchanged the best
+energy.
+
+## Coordinates and Hamiltonian
+
+The package removes center-of-mass motion by transforming particle coordinates
+to Jacobi coordinates ``\mathbf{x}``.  In those coordinates the Hamiltonian has
+the form
 
 ```math
-H_{ki} = \langle k|\hat{H}|i\rangle, \quad N_{ki} = \langle k|i\rangle
+\hat{H}
+=
+-\frac{\partial}{\partial \mathbf{x}}
+\Lambda
+\frac{\partial}{\partial \mathbf{x}^{T}}
++
+\sum_{i<j}\frac{Z_i Z_j}{|\omega_{ij}^{T}\mathbf{x}|}
++
+\sum_\alpha V_\alpha
+\exp\left[-\gamma_\alpha(\omega_\alpha^T\mathbf{x})^2\right].
 ```
 
-## Gaussians as basis functions
+Here ``\Lambda`` is the reduced mass matrix in Jacobi coordinates and each
+``\omega`` vector selects one pair distance from ``\mathbf{x}``.
 
-We shall use the so-called Correlated Gaussians (or Explicitly Correlated Gaussians) as the basis functions. For a system of $N$ particles with coordinates $\vec{r}_i$, $i = 1 \ldots N$, the Correlated Gaussian is defined as
+## Shifted Gaussian generator
+
+The shifted correlated Gaussian is
 
 ```math
-g(\vec{r}_1, \ldots, \vec{r}_N) = \exp \left( - \sum_{i,j=1}^{N} A_{ij}\vec{r}_i \cdot \vec{r}_j - \sum_{i=1}^{N} \vec{s}_i \cdot \vec{r}_i \right),
+\langle \mathbf{x}|A,\mathbf{a}\rangle
+=
+\exp\left(-\mathbf{x}^{T}A\mathbf{x}+\mathbf{a}^{T}\mathbf{x}\right),
 ```
 
-where $\vec{r}_i \cdot \vec{r}_j$ denotes the dot-product of the two vectors; and where $A$, a symmetric positive-defined matrix, and $\vec{s}_i$, $i=1,\ldots,N$, the shift-vectors, are (cleverly chosen) parameters of the Gaussian.
+where ``A`` is symmetric positive definite and ``\mathbf{a}`` is a column of
+shift vectors.  The positive definiteness makes the basis function square
+integrable; the off-diagonal entries of ``A`` encode pair correlations.
 
-In matrix notation,
+For a ket ``(A,\mathbf{a})`` and bra ``(B,\mathbf{b})`` define
 
 ```math
-g(\vec{r}) = \exp \left( -\vec{r}^T A \vec{r} + \vec{s}^T \vec{r} \right),
+C = A + B,
+\qquad
+R = C^{-1},
+\qquad
+\mathbf{v} = \mathbf{a} + \mathbf{b}.
 ```
 
-where $\vec{r}$ is the column of the coordinates $\vec{r}_i$ and $\vec{s}$ is the column of the shift-vectors $\vec{s}_i$,
+Their product is another Gaussian, so completing the square gives the overlap
 
 ```math
-\vec{r} =
-\begin{pmatrix}
-\vec{r}_1 \\
-\vdots \\
-\vec{r}_N
-\end{pmatrix}, \quad
-\vec{s} =
-\begin{pmatrix}
-\vec{s}_1 \\
-\vdots \\
-\vec{s}_N
-\end{pmatrix},
+M(C,\mathbf{v})
+=
+\langle B,\mathbf{b}|A,\mathbf{a}\rangle
+=
+\left(\frac{\pi^n}{\det C}\right)^{3/2}
+\exp\left(\frac{1}{4}\mathbf{v}^{T}R\mathbf{v}\right).
+```
+
+This shifted overlap is the generating function.  Polynomial prefactors and
+position moments are obtained by differentiating it with respect to the shift
+vectors and then setting shifts to zero.
+
+## Shifted operator matrix elements
+
+The shifted kinetic-energy matrix element can be written compactly as
+
+```math
+\langle B,\mathbf{b}|\hat{K}|A,\mathbf{a}\rangle
+=
+M(C,\mathbf{v})
+\left[
+6\operatorname{Tr}(B\Lambda A R)
++
+(\mathbf{b}-BR\mathbf{v})^T
+\Lambda
+(\mathbf{a}-AR\mathbf{v})
+\right].
+```
+
+For a Coulomb term selected by ``\omega``, set
+
+```math
+\beta = \frac{1}{\omega^T R\omega},
+\qquad
+\rho = \frac{1}{2}\omega^T R\mathbf{v}.
+```
+
+Then
+
+```math
+\left\langle B,\mathbf{b}\left|
+\frac{1}{|\omega^T\mathbf{x}|}
+\right|A,\mathbf{a}\right\rangle
+=
+M(C,\mathbf{v})\,\frac{\operatorname{erf}(\sqrt{\beta}\rho)}{\rho},
+```
+
+with the finite zero-shift limit
+
+```math
+2\sqrt{\frac{\beta}{\pi}}\,M(C,0).
+```
+
+The physical charge factor ``Z_iZ_j`` is multiplied in by `CoulombOperator`.
+A Gaussian pair potential is even simpler:
+
+```math
+V_0 e^{-\gamma(\omega^T\mathbf{x})^2}
+\quad\Longrightarrow\quad
+C \mapsto C + \gamma\,\omega\omega^T.
+```
+
+Its matrix element is ``V_0`` times the overlap evaluated with that modified
+quadratic form.
+
+## Rank-0 Gaussians
+
+Rank-0, or s-wave, Gaussians are the zero-shift limit:
+
+```math
+\langle \mathbf{x}|A\rangle
+=
+\lim_{\mathbf{a}\to 0}\langle \mathbf{x}|A,\mathbf{a}\rangle
+=
+\exp(-\mathbf{x}^{T}A\mathbf{x}).
+```
+
+The rank-0 overlap is
+
+```math
+M_0
+=
+\langle B|A\rangle
+=
+\left(\frac{\pi^n}{\det(A+B)}\right)^{3/2}.
+```
+
+The corresponding kinetic and Coulomb elements are
+
+```math
+\langle B|\hat{K}|A\rangle
+=
+6M_0\,\operatorname{Tr}(B\Lambda A(A+B)^{-1}),
 ```
 
 and
 
 ```math
-\vec{r}^T A \vec{r} + \vec{s}^T \vec{r} = \sum_{i,j} \vec{r}_i \cdot A_{ij}\vec{r}_j + \sum_i \vec{s}_i \cdot \vec{r}_i.
+\left\langle B\left|\frac{1}{|\omega^T\mathbf{x}|}\right|A\right\rangle
+=
+2\sqrt{\frac{\beta}{\pi}}\,M_0,
+\qquad
+\beta = \frac{1}{\omega^T(A+B)^{-1}\omega}.
 ```
 
-## Stochastic basis construction
+These are the formulas used for the high-level stochastic and variational
+solvers, which currently sample rank-0 bases.
 
-The simplest strategy for choosing the Gaussian parameters is **stochastic
-greedy search** (`solve_ECG`): candidate basis functions are generated from
-quasi-random sequences (Halton, Sobol) and accepted one at a time if they
-reduce the lowest eigenvalue.  This is fast and robust, but the quality of the
-final basis depends on the sampling distribution and the number of accepted
-functions.
+## Tensor prefactors
 
-## Variational parameter optimisation
-
-A more systematic approach is to treat all parameters of all basis functions
-simultaneously as a continuous optimisation problem (`solve_ECG_variational`).
-
-### The variational principle
-
-By the Rayleigh-Ritz variational principle, the lowest generalised eigenvalue
-$\lambda_{\min}$ of $Hc = \lambda S c$ satisfies
+Rank-1 and rank-2 Gaussians are generated by taking Taylor coefficients of the
+shifted Gaussian:
 
 ```math
-\lambda_{\min} \;\geq\; E_0,
+\langle \mathbf{x}|(\mathbf{u})A\rangle
+=
+(\mathbf{u}^T\mathbf{x})e^{-\mathbf{x}^{T}A\mathbf{x}},
 ```
-
-where $E_0$ is the exact ground-state energy.  Equality holds when the
-parameter space is large enough to contain the true ground state.  Therefore
-minimising $\lambda_{\min}$ over the Gaussian parameters is a rigorous
-upper-bound approach: the optimum is approached monotonically from above.
-
-### Parameterisation
-
-Every $n_{\text{dim}} \times n_{\text{dim}}$ positive-definite matrix $A$ is
-written as $A = L L^T$ where $L$ is lower-triangular with positive diagonal.
-Rather than optimising $L$ directly (which requires inequality constraints),
-the diagonal entries are reparameterised as $L_{ii} = \exp(\theta_{ii})$, so
-that the full parameter vector $\theta$ is unconstrained:
 
 ```math
-L_{ij}(\theta) =
-\begin{cases}
-e^{\theta_{ij}} & i = j, \\
-\theta_{ij} & i > j.
-\end{cases}
+\langle \mathbf{x}|(\mathbf{u}\mathbf{v})A\rangle
+=
+(\mathbf{u}^T\mathbf{x})(\mathbf{v}^T\mathbf{x})
+e^{-\mathbf{x}^{T}A\mathbf{x}}.
 ```
 
-The shift vector $s \in \mathbb{R}^{n_{\text{dim}}}$ is also included in
-$\theta$ without any transformation.  The complete parameter vector for a basis
-of $n$ Gaussians therefore has dimension
+For example, the rank-1 overlap comes from the ``O(\mathbf{u}\mathbf{v})``
+term in the shifted overlap:
 
 ```math
-|\theta| = n \times \left(\frac{n_{\text{dim}}(n_{\text{dim}}+1)}{2} + n_{\text{dim}}\right).
+\langle (\mathbf{v})B|(\mathbf{u})A\rangle
+=
+\frac{1}{2}\mathbf{v}^{T}(A+B)^{-1}\mathbf{u}\,M_0.
 ```
 
-### Gradient computation (Hellmann-Feynman)
+Kinetic and Coulomb rank-1/rank-2 formulas are obtained the same way: expand
+the shifted matrix element, keep the coefficient with the required shift
+order, and set the remaining shifts to zero.  This is why one shifted formula
+can generate the s-, p-, and d-wave matrix elements used by the power-user
+matrix layer.
 
-Computing the gradient $\nabla_\theta \lambda_{\min}$ by automatic
-differentiation through the eigensolver is expensive and numerically fragile.
-Instead, the **Hellmann-Feynman theorem** is used: if $c$ is the eigenvector
-corresponding to $\lambda_{\min}$, then
+## Basis construction
+
+Once the matrix elements are analytic, the numerical problem is choosing a
+useful basis:
+
+1. `SVM` draws quasi-random candidates and keeps the one that lowers the target
+   eigenvalue.
+2. `Refine` revisits existing basis slots and tries replacements.
+3. `Variational` jointly optimizes all rank-0 parameters with LBFGS.
+4. `GrowVariational` alternates growth and continuous optimization.
+
+Stochastic methods are cheap and robust but can saturate under a fixed
+sampling scale.  Gradient methods cost more but move the Gaussian parameters
+continuously after the sampled basis has found the right region.
+
+## Hydrogen check
+
+For hydrogen in Hartree units,
 
 ```math
-\frac{\partial \lambda_{\min}}{\partial \theta_k}
-= c^T \!\left(\frac{\partial H}{\partial \theta_k} - \lambda_{\min}\,\frac{\partial S}{\partial \theta_k}\right) c.
+\hat{H} = -\frac{1}{2}\nabla^2 - \frac{1}{r},
+\qquad
+E_n = -\frac{1}{2n^2}.
 ```
 
-The eigenproblem is solved in `Float64` to obtain $\lambda_{\min}$ and $c$.
-ForwardDiff then differentiates only through the matrix-build steps
-($H(\theta)$ and $S(\theta)$), which avoids differentiating through any
-eigenvalue decomposition.  The chunk size of ForwardDiff is tuned so that each
-Gaussian contributes approximately five dual-number columns per pass.
+Rank-0, rank-1, and rank-2 Gaussian bases target the lowest s-, p-, and
+d-wave states.  The corresponding exact energies are
 
-### Optimisation
+```math
+E_{1s}=-\frac{1}{2},
+\qquad
+E_{2p}=-\frac{1}{8},
+\qquad
+E_{3d}=-\frac{1}{18}.
+```
 
-The combined value-and-gradient function is passed to the L-BFGS
-implementation provided by [OptimKit.jl](https://github.com/Jutho/OptimKit.jl).
-Regions where the overlap matrix $S$ is near-singular (degenerate Gaussians)
-are handled by returning $(+\infty, \mathbf{0})$ from the objective, which
-acts as an infinite-cost barrier that the line search naturally avoids.
+The hydrogen example compares these values against the analytical energies
+reported by Antique.jl.
 
-### Trace loss (warm-start refinement)
+## References
 
-An alternative surrogate loss is $\operatorname{Tr}(S^{-1}H)$, the sum of
-**all** generalised eigenvalues.  This is differentiable everywhere without
-requiring an eigensolver, but is only useful when the initial basis is already
-close to the physical ground state (e.g. after a stochastic run), because for
-random initialisations the upper eigenvalues are large and the optimizer may
-find a trivial degenerate minimum.
+1. D. V. Fedorov, A. F. Teilmann, M. C. Østerlund, and T. L. Norrbohm,
+   "Explicitly Correlated Gaussians with Tensor Pre-factors: Analytic Matrix
+   Elements," *Few-Body Systems* **65**, 75 (2024).
+   [doi:10.1007/s00601-024-01945-x](https://doi.org/10.1007/s00601-024-01945-x).
+2. Y. Suzuki and K. Varga, *Stochastic Variational Approach to
+   Quantum-Mechanical Few-Body Problems*, Springer, 1998.
+3. Antique.jl, analytical solutions for solvable quantum-mechanical models:
+   [github.com/ohno/Antique.jl](https://github.com/ohno/Antique.jl).

@@ -2,7 +2,7 @@ using Test
 using LinearAlgebra
 using FewBodyHamiltonians
 using FewBodyECG
-import FewBodyECG: _jacobi_transform, Λ
+import FewBodyECG: jacobi_transform, Λ
 
 @testset "Operators" begin
 
@@ -308,7 +308,7 @@ import FewBodyECG: _jacobi_transform, Λ
 
             # Manual interface
             Λmat = Λ(masses)
-            _, U = _jacobi_transform(masses)
+            _, U = jacobi_transform(masses)
             w = U' * [1.0, -1.0]
             ops_old = Operator[KineticOperator(Λmat); CoulombOperator(-1.0, w)]
 
@@ -329,7 +329,7 @@ import FewBodyECG: _jacobi_transform, Λ
             ops_new += "Coulomb"
 
             Λmat = Λ(masses)
-            _, U = _jacobi_transform(masses)
+            _, U = jacobi_transform(masses)
             w_list = [U' * Float64.(w) for w in [[1, -1, 0], [1, 0, -1], [0, 1, -1]]]
             coeffs = [-1.0, -1.0, +1.0]
             ops_old = Operator[
@@ -347,7 +347,7 @@ import FewBodyECG: _jacobi_transform, Λ
 
         @testset "Explicit pair Coulomb matches manual" begin
             masses = [1.0e15, 1.0, 1.0]
-            _, U = _jacobi_transform(masses)
+            _, U = jacobi_transform(masses)
 
             ops_new = Operators(masses)
             ops_new += ("Coulomb", 1, 2, -1.0)
@@ -374,37 +374,37 @@ import FewBodyECG: _jacobi_transform, Λ
 
     @testset "Integration with solvers" begin
 
-        @testset "solve_ECG: hydrogen atom ≈ -0.5 Ha" begin
+        @testset "SVM: hydrogen atom ≈ -0.5 Ha" begin
             masses = [1.0e15, 1.0]
             ops = Operators(masses)
             ops += "Kinetic"
             ops += ("Coulomb", 1, 2, -1.0)
-            sr = solve_ECG(ops, 25; scale = 1.0, verbose = false)
-            @test sr.ground_state < -0.46   # converging toward -0.5 Ha
-            @test sr.ground_state > -0.52
+            sol = solve(ops, SVM(basis = 25, candidates = 1, scale = 1.0))
+            @test sol.E₀ < -0.46   # converging toward -0.5 Ha
+            @test sol.E₀ > -0.52
         end
 
-        @testset "solve_ECG: H⁻ auto-Coulomb (bound state)" begin
+        @testset "SVM: H⁻ auto-Coulomb (bound state)" begin
             masses = [1.0e15, 1.0, 1.0]
             ops = Operators(masses, [+1, -1, -1])
             ops += "Kinetic"
             ops += "Coulomb"
-            sr = solve_ECG(ops, 15; scale = 1.0, verbose = false)
+            sol = solve(ops, SVM(basis = 15, candidates = 1, scale = 1.0))
             # H⁻ ground state ≈ -0.528 Ha; with a small basis just verify it is bound
-            @test sr.ground_state < -0.3
+            @test sol.E₀ < -0.3
         end
 
-        @testset "solve_ECG via Operators matches ops.terms" begin
+        @testset "SVM via Operators matches ops.terms" begin
             masses = [1.0e15, 1.0]
             ops = Operators(masses)
             ops += "Kinetic"
             ops += ("Coulomb", 1, 2, -1.0)
 
-            sr_ops = solve_ECG(ops, 25; scale = 1.0, verbose = false)
-            sr_vec = solve_ECG(ops.terms, 25; scale = 1.0, verbose = false)
+            sol_ops = solve(ops, SVM(basis = 25, candidates = 1, scale = 1.0))
+            sol_vec = solve(ops.terms, SVM(basis = 25, candidates = 1, scale = 1.0))
 
-            @test sr_ops.ground_state < -0.46
-            @test sr_vec.ground_state < -0.46
+            @test sol_ops.E₀ < -0.46
+            @test sol_vec.E₀ < -0.46
         end
     end
 end

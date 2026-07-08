@@ -1,5 +1,5 @@
 """
-    _jacobi_transform(masses) -> (J, U)
+    jacobi_transform(masses) -> (J, U)
 
 Compute the Jacobi coordinate transformation matrix `J` and its pseudo-inverse `U`
 for a system with the given particle `masses`.
@@ -11,7 +11,7 @@ Returns `(J, U)` where:
 
 The weight vectors for `CoulombOperator` are constructed as `U' * charge_vector`.
 """
-function _jacobi_transform(masses::Vector{Float64})::Tuple{Matrix{Float64}, Matrix{Float64}}
+function jacobi_transform(masses::Vector{Float64})::Tuple{Matrix{Float64}, Matrix{Float64}}
     N = length(masses)
     @assert N ≥ 2 "At least two masses are required for Jacobi transformation."
     J = zeros(Float64, N - 1, N)
@@ -46,7 +46,7 @@ the Jacobi transformation matrix and ``M = \\operatorname{diag}(m_i)``.
 Pass the result directly to `KineticOperator`.
 """
 function Λ(masses::Vector{<:Real})
-    J, _ = _jacobi_transform(masses)
+    J, _ = jacobi_transform(masses)
     Minv = Diagonal(0.5 ./ masses)
     Λ = Symmetric(J * Minv * J')
     return Λ

@@ -198,7 +198,7 @@ using FewBodyHamiltonians
 using FewBodyECG
 import FewBodyECG: _compute_overlap_element, _build_operator_matrix, _compute_matrix_element
 import FewBodyECG: normalized_overlap, is_linearly_independent, default_scale
-import FewBodyECG: _jacobi_transform, _generate_A_matrix, generate_bij, generate_shift
+import FewBodyECG: jacobi_transform, _generate_A_matrix, generate_bij, generate_shift
 using QuasiMonteCarlo
 
 # =============================================================================
@@ -526,16 +526,17 @@ end
     masses = [1.0e15, 1.0]
     Λmat = Λ(masses)
     kin = KineticOperator(Λmat)
-    J, U = _jacobi_transform(masses)
+    J, U = jacobi_transform(masses)
     w_raw = [U' * [1.0, -1.0]]
     coulomb = CoulombOperator(-1.0, w_raw[1])
     ops = Operator[kin, coulomb]
 
-    result = solve_ECG(ops, 20; scale = 1.5, verbose = false)
+    sol = solve(ops, SVM(basis = 20, candidates = 1, scale = 1.5))
 
     # Check monotonic decrease (with some tolerance for numerical noise)
-    for i in 2:length(result.energies)
-        @test result.energies[i] <= result.energies[i - 1] + 1.0e-10
+    ener = energies(sol)
+    for i in 2:length(ener)
+        @test ener[i] <= ener[i - 1] + 1.0e-10
     end
 end
 
@@ -545,70 +546,74 @@ end
     masses = [1.0e15, 1.0]
     Λmat = Λ(masses)
     kin = KineticOperator(Λmat)
-    J, U = _jacobi_transform(masses)
+    J, U = jacobi_transform(masses)
     w_raw = [U' * [1.0, -1.0]]
     coulomb = CoulombOperator(-1.0, w_raw[1])
     ops = Operator[kin, coulomb]
 
     # Good scale for hydrogen
-    result_good = solve_ECG(ops, 15; scale = 1.5, verbose = false)
+    sol_good = solve(ops, SVM(basis = 15, candidates = 1, scale = 1.5))
 
     # Bad scale (too small - Gaussians too narrow)
-    result_bad = solve_ECG(ops, 15; scale = 0.05, verbose = false)
+    sol_bad = solve(ops, SVM(basis = 15, candidates = 1, scale = 0.05))
 
     # Good scale should give better (lower) energy
-    @test result_good.ground_state < result_bad.ground_state
+    @test sol_good.E₀ < sol_bad.E₀
 end
 
 
-@testset "solve_ECG" begin
+@testset "SVM basis growth" begin
 
     @testset "Returns correct structure" begin
         masses = [1.0e15, 1.0]
         Λmat = Λ(masses)
         kin = KineticOperator(Λmat)
-        J, U = _jacobi_transform(masses)
+        J, U = jacobi_transform(masses)
         w_raw = [U' * [1.0, -1.0]]
         coulomb = CoulombOperator(-1.0, w_raw[1])
         ops = Operator[kin, coulomb]
 
-        result = solve_ECG(ops, 10; scale = 1.0, verbose = false)
+        sol = solve(ops, SVM(basis = 10, candidates = 1, scale = 1.0))
 
-        @test length(result.basis_functions) == result.n_basis
-        @test length(result.energies) == result.n_basis
-        @test result.ground_state == last(result.energies)
-        @test result.ground_state == minimum(result.energies)
+        @test length(sol.basis.functions) == length(energies(sol))
+        @test sol.E₀ == last(energies(sol))
+        @test sol.E₀ == minimum(energies(sol))
     end
 
-    @testset "Respects max_attempts" begin
+    @testset "Growth steps that fail independence are reported honestly" begin
         masses = [1.0e15, 1.0]
         Λmat = Λ(masses)
         kin = KineticOperator(Λmat)
-        J, U = _jacobi_transform(masses)
+        J, U = jacobi_transform(masses)
         w_raw = [U' * [1.0, -1.0]]
         coulomb = CoulombOperator(-1.0, w_raw[1])
         ops = Operator[kin, coulomb]
 
-        # Request many basis functions but limit attempts
-        result = solve_ECG(ops, 1000; scale = 1.0, max_attempts = 50, verbose = false)
+        # Unlike the legacy stochastic solver's attempt-capping, SVM always runs
+        # exactly `basis` growth steps and terminates; a strict indep_tol makes
+        # most of them fail to find an admissible candidate, and the shortfall
+        # is reported honestly (via convergence notes) rather than looping or
+        # erroring.
+        sol = solve(ops, SVM(basis = 30, candidates = 3, scale = 1.0, indep_tol = 0.5))
 
-        @test result.n_basis <= 50
+        @test length(sol.basis.functions) <= 30
+        @test any(occursin("no admissible candidate", n) for n in sol.convergence.notes)
     end
 
     @testset "Handles linear dependence rejection" begin
         masses = [1.0e15, 1.0]
         Λmat = Λ(masses)
         kin = KineticOperator(Λmat)
-        J, U = _jacobi_transform(masses)
+        J, U = jacobi_transform(masses)
         w_raw = [U' * [1.0, -1.0]]
         coulomb = CoulombOperator(-1.0, w_raw[1])
         ops = Operator[kin, coulomb]
 
-        # Very strict threshold should cause rejections
-        result = solve_ECG(ops, 10; scale = 1.0, threshold = 0.5, verbose = false)
+        # A strict independence tolerance should still produce valid results
+        sol = solve(ops, SVM(basis = 30, candidates = 3, scale = 1.0, indep_tol = 0.5))
 
         # Should still produce valid results
-        @test result.n_basis >= 1
-        @test isfinite(result.ground_state)
+        @test length(sol.basis.functions) >= 1
+        @test isfinite(sol.E₀)
     end
 end

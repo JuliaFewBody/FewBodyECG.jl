@@ -1,7 +1,7 @@
 using Test
 using LinearAlgebra
 using FewBodyECG
-import FewBodyECG: _jacobi_transform, _encode_basis, _decode_basis, _chol_to_params, _params_to_matrix, convergence_history, solve_ECG_sequential
+import FewBodyECG: jacobi_transform, _encode_basis, _decode_basis, _chol_to_params, _params_to_matrix
 
 # ---------------------------------------------------------------------------
 # Shared 2-body (hydrogen) and 3-body (H⁻) operator fixtures
@@ -9,7 +9,7 @@ import FewBodyECG: _jacobi_transform, _encode_basis, _decode_basis, _chol_to_par
 
 function _hydrogen_ops()
     masses = [1.0e15, 1.0]
-    _, U = _jacobi_transform(masses)
+    _, U = jacobi_transform(masses)
     w = U' * [1.0, -1.0]
     ops = Operator[KineticOperator(Λ(masses)); CoulombOperator(-1.0, w)]
     return ops
@@ -17,12 +17,14 @@ end
 
 function _hminus_ops()
     masses = [1.0e15, 1.0, 1.0]
-    _, U = _jacobi_transform(masses)
+    _, U = jacobi_transform(masses)
     w_list = [[1, -1, 0], [1, 0, -1], [0, 1, -1]]
     w_raw = [U' * Float64.(w) for w in w_list]
     coeffs = [-1.0, -1.0, +1.0]
-    ops = Operator[KineticOperator(Λ(masses));
-                   [CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw)]...]
+    ops = Operator[
+        KineticOperator(Λ(masses));
+        [CoulombOperator(c, w) for (c, w) in zip(coeffs, w_raw)]...
+    ]
     return ops
 end
 
@@ -89,172 +91,107 @@ end
 end
 
 # ---------------------------------------------------------------------------
-# solve_ECG_variational — argument validation
+# Variational — argument validation
 # ---------------------------------------------------------------------------
 
-@testset "solve_ECG_variational argument validation" begin
+@testset "Variational argument validation" begin
     ops = _hydrogen_ops()
 
-    @testset "Unknown loss_type throws" begin
-        @test_throws ArgumentError solve_ECG_variational(
-            ops, 3; loss_type = :bad, verbose = false
-        )
-    end
-
-    @testset "Mismatched initial_basis size throws" begin
-        sr = solve_ECG(ops, 5; verbose = false, scale = 1.0)
-        basis5 = BasisSet(Rank0Gaussian[sr.basis_functions...])
-        @test_throws ArgumentError solve_ECG_variational(
-            ops, 3; initial_basis = basis5, verbose = false
-        )
+    @testset "Mismatched init size throws" begin
+        sol5 = solve(ops, SVM(basis = 5, candidates = 1, scale = 1.0))
+        @test_throws ArgumentError solve(ops, Variational(basis = 3, scale = 1.0); init = sol5)
     end
 end
 
 # ---------------------------------------------------------------------------
-# solve_ECG_variational — returned SolverResults structure
+# Variational — returned Solution structure
 # ---------------------------------------------------------------------------
 
-@testset "solve_ECG_variational returns valid SolverResults" begin
+@testset "Variational returns a valid Solution" begin
     ops = _hydrogen_ops()
-    sr = solve_ECG_variational(ops, 5;
-        scale = 1.0, max_iterations = 20, verbose = false
-    )
+    sol = solve(ops, Variational(basis = 5, scale = 1.0, maxiter = 20))
 
-    @test sr isa SolverResults
-    @test sr.n_basis == 5
-    @test length(sr.basis_functions) == 5
-    @test isfinite(sr.ground_state)
-    @test sr.ground_state < 0.0          # bound state
-    @test sr.method === :variational
-    @test length(sr.energies) == 1
-    @test sr.energies[1] == sr.ground_state
-    @test length(sr.eigenvectors) == 1
-    @test size(sr.eigenvectors[1]) == (5, 5)
-    # fg_history records cumulative-minimum energies from primal evaluations.
-    @test !isempty(sr.fg_history)
-    @test last(sr.fg_history) <= sr.ground_state + 1.0e-8
-    @test issorted(sr.fg_history; rev = true)   # monotone non-increasing
+    @test sol isa Solution
+    @test length(sol.basis.functions) == 5
+    @test isfinite(sol.E₀)
+    @test sol.E₀ < 0.0          # bound state
+    @test sol.stages[1].method isa Variational
+    @test size(sol.coefficients) == (5, 5)
+    # energies(sol) records the cumulative-min energies from primal
+    # evaluations along the LBFGS trajectory (formerly `fg_history`).
+    @test !isempty(energies(sol))
+    @test last(energies(sol)) <= sol.E₀ + 1.0e-8
+    @test issorted(energies(sol); rev = true)   # monotone non-increasing
 end
 
 # ---------------------------------------------------------------------------
-# solve_ECG_variational — both loss types run without error
+# Variational — variational principle
 # ---------------------------------------------------------------------------
 
-@testset "solve_ECG_variational loss_type = :energy" begin
-    ops = _hydrogen_ops()
-    sr = solve_ECG_variational(ops, 5;
-        loss_type = :energy, scale = 1.0, max_iterations = 20, verbose = false
-    )
-    @test isfinite(sr.ground_state)
-    @test sr.ground_state < 0.0
-end
-
-@testset "solve_ECG_variational loss_type = :trace (warm start)" begin
-    ops = _hydrogen_ops()
-    # Warm-start from stochastic so the initial trace is already negative
-    sr_s = solve_ECG(ops, 5; scale = 1.0, verbose = false)
-    basis0 = BasisSet(Rank0Gaussian[sr_s.basis_functions...])
-    sr = solve_ECG_variational(ops, 5;
-        loss_type = :trace, initial_basis = basis0,
-        max_iterations = 20, verbose = false
-    )
-    @test isfinite(sr.ground_state)
-    @test sr.ground_state < 0.0
-end
-
-# ---------------------------------------------------------------------------
-# solve_ECG_variational — variational principle
-# ---------------------------------------------------------------------------
-
-@testset "solve_ECG_variational respects variational bound (hydrogen)" begin
+@testset "Variational respects variational bound (hydrogen)" begin
     ops = _hydrogen_ops()
     E_exact = -0.5   # hydrogen 1s
 
-    sr = solve_ECG_variational(ops, 10;
-        scale = 1.0, max_iterations = 100, verbose = false
-    )
+    sol = solve(ops, Variational(basis = 10, scale = 1.0, maxiter = 100))
 
     # Variational principle: E₀ ≥ E_exact
-    @test sr.ground_state >= E_exact - 1.0e-6
+    @test sol.E₀ >= E_exact - 1.0e-6
     # With 10 functions, should get within 0.01 Ha of exact
-    @test sr.ground_state < E_exact + 0.01
+    @test sol.E₀ < E_exact + 0.01
 end
 
-@testset "solve_ECG_variational beats stochastic for hydrogen (same n)" begin
+@testset "Variational beats stochastic for hydrogen (same n)" begin
     ops = _hydrogen_ops()
 
-    sr_stoch = solve_ECG(ops, 8; scale = 1.0, verbose = false)
-    sr_var = solve_ECG_variational(ops, 8;
-        scale = 1.0, max_iterations = 150, verbose = false
-    )
+    sol_stoch = solve(ops, SVM(basis = 8, candidates = 1, scale = 1.0))
+    sol_var = solve(ops, Variational(basis = 8, scale = 1.0, maxiter = 150))
 
     # Optimised basis should be at least as good as the stochastic one
-    @test sr_var.ground_state <= sr_stoch.ground_state + 1.0e-6
+    @test sol_var.E₀ <= sol_stoch.E₀ + 1.0e-6
 end
 
 # ---------------------------------------------------------------------------
-# solve_ECG_variational — warm-start from stochastic result
+# Variational — warm-start from stochastic result
 # ---------------------------------------------------------------------------
 
-@testset "solve_ECG_variational warm-start improves stochastic result" begin
+@testset "Variational warm-start improves stochastic result" begin
     ops = _hminus_ops()
 
-    sr_s = solve_ECG(ops, 8; scale = 1.0, verbose = false)
-    basis0 = BasisSet(Rank0Gaussian[sr_s.basis_functions...])
+    sol_s = solve(ops, SVM(basis = 8, candidates = 1, scale = 1.0))
 
-    sr_v = solve_ECG_variational(ops, 8;
-        initial_basis = basis0, max_iterations = 100, verbose = false
-    )
+    sol_v = solve(ops, Variational(basis = 8, scale = 1.0, maxiter = 100); init = sol_s)
 
     # Variational principle holds
-    @test sr_v.ground_state >= -0.528 - 1.0e-4
+    @test sol_v.E₀ >= -0.528 - 1.0e-4
     # Should not be worse than the starting point
-    @test sr_v.ground_state <= sr_s.ground_state + 1.0e-6
+    @test sol_v.E₀ <= sol_s.E₀ + 1.0e-6
 end
 
 # ---------------------------------------------------------------------------
 # Compatibility with downstream utilities
 # ---------------------------------------------------------------------------
 
-@testset "ψ₀ works with variational SolverResults" begin
+@testset "wavefunction works with a Variational Solution" begin
     ops = _hydrogen_ops()
-    sr = solve_ECG_variational(ops, 5;
-        scale = 1.0, max_iterations = 20, verbose = false
-    )
+    sol = solve(ops, Variational(basis = 5, scale = 1.0, maxiter = 20))
 
     r_vec = [0.5]   # some point in Jacobi space
-    psi = ψ₀(r_vec, sr; state = 1)
+    psi = wavefunction(sol; state = 1)(r_vec)
     @test isfinite(psi)
 end
 
-@testset "correlation_function works with variational SolverResults" begin
-    ops = _hminus_ops()
-    sr = solve_ECG_variational(ops, 5;
-        scale = 1.0, max_iterations = 20, verbose = false
-    )
-
-    r_grid, rho = correlation_function(sr; npoints = 50)
-    @test length(r_grid) == 50
-    @test length(rho) == 50
-    @test all(isfinite, rho)
-    @test all(rho .>= 0.0)
-end
-
 # ---------------------------------------------------------------------------
-# convergence_history
+# energies(sol) as the per-iteration convergence trace
 # ---------------------------------------------------------------------------
 
-@testset "convergence_history returns correct axes" begin
+@testset "energies(sol) returns correct axes (Variational)" begin
     ops = _hydrogen_ops()
-    sr = solve_ECG_variational(ops, 5;
-        scale = 1.0, max_iterations = 30, verbose = false
-    )
+    sol = solve(ops, Variational(basis = 5, scale = 1.0, maxiter = 30))
 
-    xs, ys = convergence_history(sr)
+    xs, ys = (1:length(energies(sol)), energies(sol))
     @test length(xs) == length(ys)
-    @test length(xs) == length(sr.fg_history)
-    @test xs == 1:length(sr.fg_history)
-    @test ys === sr.fg_history
+    @test xs == 1:length(energies(sol))
+    @test ys === energies(sol)
     @test issorted(ys; rev = true)   # monotone non-increasing by construction
 end
 
@@ -267,104 +204,88 @@ end
     # For a 1-D (hydrogen) basis: n_chol=1, n_dim=1 → 2 params per function.
     # The second param is the shift; _decode_basis should round-trip it.
     ops = _hydrogen_ops()
-    sr = solve_ECG_variational(ops, 4;
-        scale = 1.0, max_iterations = 50, verbose = false
-    )
+    sol = solve(ops, Variational(basis = 4, scale = 1.0, maxiter = 50))
     # Each basis function has a 1-D shift vector stored in s.
-    for g in sr.basis_functions
+    for g in sol.basis.functions
         @test length(g.s) == 1
         @test isfinite(g.s[1])
     end
 end
 
 # ---------------------------------------------------------------------------
-# solve_ECG_sequential tests
+# GrowVariational tests
 # ---------------------------------------------------------------------------
 
-@testset "solve_ECG_sequential argument validation" begin
+@testset "GrowVariational returns a valid Solution" begin
     ops = _hydrogen_ops()
-    @test_throws ArgumentError solve_ECG_sequential(
-        ops, 3; loss_type = :bad, verbose = false
-    )
-end
-
-@testset "solve_ECG_sequential returns valid SolverResults" begin
-    ops = _hydrogen_ops()
-    sr = solve_ECG_sequential(ops, 4;
-        n_candidates = 3, scale = 1.0, max_iterations_step = 10, verbose = false
+    sol = solve(
+        ops, GrowVariational(basis = 4, candidates = 3, scale = 1.0, maxiter_step = 10)
     )
 
-    @test sr isa SolverResults
-    @test sr.n_basis == 4
-    @test length(sr.basis_functions) == 4
-    @test isfinite(sr.ground_state)
-    @test sr.ground_state < 0.0
-    @test sr.method === :sequential
-    # energies has one entry per sequential step
-    @test length(sr.energies) == 4
-    # eigenvectors: one final matrix
-    @test length(sr.eigenvectors) == 1
-    @test size(sr.eigenvectors[1]) == (4, 4)
-    @test !isempty(sr.fg_history)
+    @test sol isa Solution
+    @test length(sol.basis.functions) == 4
+    @test isfinite(sol.E₀)
+    @test sol.E₀ < 0.0
+    @test sol.stages[1].method isa GrowVariational
+    # energies(sol) has one entry per sequential growth step
+    @test length(energies(sol)) == 4
+    # coefficients: one final matrix
+    @test size(sol.coefficients) == (4, 4)
 end
 
-@testset "solve_ECG_sequential convergence is monotone" begin
+@testset "GrowVariational convergence is monotone" begin
     # By the variational principle, adding a linearly independent function
     # and then re-optimising cannot raise the ground-state energy.
     ops = _hydrogen_ops()
-    sr = solve_ECG_sequential(ops, 6;
-        n_candidates = 3, scale = 1.0, max_iterations_step = 20, verbose = false
+    sol = solve(
+        ops, GrowVariational(basis = 6, candidates = 3, scale = 1.0, maxiter_step = 20)
     )
-    for i in 2:length(sr.energies)
-        @test sr.energies[i] <= sr.energies[i - 1] + 1.0e-8
+    ener = energies(sol)
+    for i in 2:length(ener)
+        @test ener[i] <= ener[i - 1] + 1.0e-8
     end
 end
 
-@testset "solve_ECG_sequential respects variational bound (hydrogen)" begin
+@testset "GrowVariational respects variational bound (hydrogen)" begin
     ops = _hydrogen_ops()
     E_exact = -0.5   # hydrogen 1s ground state
 
-    sr = solve_ECG_sequential(ops, 6;
-        n_candidates = 5, scale = 1.0, max_iterations_step = 50, verbose = false
+    sol = solve(
+        ops, GrowVariational(basis = 6, candidates = 5, scale = 1.0, maxiter_step = 50)
     )
 
-    @test sr.ground_state >= E_exact - 1.0e-6   # cannot go below exact
-    @test sr.ground_state < E_exact + 0.01       # should be close with 6 functions
+    @test sol.E₀ >= E_exact - 1.0e-6   # cannot go below exact
+    @test sol.E₀ < E_exact + 0.01       # should be close with 6 functions
 end
 
-@testset "solve_ECG_sequential convergence_history is monotone" begin
+@testset "energies(sol) is monotone (GrowVariational)" begin
     ops = _hydrogen_ops()
-    sr = solve_ECG_sequential(ops, 4;
-        n_candidates = 3, scale = 1.0, max_iterations_step = 15, verbose = false
+    sol = solve(
+        ops, GrowVariational(basis = 4, candidates = 3, scale = 1.0, maxiter_step = 15)
     )
-    xs, ys = convergence_history(sr)
+    xs, ys = (1:length(energies(sol)), energies(sol))
     @test length(xs) == length(ys)
     @test issorted(ys; rev = true)
 end
 
-@testset "solve_ECG_sequential beats stochastic (hydrogen, same n)" begin
+@testset "GrowVariational beats stochastic (hydrogen, same n)" begin
     ops = _hydrogen_ops()
 
-    sr_stoch = solve_ECG(ops, 6; scale = 1.0, verbose = false)
-    sr_seq   = solve_ECG_sequential(ops, 6;
-        n_candidates = 5, scale = 1.0, max_iterations_step = 50, verbose = false
+    sol_stoch = solve(ops, SVM(basis = 6, candidates = 1, scale = 1.0))
+    sol_seq = solve(
+        ops, GrowVariational(basis = 6, candidates = 5, scale = 1.0, maxiter_step = 50)
     )
 
-    @test sr_seq.ground_state <= sr_stoch.ground_state + 1.0e-4
+    @test sol_seq.E₀ <= sol_stoch.E₀ + 1.0e-4
 end
 
-@testset "ψ₀ and correlation_function work with sequential SolverResults" begin
+@testset "wavefunction works with a GrowVariational Solution" begin
     ops = _hminus_ops()
-    sr = solve_ECG_sequential(ops, 4;
-        n_candidates = 3, scale = 1.0, max_iterations_step = 10, verbose = false
+    sol = solve(
+        ops, GrowVariational(basis = 4, candidates = 3, scale = 1.0, maxiter_step = 10)
     )
 
     r_vec = [0.5, 0.3]
-    psi = ψ₀(r_vec, sr; state = 1)
+    psi = wavefunction(sol; state = 1)(r_vec)
     @test isfinite(psi)
-
-    r_grid, rho = correlation_function(sr; npoints = 30)
-    @test length(r_grid) == 30
-    @test all(isfinite, rho)
-    @test all(rho .>= 0.0)
 end

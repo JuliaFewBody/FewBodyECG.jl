@@ -4,31 +4,41 @@ using LinearAlgebra
 import Antique
 using FewBodyHamiltonians
 
-export Λ, _jacobi_transform
+"""
+    Operator
 
-export generate_bij, _generate_A_matrix
-
-export GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet, ECG, KineticOperator, CoulombOperator
-
+Alias for `FewBodyHamiltonians.Operator`, exported so raw operator vectors can
+be typed as `Operator[...]` alongside the `Operators` builder.
+"""
 const Operator = FewBodyHamiltonians.Operator
 
-export Operator
-
-export build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem, solve_ECG, convergence
-
-export ψ₀, SolverResults, convergence, convergence_history, correlation_function, ψ
-
-export solve_ECG_variational, solve_ECG_sequential
-
-export Operators, coulomb_weights
+# system building
+export Operators, coulomb_weights, Operator,
+    KineticOperator, CoulombOperator, GaussianOperator,
+    GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet
+# solving
+export solve, SVM, Refine, Variational, GrowVariational, Pipeline, →, AutoDiff
+# results
+export Solution, ConvergenceReport, StageResult, converged, energies
+export wavefunction, Wavefunction
+# power-user layer
+export build_hamiltonian_matrix, build_overlap_matrix,
+    solve_generalized_eigenproblem, Λ, jacobi_transform, default_scale
 
 include("types.jl")
 include("coordinates.jl")
 include("matrix_elements.jl")
-include("hamiltonian.jl")
+include("operators.jl")
+include("linalg.jl")
+include("eigen.jl")
 include("sampling.jl")
-include("utils.jl")
-include("variational.jl")
+include("methods.jl")
+include("solution.jl")
+include("state.jl")
+include("solve.jl")
+include("gradient.jl")
+include("observables.jl")
+include("recipes.jl")
 
 
 end

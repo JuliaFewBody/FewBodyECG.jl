@@ -183,6 +183,27 @@ struct CoulombOperator{T <: Real} <: FewBodyHamiltonians.PotentialTerm
     w::AbstractVector{T}
 end
 
+"""
+    GaussianOperator(coefficient, γ, w)
+
+Two-body Gaussian potential ``V(r_{ij}) = \\text{coefficient} \\cdot e^{-\\gamma r_{ij}^2}``
+operator, where ``r_{ij} = |w^T \\mathbf{r}|`` is the inter-particle distance in Jacobi
+coordinates selected by the weight vector `w`.
+
+The matrix element reduces to an overlap with a shifted exponent matrix:
+``S' = A + B + \\gamma\\, w w^T``, making evaluation exact and free of special functions.
+
+# Fields
+- `coefficient` : coupling constant (negative for attractive well).
+- `γ`           : inverse-square range parameter (``\\gamma > 0``).
+- `w`           : weight vector in Jacobi coordinates selecting the pair.
+"""
+struct GaussianOperator{T <: Real} <: FewBodyHamiltonians.PotentialTerm
+    coefficient::T
+    γ::T
+    w::AbstractVector{T}
+end
+
 struct ECG{G <: GaussianBase, O}
     basis::BasisSet{G}
     operators::Vector{O}
