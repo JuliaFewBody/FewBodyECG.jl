@@ -22,6 +22,8 @@ using FewBodyECG
     include("test_harmonic_oscillator.jl")
     include("test_harmonium.jl")
     include("test_spin_orbit.jl")
+    include("test_nuclear.jl")
+    include("test_muonic.jl")
     include("test_utils.jl")
     include("test_types.jl")
     include("test_variational.jl")
