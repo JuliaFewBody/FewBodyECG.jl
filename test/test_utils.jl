@@ -3,7 +3,7 @@ using LinearAlgebra
 using FewBodyHamiltonians
 using FewBodyECG
 import FewBodyECG: _jacobi_transform, _generate_A_matrix, generate_bij, generate_shift
-import FewBodyECG: ψ₀, convergence, correlation_function, SolverResults
+import FewBodyECG: ψ₀, convergence, correlation_function, plot_correlation, SolverResults
 using QuasiMonteCarlo
 
 function create_mock_solver_results(;
@@ -47,6 +47,16 @@ function create_mock_solver_results(;
         energies,
         eigenvectors
     )
+end
+
+@testset "Plotting adapter" begin
+    result = create_mock_solver_results(n_basis = 2, dim = 1)
+    received = Ref{Any}(nothing)
+    plotter(x, y; kwargs...) = (received[] = (; x, y, kwargs); :plot)
+
+    @test plot_correlation(plotter, result; npoints = 8, label = "density") == :plot
+    @test length(received[].x) == 8
+    @test received[].kwargs[:label] == "density"
 end
 
 @testset "SolverResults" begin

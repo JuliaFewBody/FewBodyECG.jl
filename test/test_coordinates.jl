@@ -1,7 +1,7 @@
 using Test
 using FewBodyECG
 using LinearAlgebra
-import FewBodyECG: _jacobi_transform, _generate_A_matrix, _shift_vectors, _transform_coordinates, _inverse_transform_coordinates
+import FewBodyECG: _jacobi_transform, _generate_A_matrix, _transform_coordinates, _inverse_transform_coordinates
 
 @testset "Coordinates Module Tests" begin
     @testset "_jacobi_transform" begin

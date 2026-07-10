@@ -11,7 +11,7 @@ using FewBodyHamiltonians
 
     @test isa(g, Rank0Gaussian)
     @test isa(g.A, Symmetric)
-    @test g.s == s
+    @test g.s == [0.0 0.0 1.0; 0.0 0.0 2.0]
 
     A_ns = rand(2, 3)
     @test_throws ArgumentError Rank0Gaussian(A_ns, [1.0, 2.0])
@@ -31,7 +31,7 @@ end
     @test isa(g1, Rank1Gaussian)
     @test isa(g1.A, Symmetric)
     @test g1.a == a
-    @test g1.s == s
+    @test g1.s == [0.0 0.0 1.0; 0.0 0.0 2.0]
 
     @test_throws ArgumentError Rank1Gaussian(rand(2, 3), a, s)
 
@@ -48,7 +48,7 @@ end
 
     @test isa(g, Rank0Gaussian)
     @test isa(g.A, Symmetric)
-    @test g.s == s
+    @test g.s == [0.0 0.0 1.0; 0.0 0.0 2.0]
 
     A_ns = rand(2, 3)
     @test_throws ArgumentError Rank0Gaussian(A_ns, [1.0, 2.0])
@@ -68,7 +68,7 @@ end
     @test isa(g1, Rank1Gaussian)
     @test isa(g1.A, Symmetric)
     @test g1.a == a
-    @test g1.s == s
+    @test g1.s == [0.0 0.0 1.0; 0.0 0.0 2.0]
 
     @test_throws ArgumentError Rank1Gaussian(rand(2, 3), a, s)
 
@@ -88,7 +88,7 @@ end
     @test isa(g2.A, Symmetric)
     @test g2.a == a
     @test g2.b == b
-    @test g2.s == s
+    @test g2.s == [0.0 0.0 1.0; 0.0 0.0 2.0]
 
     @test_throws ArgumentError Rank2Gaussian(rand(2, 3), a, b, s)
     @test_throws ArgumentError Rank2Gaussian(A, [1.0], b, s)
@@ -102,6 +102,33 @@ end
     A_indef = [0.0 -1.0; -1.0 0.0]
     g2_indef = Rank2Gaussian(A_indef, a, b, s)
     @test_throws LinearAlgebra.PosDefException validate!(g2_indef)
+end
+
+@testset "Supervector and spin types" begin
+    A = [1.0 0.1; 0.1 1.3]
+    s = [0.0 0.1 0.2; -0.3 0.0 0.4]
+
+    @test Rank0Gaussian(A, s).s == s
+    @test Rank0Gaussian(A, [0.2, -0.1]).s == [0.0 0.0 0.2; 0.0 0.0 -0.1]
+    @test_throws ArgumentError Rank0Gaussian(A, zeros(2, 2))
+
+    updown = FewBodyECG.SpinState([FewBodyECG.up, FewBodyECG.down])
+    downup = FewBodyECG.SpinState([FewBodyECG.down, FewBodyECG.up])
+    @test FewBodyECG.spin_overlap(updown, updown) == 1
+    @test FewBodyECG.spin_overlap(updown, downup) == 0
+    @test FewBodyECG.spin_element(updown, downup, 1, :x) == 0.5
+    @test FewBodyECG.spin_element(updown, downup, 1, :y) == -0.5im
+    @test FewBodyECG.spin_element(updown, downup, 1, :z) == 0
+
+    @test_throws ArgumentError ManyBodyGaussianPotential(1.0, [1.0 0.2; 0.0 1.0])
+    @test_throws ArgumentError GaussianTensorPotential(1.0, -0.1, [1.0], 1, 2)
+    @test_throws ArgumentError GaussianTensorPotential(1.0, 0.1, [1.0], 1, 1; traceless = false)
+    @test_throws ArgumentError GaussianSpinOrbitPotential(1.0, 0.1, [1.0], 1, 1)
+
+    @test_throws ArgumentError FewBodyECG._compute_matrix_element(
+        Rank1Gaussian([1.0;;], [1.0], [0.0 0.0 0.1]),
+        Rank1Gaussian([1.0;;], [1.0], zeros(1, 3)),
+    )
 end
 
 @testset "validate! for Rank0 and Rank1 positive/negative-definite" begin

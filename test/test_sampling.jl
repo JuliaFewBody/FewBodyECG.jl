@@ -24,7 +24,7 @@ using LinearAlgebra
     @testset "Full" begin
 
         s = generate_shift(:quasirandom, 1, 3, 2.0)
-        @test length(s) == 3
+        @test size(s) == (3, 3)
         @test all(abs.(s) .<= 2.0 .+ eps())
 
         s_q1 = generate_shift(:quasirandom, 5, 3, 1.5)
@@ -43,8 +43,9 @@ using LinearAlgebra
         @test_throws ArgumentError _generate_A_matrix([1.0, 2.0], [w1])                # length mismatch
         @test_throws ArgumentError _generate_A_matrix([1.0, 2.0], [w1, [1.0, 0.0]])   # differing dimensions
 
-        svec = [0.1, 0.2, 0.3]
+        svec = [0.1 0.2 0.3; 0.4 0.5 0.6; 0.7 0.8 0.9]
         rg = build_rank0([1.0, 2.0], [w1, w2], svec)
         @test isa(rg, FewBodyECG.Rank0Gaussian) || isa(rg, Rank0Gaussian)
+        @test rg.s == svec
     end
 end

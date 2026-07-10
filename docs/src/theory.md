@@ -39,7 +39,7 @@ H_{ki} = \langle k|\hat{H}|i\rangle, \quad N_{ki} = \langle k|i\rangle
 We shall use the so-called Correlated Gaussians (or Explicitly Correlated Gaussians) as the basis functions. For a system of $N$ particles with coordinates $\vec{r}_i$, $i = 1 \ldots N$, the Correlated Gaussian is defined as
 
 ```math
-g(\vec{r}_1, \ldots, \vec{r}_N) = \exp \left( - \sum_{i,j=1}^{N} A_{ij}\vec{r}_i \cdot \vec{r}_j - \sum_{i=1}^{N} \vec{s}_i \cdot \vec{r}_i \right),
+g(\vec{r}_1, \ldots, \vec{r}_N) = \exp \left( - \sum_{i,j=1}^{N} A_{ij}\vec{r}_i \cdot \vec{r}_j + \sum_{i=1}^{N} \vec{s}_i \cdot \vec{r}_i \right),
 ```
 
 where $\vec{r}_i \cdot \vec{r}_j$ denotes the dot-product of the two vectors; and where $A$, a symmetric positive-defined matrix, and $\vec{s}_i$, $i=1,\ldots,N$, the shift-vectors, are (cleverly chosen) parameters of the Gaussian.
@@ -72,3 +72,11 @@ and
 ```math
 \vec{r}^T A \vec{r} + \vec{s}^T \vec{r} = \sum_{i,j} \vec{r}_i \cdot A_{ij}\vec{r}_j + \sum_i \vec{s}_i \cdot \vec{r}_i.
 ```
+
+In the package, `A` has size `N x N`, while the shift supervector `s` has size `N x 3`: each row is the three-dimensional shift of one coordinate. Passing an `N`-element shift vector remains supported as a compatibility form for a shift along the fixed `z` axis.
+
+## Spin-dependent Gaussian interactions
+
+`SpinGaussian(orbital, spin)` combines an orbital Gaussian with a direct product of spin-1/2 projection states. The tensor and spin-orbit interactions use this representation and retain complex matrix elements. The available closed forms are Gaussian central, oscillator, many-body Gaussian, tensor, and spin-orbit terms. The tensor form can remove its central spin-spin part with `traceless = true`.
+
+The short-range Yukawa and derivative-generated form factors are intentionally not included yet. A linear combination of Gaussian form factors is the fully analytic alternative used here.

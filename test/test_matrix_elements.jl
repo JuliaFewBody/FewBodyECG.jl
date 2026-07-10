@@ -24,8 +24,8 @@ import FewBodyECG: _compute_matrix_element
 
     @testset "With shift vectors" begin
         A = [1.0 0.0; 0.0 1.0]
-        s1 = [0.0, 0.0]
-        s2 = [0.5, 0.5]
+        s1 = zeros(2, 3)
+        s2 = [0.0 0.2 0.1; 0.5 -0.1 0.3]
 
         g1 = Rank0Gaussian(A, s1)
         g2 = Rank0Gaussian(A, s2)
@@ -42,7 +42,7 @@ end
 
 @testset "Rank1/Rank2 matrix elements" begin
 
-    @testset "Rank1 overlap supports shifts" begin
+    @testset "Rank1 overlap rejects shifts" begin
         A = [1.0 0.2; 0.2 1.5]
         s1 = [0.1, -0.3]
         s2 = [-0.2, 0.4]
@@ -52,18 +52,7 @@ end
         g1 = Rank1Gaussian(A, p, s1)
         g2 = Rank1Gaussian(A, q, s2)
 
-        val = _compute_matrix_element(g1, g2)
-
-        S = A + A
-        R = inv(S)
-        t = s1 + s2
-        Rt = R * t
-        n = size(R, 1)
-        I0 = exp(0.25 * t' * R * t) * (π^n / det(S))^(3 / 2)
-        expected = (0.5 * dot(p, R * q) + 0.25 * dot(p, Rt) * dot(q, Rt)) * I0
-
-        @test isapprox(val, expected; rtol = 1.0e-12, atol = 1.0e-12)
-        @test isapprox(val, _compute_matrix_element(g2, g1); rtol = 1.0e-12, atol = 1.0e-12)
+        @test_throws ArgumentError _compute_matrix_element(g1, g2)
     end
 
     @testset "Rank1 kinetic/coulomb (zero shifts)" begin
@@ -127,6 +116,69 @@ end
         @test isfinite(T)
         @test isfinite(Vval)
     end
+end
+
+@testset "Shifted rank-0 Gaussian potentials" begin
+    A = [1.2;;]
+    B = [0.8;;]
+    sA = reshape([0.2, -0.1, 0.3], 1, 3)
+    sB = reshape([-0.1, 0.4, 0.2], 1, 3)
+    bra, ket = Rank0Gaussian(B, sB), Rank0Gaussian(A, sA)
+    w, gamma = [1.0], 0.7
+
+    R = inv(A + B)
+    v = sA + sB
+    overlap = exp(tr(v' * R * v) / 4) * (π / det(A + B))^(3 / 2)
+    Bprime = A + B + gamma * w * w'
+    expected_gaussian = exp(tr(v' * inv(Bprime) * v) / 4) * (π / det(Bprime))^(3 / 2)
+    q = vec(w' * R * v / 2)
+    expected_oscillator = (3 * (w' * R * w)[1] / 2 + dot(q, q)) * overlap
+
+    @test _compute_matrix_element(bra, ket) ≈ overlap
+    @test _compute_matrix_element(bra, ket, GaussianPotential(1.0, gamma, w)) ≈ expected_gaussian
+    @test _compute_matrix_element(bra, ket, OscillatorPotential(1.0, w)) ≈ expected_oscillator
+    @test _compute_matrix_element(bra, ket, ManyBodyGaussianPotential(1.0, [0.4;;])) ≈
+        exp(tr(v' * inv(A + B + [0.4;;]) * v) / 4) * (π / det(A + B + [0.4;;]))^(3 / 2)
+    @test_throws ArgumentError GaussianPotential(1.0, -gamma, w)
+
+    up_orbital = SpinGaussian(ket, SpinState([up]))
+    down_orbital = SpinGaussian(ket, SpinState([down]))
+    gaussian = GaussianPotential(1.0, gamma, w)
+    @test _compute_matrix_element(up_orbital, up_orbital, gaussian) ≈
+        _compute_matrix_element(ket, ket, gaussian)
+    @test _compute_matrix_element(up_orbital, down_orbital, gaussian) == 0
+end
+
+@testset "Gaussian tensor and spin-orbit potentials" begin
+    w, gamma = [1.0], 0.4
+    tensor = GaussianTensorPotential(1.0, gamma, w, 1, 2; traceless = true)
+    raw_tensor = GaussianTensorPotential(1.0, gamma, w, 1, 2; traceless = false)
+    spin_orbit = GaussianSpinOrbitPotential(0.7, gamma, w, 1, 2)
+
+    tensor_orbital = Rank0Gaussian([1.0;;], reshape([0.2, -0.3, 0.1], 1, 3))
+    updown = SpinGaussian(tensor_orbital, SpinState([up, down]))
+    downup = SpinGaussian(tensor_orbital, SpinState([down, up]))
+    tensor_value = _compute_matrix_element(updown, downup, tensor)
+
+    @test tensor_value isa Complex
+    @test tensor_value ≈ conj(_compute_matrix_element(downup, updown, tensor))
+
+    Bprime = 2 .* [1.0;;] + gamma * w * w'
+    Rprime = inv(Bprime)
+    v = 2 .* tensor_orbital.s
+    Mprime = exp(tr(v' * Rprime * v) / 4) * (π / det(Bprime))^(3 / 2)
+    q = vec(w' * Rprime * v / 2)
+    radial_square = Mprime * (3 * (w' * Rprime * w)[1] / 2 + dot(q, q))
+    @test tensor_value ≈ _compute_matrix_element(updown, downup, raw_tensor) - radial_square / 6
+
+    bra_orbital = Rank0Gaussian([1.3;;], reshape([-0.2, 0.4, 0.1], 1, 3))
+    ket_orbital = Rank0Gaussian([0.8;;], reshape([0.3, -0.1, 0.2], 1, 3))
+    bra = SpinGaussian(bra_orbital, SpinState([up, down]))
+    ket = SpinGaussian(ket_orbital, SpinState([down, down]))
+    spin_orbit_value = _compute_matrix_element(bra, ket, spin_orbit)
+
+    @test !iszero(spin_orbit_value)
+    @test spin_orbit_value ≈ conj(_compute_matrix_element(ket, bra, spin_orbit))
 end
 
 @testset "Kinetic Energy ⟨g′|K|g⟩" begin

@@ -8,6 +8,7 @@ using FewBodyECG
     include("test_sampling.jl")
     include("test_coordinates.jl")
     include("test_matrix_elements.jl")
+    include("test_harmonic_oscillator.jl")
     include("test_hamiltonian.jl")
     include("test_hydrogen.jl")
     include("test_utils.jl")

@@ -116,6 +116,47 @@ end
     end
 end
 
+@testset "Complex Hermitian assembly" begin
+    H = ComplexF64[2 1im; -1im 2]
+    S = Matrix{ComplexF64}(I, 2, 2)
+
+    values, vectors = solve_generalized_eigenproblem(H, S)
+
+    @test values ≈ [1.0, 3.0]
+    @test eltype(vectors) == ComplexF64
+    @test vectors' * S * vectors ≈ I
+end
+
+@testset "Spin basis assembly" begin
+    bra = SpinGaussian(
+        Rank0Gaussian([1.3;;], reshape([-0.2, 0.4, 0.1], 1, 3)),
+        SpinState([up, down]),
+    )
+    ket = SpinGaussian(
+        Rank0Gaussian([0.8;;], reshape([0.3, -0.1, 0.2], 1, 3)),
+        SpinState([down, down]),
+    )
+    basis = BasisSet([bra, ket])
+    spin_orbit = GaussianSpinOrbitPotential(0.7, 0.4, [1.0], 1, 2)
+
+    S = build_overlap_matrix(basis)
+    H = build_hamiltonian_matrix(basis, [spin_orbit])
+
+    @test eltype(H) <: Complex
+    @test S ≈ S'
+    @test H ≈ H'
+end
+
+@testset "solve_ECG supports Gaussian pair potentials" begin
+    kinetic = KineticOperator([0.5;;])
+    potential = GaussianPotential(-1.0, 0.5, [1.0])
+
+    result = solve_ECG([kinetic, potential], 2; scale = 0.2, max_attempts = 20, verbose = false)
+
+    @test result.n_basis > 0
+    @test isfinite(result.ground_state)
+end
+
 
 @testset "normalized_overlap" begin
 
@@ -488,7 +529,7 @@ end
     @testset "Correct dimension" begin
         for dim in [1, 2, 3, 5]
             s = generate_shift(:quasirandom, 1, dim, 1.0; qmc_sampler = HaltonSample())
-            @test length(s) == dim
+            @test size(s) == (dim, 3)
         end
     end
 end

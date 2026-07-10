@@ -7,38 +7,40 @@ end
 
 function build_overlap_matrix(basis::BasisSet{<:GaussianBase})
     n = length(basis.functions)
-    S = Matrix{Float64}(undef, n, n)
+    n > 0 || throw(ArgumentError("basis must not be empty"))
+    first_value = _compute_overlap_element(first(basis.functions), first(basis.functions))
+    S = Matrix{typeof(first_value)}(undef, n, n)
     for i in 1:n, j in 1:i
         val = _compute_overlap_element(basis.functions[i], basis.functions[j])
         S[i, j] = val
-        S[j, i] = val
+        S[j, i] = conj(val)
     end
     return S
 end
 
 function _build_operator_matrix(basis::BasisSet{<:GaussianBase}, op::FewBodyHamiltonians.Operator)
     n = length(basis.functions)
-    H = Matrix{Float64}(undef, n, n)
+    n > 0 || throw(ArgumentError("basis must not be empty"))
+    first_value = _compute_matrix_element(first(basis.functions), first(basis.functions), op)
+    H = Matrix{typeof(first_value)}(undef, n, n)
     for i in 1:n, j in 1:i
         val = _compute_matrix_element(basis.functions[i], basis.functions[j], op)
         H[i, j] = val
-        H[j, i] = val
+        H[j, i] = conj(val)
     end
     return H
 end
 
 function build_hamiltonian_matrix(basis::BasisSet{<:GaussianBase}, operators::AbstractVector{<:FewBodyHamiltonians.Operator})
     n = length(basis.functions)
-    H = zeros(Float64, n, n)
-    for op in operators
-        H .+= _build_operator_matrix(basis, op)
-    end
-    return H
+    n > 0 || throw(ArgumentError("basis must not be empty"))
+    isempty(operators) && return zeros(Float64, n, n)
+    return reduce(+, (_build_operator_matrix(basis, op) for op in operators))
 end
 
 function solve_generalized_eigenproblem(
-        H::AbstractMatrix{<:Real},
-        S::AbstractMatrix{<:Real};
+        H::AbstractMatrix{<:Number},
+        S::AbstractMatrix{<:Number};
         max_condition::Real = 1.0e12,
         regularization::Real = 0.0
     )
@@ -50,8 +52,8 @@ function solve_generalized_eigenproblem(
         error("Overlap matrix S contains NaN or Inf values")
     end
 
-    H_sym = Symmetric((H + H') / 2)
-    S_sym = Symmetric((S + S') / 2)
+    H_sym = Hermitian((H + H') / 2)
+    S_sym = Hermitian((S + S') / 2)
 
     cond_S = cond(S_sym)
     if cond_S > max_condition
@@ -62,13 +64,13 @@ function solve_generalized_eigenproblem(
     end
 
     if regularization > 0
-        S_sym = S_sym + regularization * I
+        S_sym = Hermitian(Matrix(S_sym) + regularization * I)
     end
 
     if !isposdef(S_sym)
         @warn "Overlap matrix not positive definite, adding regularization"
         ε = maximum(abs.(diag(S_sym))) * 1.0e-8
-        S_sym = S_sym + ε * I
+        S_sym = Hermitian(Matrix(S_sym) + ε * I)
 
         if !isposdef(S_sym)
             error("Overlap matrix not positive definite even after regularization")
@@ -89,7 +91,7 @@ function solve_generalized_eigenproblem(
 
     # Transform to standard eigenvalue problem
     A = (L \ Matrix(H_sym)) / L'
-    A_sym = Symmetric((A + A') / 2)
+    A_sym = Hermitian((A + A') / 2)
 
     # Check for NaN/Inf after transformation
     if any(!isfinite, A_sym)
@@ -109,11 +111,7 @@ function solve_generalized_eigenproblem(
     # Transform eigenvectors back
     vecs = L' \ evecs
 
-    # Ensure real
-    evals_real = real.(evals)
-    vecs_real = real.(vecs)
-
-    return evals_real, vecs_real
+    return real.(evals), vecs
 end
 
 function normalized_overlap(A::GaussianBase, B::GaussianBase)
@@ -169,9 +167,11 @@ function solve_ECG(
     b₁ = float(scale)
     basis_fns = Rank0Gaussian[]
     E_hist = Float64[]
-    vecs_list = Any[]
+    vecs_list = Matrix{Float64}[]
 
-    w_list = [op.w for op in operators if op isa CoulombOperator]
+    w_list = [
+        op.w for op in operators if op isa Union{CoulombOperator, GaussianPotential, OscillatorPotential}
+    ]
     n_pairs = length(w_list)
     d = length(w_list[1])
 
@@ -221,7 +221,7 @@ function solve_ECG(
             end
 
             # Check condition number
-            cond_S = cond(Symmetric(S))
+            cond_S = cond(Hermitian(S))
             if cond_S > max_condition
                 @warn "Overlap poorly conditioned (κ=$cond_S) at step $(n_accepted + 1), rejecting"
                 pop!(basis_fns)
