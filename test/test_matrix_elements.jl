@@ -478,7 +478,7 @@ end
         g = Rank0Gaussian(A, s)
         w = [1.0]
         op_narrow = GaussianOperator(1.0, 10.0, w)
-        op_wide   = GaussianOperator(1.0, 0.1, w)
+        op_wide = GaussianOperator(1.0, 0.1, w)
         @test _compute_matrix_element(g, g, op_narrow) < _compute_matrix_element(g, g, op_wide)
     end
 
@@ -497,4 +497,70 @@ end
         @test_throws ArgumentError ops += ("Gaussian", 1, 2, -1.0, 0.0)
         @test_throws ArgumentError ops += ("Gaussian", 1, 2, -1.0, -1.0)
     end
+end
+
+@testset "Scalar Gaussian, oscillator, and many-body elements (3D shift)" begin
+    A, B = [1.2;;], [0.8;;]
+    bra = Rank0Gaussian(B, reshape([-0.1, 0.4, 0.2], 1, 3))
+    ket = Rank0Gaussian(A, reshape([0.2, -0.1, 0.3], 1, 3))
+    w, γ = [1.0], 0.7
+
+    _M(Bmat, v) = exp(tr(v' * inv(Bmat) * v) / 4) * (π / det(Bmat))^(3 / 2)
+    v = parent(bra.s) + parent(ket.s)
+
+    # Gaussian: exponent shifted by γ w wᵀ
+    Bg = A + B + γ * (w * w')
+    expected_gaussian = 1.0 * _M(Bg, v)
+    @test _compute_matrix_element(bra, ket, GaussianOperator(1.0, γ, w)) ≈ expected_gaussian
+
+    # Oscillator: second radial moment of the plain overlap
+    Bo = A + B
+    R = inv(Bo)
+    mean = w' * R * v / 2
+    moment = 3 * (w' * R * w) / 2 + dot(vec(mean), vec(mean))
+    expected_oscillator = 1.0 * moment * _M(Bo, v)
+    @test _compute_matrix_element(bra, ket, OscillatorOperator(1.0, w)) ≈ expected_oscillator
+
+    # Many-body: exponent shifted by the full matrix W
+    W = [0.4;;]
+    expected_manybody = 1.0 * _M(A + B + W, v)
+    @test _compute_matrix_element(bra, ket, ManyBodyGaussianOperator(1.0, W)) ≈ expected_manybody
+
+    # Central operators factor through the plain overlap when W → 0 limit checked
+    @test _compute_matrix_element(bra, ket, ManyBodyGaussianOperator(2.0, [1.0e-9;;])) ≈
+        2.0 * _compute_matrix_element(bra, ket) rtol = 1.0e-6
+end
+
+@testset "Spin tensor and spin-orbit interactions" begin
+    # tensor Hermiticity (zero-shift s-wave orbital)
+    orbital = Rank0Gaussian([1.0;;], zeros(1, 3))
+    updown = SpinGaussian(orbital, SpinState([up, down]))
+    downup = SpinGaussian(orbital, SpinState([down, up]))
+    tensor = GaussianTensorOperator(1.0, 0.4, [1.0], 1, 2)
+    @test _compute_matrix_element(updown, downup, tensor) ≈
+        conj(_compute_matrix_element(downup, updown, tensor))
+
+    # central operators factor through the spin overlap
+    K = KineticOperator([0.5;;])
+    @test _compute_matrix_element(updown, updown, K) ≈
+        _compute_matrix_element(orbital, orbital, K)
+    @test _compute_matrix_element(updown, downup, K) == 0   # orthogonal spins
+
+    # spin-orbit: nonzero complex element with shifted, non-parallel orbitals
+    orb1 = Rank0Gaussian([1.0;;], reshape([0.3, 0.0, 0.1], 1, 3))
+    orb2 = Rank0Gaussian([1.2;;], reshape([0.0, 0.4, 0.2], 1, 3))
+    sg1 = SpinGaussian(orb1, SpinState([up, up]))
+    sg2 = SpinGaussian(orb2, SpinState([up, up]))
+    so = GaussianSpinOrbitOperator(1.0, 0.5, [1.0], 1, 2)
+    el = _compute_matrix_element(sg1, sg2, so)
+    @test el isa Complex
+    @test abs(el) > 0
+    @test _compute_matrix_element(sg1, sg2, so) ≈ conj(_compute_matrix_element(sg2, sg1, so))
+
+    # assembled Hamiltonian is complex Hermitian
+    H = build_hamiltonian_matrix(BasisSet([sg1, sg2]), FewBodyECG.Operator[so])
+    @test eltype(H) <: Complex
+    @test H ≈ H'
+    E, C = solve_generalized_eigenproblem(H, build_overlap_matrix(BasisSet([sg1, sg2])))
+    @test all(isfinite, E)
 end

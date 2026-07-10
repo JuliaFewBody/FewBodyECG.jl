@@ -50,7 +50,7 @@ end
     basis = BasisSet([g1, g2])
 
     θ = _encode_basis(basis)
-    @test length(θ) == 4   # 2 functions × (n_chol=1 + n_dim=1)
+    @test length(θ) == 8   # 2 functions × (n_chol=1 + 3·n_dim=3)
 
     basis2 = _decode_basis(θ, 2, 1)
     @test length(basis2.functions) == 2
@@ -68,7 +68,7 @@ end
     basis = BasisSet([g])
 
     θ = _encode_basis(basis)
-    @test length(θ) == 5   # 1 function × (n_chol=3 + n_dim=2)
+    @test length(θ) == 9   # 1 function × (n_chol=3 + 3·n_dim=6)
 
     basis2 = _decode_basis(θ, 1, 2)
     @test Matrix(basis2.functions[1].A) ≈ A rtol = 1.0e-8
@@ -78,12 +78,12 @@ end
 @testset "_encode_basis / _decode_basis round-trip with non-zero shifts" begin
     # Verify shift vectors are correctly preserved through the encode/decode cycle.
     A = [3.0 0.5; 0.5 2.0]
-    s = [0.3, -0.1]
+    s = [0.3 -0.2 0.5; -0.1 0.4 -0.3]   # full N×3 shift
     g = Rank0Gaussian(A, s)
     basis = BasisSet([g])
 
     θ = _encode_basis(basis)
-    @test length(θ) == 5
+    @test length(θ) == 9
 
     basis2 = _decode_basis(θ, 1, 2)
     @test Matrix(basis2.functions[1].A) ≈ A rtol = 1.0e-8
@@ -200,15 +200,15 @@ end
 # ---------------------------------------------------------------------------
 
 @testset "shift vectors are included in optimised parameters" begin
-    # _encode_basis should pack n_chol + n_dim params per Gaussian.
-    # For a 1-D (hydrogen) basis: n_chol=1, n_dim=1 → 2 params per function.
-    # The second param is the shift; _decode_basis should round-trip it.
+    # _encode_basis packs n_chol + 3·n_dim params per Gaussian (N×3 shift).
+    # For a 1-D (hydrogen) basis: n_chol=1, 3·n_dim=3 → 4 params per function.
+    # The shift is optimised; _decode_basis round-trips it.
     ops = _hydrogen_ops()
     sol = solve(ops, Variational(basis = 4, scale = 1.0, maxiter = 50))
-    # Each basis function has a 1-D shift vector stored in s.
+    # Each basis function has a 1×3 shift supervector stored in s.
     for g in sol.basis.functions
-        @test length(g.s) == 1
-        @test isfinite(g.s[1])
+        @test size(g.s) == (1, 3)
+        @test all(isfinite, g.s)
     end
 end
 

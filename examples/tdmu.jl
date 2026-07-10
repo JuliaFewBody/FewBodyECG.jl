@@ -7,8 +7,8 @@ ops += "Coulomb"
 
 sol = solve(
     ops,
-    SVM(basis = 40, candidates = 25, scale = 0.03);
-    tol = 1.0e-2,
+    SVM(basis = 100, candidates = 25, scale = 0.03);
+    tol = 1.0e-3,
     window = 10,
 )
 sol

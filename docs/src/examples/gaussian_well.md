@@ -2,11 +2,6 @@
 EditURL = "../../../examples/gaussian_well.jl"
 ```
 
-# Gaussian well
-
-A finite-range Gaussian attraction, V(r) = -V0 exp(-gamma r^2), is useful for
-short-range model interactions and has a binding threshold unlike Coulomb.
-
 ````@example gaussian_well
 using FewBodyECG
 using Plots

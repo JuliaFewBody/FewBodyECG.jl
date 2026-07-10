@@ -51,7 +51,7 @@ ascending), `basis::BasisSet`, `coefficients` (generalized eigenvectors,
 struct Solution
     E::Vector{Float64}
     basis::BasisSet
-    coefficients::Matrix{Float64}
+    coefficients::AbstractMatrix{<:Number}
     operators::Vector{FewBodyHamiltonians.Operator}
     state::Int
     stages::Vector{StageResult}

@@ -407,4 +407,20 @@ import FewBodyECG: jacobi_transform, Λ
             @test sol_vec.E₀ < -0.46
         end
     end
+
+    @testset "Oscillator, Gaussian, and many-body builders/validation" begin
+        ops = Operators([1.0e15, 1.0])
+        ops += ("Oscillator", 1, 2, 0.5)
+        @test ops[1] isa OscillatorOperator
+        ops += ("Gaussian", 1, 2, -5.0, 1.0)
+        @test ops[2] isa GaussianOperator
+
+        # many-body exponent must be symmetric positive-definite
+        @test_throws ArgumentError ManyBodyGaussianOperator(1.0, [1.0 1.0; 0.0 1.0])
+        @test_throws ArgumentError ManyBodyGaussianOperator(1.0, [-1.0;;])
+        @test ManyBodyGaussianOperator(1.0, [0.4;;]) isa ManyBodyGaussianOperator
+
+        # unknown 4-tuple operator name is rejected
+        @test_throws ArgumentError (Operators([1.0e15, 1.0]) + ("Nope", 1, 2, 0.5))
+    end
 end
