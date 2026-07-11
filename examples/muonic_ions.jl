@@ -1,3 +1,12 @@
+# # Muonic molecular ions (dtμ, ttμ)
+#
+# Compare the ECG results with both the Suzuki–Varga K = 200 SVM values and
+# the higher-basis values listed in Table 8.1.
+
+using FewBodyECG
+
+mμ, md, mt = 206.7686, 3670.481, 5496.918
+
 systems = [
     (
         "dtμ",

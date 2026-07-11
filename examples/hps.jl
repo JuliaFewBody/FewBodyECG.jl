@@ -1,12 +1,3 @@
-# # Positronium hydride (HPs⁺)
-#
-# A four-body Coulomb system consisting of a fixed proton, two electrons, and
-# a positron.  The particle order is proton, electron, electron, positron.
-# This rank-0 example targets the symmetric spatial ground sector of the two
-# identical electrons.  The reference is the infinite-proton-mass SVM value
-# from Suzuki–Varga Table 8.6 (K = 1200); this run uses a smaller basis as a
-# practical example rather than claiming to reproduce K = 1200.
-
 using FewBodyECG
 using Plots
 
@@ -25,3 +16,4 @@ println("reference (SVM, K = 1200) = ", hps_ref, " Ha   Δ = ", sol.E₀ - hps_r
 println("variational upper bound respected: ", sol.E₀ ≥ hps_ref)
 
 plot(sol, hps_ref; title = "Positronium-hydride convergence")
+plot(wavefunction(sol))
