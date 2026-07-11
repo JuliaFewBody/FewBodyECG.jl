@@ -31,23 +31,24 @@ function _encode_basis(basis::BasisSet{<:Rank0Gaussian})
     for g in basis.functions
         C = cholesky(Symmetric(Matrix(g.A)))
         append!(params, _chol_to_params(Matrix(C.L)))
-        append!(params, Float64.(g.s))   # shift vector (unconstrained)
+        append!(params, Float64.(vec(parent(g.s))))   # N×3 shift, column-major
     end
     return params
 end
 
 # Decode a flat parameter vector back into a BasisSet{Rank0Gaussian}.
-# Layout per Gaussian: [n_chol Cholesky params | n_dim shift params].
+# Layout per Gaussian: [n_chol Cholesky params | 3·n_dim shift params (N×3)].
 function _decode_basis(θ::AbstractVector, n_basis::Int, n_dim::Int)
     T = eltype(θ)
     n_chol = n_dim * (n_dim + 1) ÷ 2
-    n_per = n_chol + n_dim
-    fns = Vector{Rank0Gaussian{T, Matrix{T}, Vector{T}}}(undef, n_basis)
+    n_shift = 3 * n_dim
+    n_per = n_chol + n_shift
+    fns = Vector{Rank0Gaussian{T, Matrix{T}, Matrix{T}}}(undef, n_basis)
     for i in 1:n_basis
         start = (i - 1) * n_per + 1
         A = _params_to_matrix(θ[start:(start + n_chol - 1)], n_dim)
-        s = θ[(start + n_chol):(start + n_per - 1)]
-        fns[i] = Rank0Gaussian(Matrix(A), Vector(s))
+        s = reshape(θ[(start + n_chol):(start + n_per - 1)], n_dim, 3)
+        fns[i] = Rank0Gaussian(Matrix(A), Matrix(s))
     end
     return BasisSet(fns)
 end
@@ -57,11 +58,11 @@ end
 function _variational_engine(
         terms, n::Int, θ0, scale::Float64,
         maxiter::Int, gtol::Float64, verbose::Bool;
-        shift_init::Symbol = :qmc
+        shift_init::Symbol = :zeros
     )
     n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)
     n_chol = n_dim * (n_dim + 1) ÷ 2   # Cholesky params per Gaussian
-    n_per = n_chol + n_dim             # total params per Gaussian (A + shift)
+    n_per = n_chol + 3 * n_dim         # total params per Gaussian (A + N×3 shift)
     regularization = 1.0e-10
 
     if θ0 === nothing
@@ -70,7 +71,7 @@ function _variational_engine(
         for i in 1:n
             bij = generate_bij(:quasirandom, i, length(w_list), scale)
             A = _generate_A_matrix(bij, w_list)
-            s = shift_init === :zeros ? zeros(n_dim) : generate_shift(:quasirandom, i, n_dim, scale)
+            s = shift_init === :zeros ? zeros(n_dim, 3) : generate_shift(:quasirandom, i, n_dim, scale)
             push!(fns, Rank0Gaussian(A, s))
         end
         θ0 = _encode_basis(BasisSet(fns))
@@ -116,6 +117,9 @@ function _variational_engine(
         catch
             zeros(Float64, length(θ))
         end
+        # ForwardDiff through a near-singular overlap can yield silent NaNs;
+        # treat a non-finite gradient as a zero-gradient barrier.
+        all(isfinite, G) || (G = zeros(Float64, length(θ)))
         return val, G
     end
 
@@ -140,11 +144,11 @@ end
 function _sequential_engine(
         terms, n::Int, θ0, scale::Float64, candidates::Int,
         maxiter_step::Int, gtol::Float64, verbose::Bool;
-        shift_init::Symbol = :qmc
+        shift_init::Symbol = :zeros
     )
     n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)
     n_chol = n_dim * (n_dim + 1) ÷ 2
-    n_per = n_chol + n_dim
+    n_per = n_chol + 3 * n_dim
     w_list = [op.w for op in terms if op isa CoulombOperator]
     regularization = 1.0e-10
 
@@ -169,7 +173,7 @@ function _sequential_engine(
             attempt = (step - 1) * candidates + c
             bij = generate_bij(:quasirandom, attempt, length(w_list), scale)
             A = _generate_A_matrix(bij, w_list)
-            s = shift_init === :zeros ? zeros(n_dim) : generate_shift(:quasirandom, attempt, n_dim, scale)
+            s = shift_init === :zeros ? zeros(n_dim, 3) : generate_shift(:quasirandom, attempt, n_dim, scale)
             cand = Rank0Gaussian(A, s)
             θ_c = _encode_basis(BasisSet([cand]))
             θ_t = [θ_running; θ_c]
@@ -235,6 +239,7 @@ function _sequential_engine(
             catch
                 zeros(Float64, length(θ))
             end
+            all(isfinite, G) || (G = zeros(Float64, length(θ)))
             return val, G
         end
 

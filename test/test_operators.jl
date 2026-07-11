@@ -257,6 +257,54 @@ import FewBodyECG: jacobi_transform, Λ
             @test occursin("1 term", str)
             @test !occursin("1 terms", str)
         end
+
+        @testset "GaussianOperator branch" begin
+            ops = Operators([1.0e15, 1.0])
+            ops += ("Gaussian", 1, 2, -5.0, 1.0)
+            str = sprint(show, ops)
+            @test occursin("Gaussian(γ =", str)
+            @test occursin("-5.0", str)
+            @test occursin("w =", str)
+        end
+
+        @testset "OscillatorOperator branch" begin
+            ops = Operators([1.0e15, 1.0])
+            ops += ("Oscillator", 1, 2, 0.5)
+            str = sprint(show, ops)
+            @test occursin("Oscillator(w =", str)
+            @test occursin("0.5", str)
+        end
+
+        @testset "ManyBodyGaussianOperator branch" begin
+            ops = Operators()
+            ops += ManyBodyGaussianOperator(2.0, [0.4;;])
+            str = sprint(show, ops)
+            @test occursin("ManyBodyGaussian(W =", str)
+            @test occursin("2.0", str)
+        end
+
+        @testset "Fallback branch for other operator types" begin
+            ops = Operators()
+            ops += GaussianTensorOperator(1.0, 1.0, [1.0], 1, 2)
+            str = sprint(show, ops)
+            @test occursin("GaussianTensorOperator", str)
+        end
+
+        @testset "All branches together" begin
+            ops = Operators([1.0e15, 1.0], [+1, -1])
+            ops += "Kinetic"
+            ops += "Coulomb"
+            ops += ("Gaussian", 1, 2, -5.0, 1.0)
+            ops += ("Oscillator", 1, 2, 0.5)
+            ops += ManyBodyGaussianOperator(2.0, [0.4;;])
+            str = sprint(show, ops)
+            @test occursin("5 terms", str)
+            @test occursin("Kinetic", str)
+            @test occursin("Coulomb", str)
+            @test occursin("Gaussian(γ =", str)
+            @test occursin("Oscillator(w =", str)
+            @test occursin("ManyBodyGaussian(W =", str)
+        end
     end
 
     @testset "coulomb_weights" begin
@@ -406,5 +454,21 @@ import FewBodyECG: jacobi_transform, Λ
             @test sol_ops.E₀ < -0.46
             @test sol_vec.E₀ < -0.46
         end
+    end
+
+    @testset "Oscillator, Gaussian, and many-body builders/validation" begin
+        ops = Operators([1.0e15, 1.0])
+        ops += ("Oscillator", 1, 2, 0.5)
+        @test ops[1] isa OscillatorOperator
+        ops += ("Gaussian", 1, 2, -5.0, 1.0)
+        @test ops[2] isa GaussianOperator
+
+        # many-body exponent must be symmetric positive-definite
+        @test_throws ArgumentError ManyBodyGaussianOperator(1.0, [1.0 1.0; 0.0 1.0])
+        @test_throws ArgumentError ManyBodyGaussianOperator(1.0, [-1.0;;])
+        @test ManyBodyGaussianOperator(1.0, [0.4;;]) isa ManyBodyGaussianOperator
+
+        # unknown 4-tuple operator name is rejected
+        @test_throws ArgumentError (Operators([1.0e15, 1.0]) + ("Nope", 1, 2, 0.5))
     end
 end

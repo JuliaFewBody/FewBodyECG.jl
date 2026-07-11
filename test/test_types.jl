@@ -11,7 +11,7 @@ using FewBodyHamiltonians
 
     @test isa(g, Rank0Gaussian)
     @test isa(g.A, Symmetric)
-    @test g.s == s
+    @test g.s == FewBodyECG._shift_matrix(s)   # N×3, legacy vector → z component
 
     A_ns = rand(2, 3)
     @test_throws ArgumentError Rank0Gaussian(A_ns, [1.0, 2.0])
@@ -62,7 +62,7 @@ end
 
     @test isa(g, Rank0Gaussian)
     @test isa(g.A, Symmetric)
-    @test g.s == s
+    @test g.s == FewBodyECG._shift_matrix(s)   # N×3, legacy vector → z component
 
     A_ns = rand(2, 3)
     @test_throws ArgumentError Rank0Gaussian(A_ns, [1.0, 2.0])
@@ -153,6 +153,14 @@ end
 
     g1_indef = Rank1Gaussian(A_indef, a, s)
     @test_throws LinearAlgebra.PosDefException validate!(g1_indef)
+end
+
+@testset "Rank0Gaussian N×3 shift representation" begin
+    g = Rank0Gaussian([1.0;;], reshape([0.1, -0.2, 0.3], 1, 3))
+    @test size(g.s) == (1, 3)
+    @test Rank0Gaussian([1.0;;], [0.2]).s == reshape([0.0, 0.0, 0.2], 1, 3)
+    # mismatched shift shape is rejected
+    @test_throws ArgumentError Rank0Gaussian([1.0;;], reshape([0.1, 0.2], 1, 2))
 end
 
 @testset "BasisSet, KineticOperator, CoulombOperator, and ECG composition" begin

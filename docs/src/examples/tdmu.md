@@ -2,12 +2,6 @@
 EditURL = "../../../examples/tdmu.jl"
 ```
 
-# tdmu muonic molecular ion
-
-The tdmu ion is deeply bound because the muon is much heavier than an
-electron.  A loose stochastic run is enough to show the energy scale; use a
-tighter `tol` and larger basis for production values near -111.36444 Ha.
-
 ````@example tdmu
 using FewBodyECG
 using Plots
@@ -18,8 +12,8 @@ ops += "Coulomb"
 
 sol = solve(
     ops,
-    SVM(basis = 40, candidates = 25, scale = 0.03);
-    tol = 1.0e-2,
+    SVM(basis = 100, candidates = 25, scale = 0.03);
+    tol = 1.0e-3,
     window = 10,
 )
 sol

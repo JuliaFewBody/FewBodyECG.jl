@@ -9,6 +9,15 @@ Operator
 KineticOperator
 CoulombOperator
 GaussianOperator
+OscillatorOperator
+ManyBodyGaussianOperator
+GaussianTensorOperator
+GaussianSpinOrbitOperator
+SpinProjection
+up
+down
+SpinState
+SpinGaussian
 GaussianBase
 Rank0Gaussian
 Rank1Gaussian
@@ -37,8 +46,10 @@ ConvergenceReport
 StageResult
 converged
 energies
+convergence
 wavefunction
 Wavefunction
+radial_profile
 ```
 
 ## Power-user layer

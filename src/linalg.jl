@@ -12,24 +12,26 @@ Return the ECG overlap matrix `S` with entries `<g_i|g_j>` for a `BasisSet`.
 """
 function build_overlap_matrix(basis::BasisSet{<:GaussianBase})
     n = length(basis.functions)
-    T = eltype(parent(first(basis.functions).A))
-    S = Matrix{T}(undef, n, n)
+    # Infer the scalar type from an actual matrix element so complex overlaps
+    # (e.g. spin-orbit / spinor bases) allocate a complex matrix.
+    v11 = _compute_overlap_element(basis.functions[1], basis.functions[1])
+    S = Matrix{typeof(v11)}(undef, n, n)
     for i in 1:n, j in 1:i
         val = _compute_overlap_element(basis.functions[i], basis.functions[j])
         S[i, j] = val
-        S[j, i] = val
+        S[j, i] = conj(val)
     end
     return S
 end
 
 function _build_operator_matrix(basis::BasisSet{<:GaussianBase}, op::FewBodyHamiltonians.Operator)
     n = length(basis.functions)
-    T = eltype(parent(first(basis.functions).A))
-    H = Matrix{T}(undef, n, n)
+    v11 = _compute_matrix_element(basis.functions[1], basis.functions[1], op)
+    H = Matrix{typeof(v11)}(undef, n, n)
     for i in 1:n, j in 1:i
         val = _compute_matrix_element(basis.functions[i], basis.functions[j], op)
         H[i, j] = val
-        H[j, i] = val
+        H[j, i] = conj(val)
     end
     return H
 end
@@ -43,7 +45,10 @@ terms.
 """
 function build_hamiltonian_matrix(basis::BasisSet{<:GaussianBase}, operators::AbstractVector{<:FewBodyHamiltonians.Operator})
     n = length(basis.functions)
-    T = eltype(parent(first(basis.functions).A))
+    g1 = first(basis.functions)
+    # Infer the scalar type from matrix elements (spin wrappers expose no `A`).
+    T = isempty(operators) ? typeof(_compute_overlap_element(g1, g1)) :
+        mapreduce(op -> typeof(_compute_matrix_element(g1, g1, op)), promote_type, operators)
     H = zeros(T, n, n)
     for op in operators
         H .+= _build_operator_matrix(basis, op)
@@ -58,8 +63,8 @@ Solve the symmetric generalized eigenproblem `H*c = E*S*c`, returning
 eigenvalues and `S`-orthonormal eigenvectors.
 """
 function solve_generalized_eigenproblem(
-        H::AbstractMatrix{<:Real},
-        S::AbstractMatrix{<:Real};
+        H::AbstractMatrix{<:Number},
+        S::AbstractMatrix{<:Number};
         max_condition::Real = 1.0e12,
         regularization::Real = 0.0
     )
@@ -71,8 +76,11 @@ function solve_generalized_eigenproblem(
         error("Overlap matrix S contains NaN or Inf values")
     end
 
-    H_sym = Symmetric((H + H') / 2)
-    S_sym = Symmetric((S + S') / 2)
+    # Hermitian symmetrisation works for both real (→ Symmetric) and complex
+    # (→ conjugate-symmetric) input; eigenvalues are real, eigenvectors keep
+    # their (possibly complex) scalar type.
+    H_sym = Hermitian((H + H') / 2)
+    S_sym = Hermitian((S + S') / 2)
 
     cond_S = cond(S_sym)
     if cond_S > max_condition
@@ -82,28 +90,29 @@ function solve_generalized_eigenproblem(
     end
 
     if regularization > 0
-        S_sym = Symmetric(Matrix(S_sym) + regularization * I)
+        S_sym = Hermitian(Matrix(S_sym) + regularization * I)
     end
 
     if !isposdef(S_sym)
         @warn "Overlap matrix not positive definite, adding regularization"
         ε = maximum(abs.(diag(S_sym))) * 1.0e-8
-        S_sym = Symmetric(Matrix(S_sym) + ε * I)
+        S_sym = Hermitian(Matrix(S_sym) + ε * I)
 
         if !isposdef(S_sym)
             error("Overlap matrix not positive definite even after regularization")
         end
     end
 
-    # Solve the generalised symmetric eigenvalue problem H c = λ S c via
-    # LAPACK's divide-and-conquer driver (dsygvd).  This is more reliable than
-    # manually factorising S and back-transforming, and returns eigenvectors
-    # normalised so that vᵀ S v = I.
+    # Solve the generalised Hermitian eigenvalue problem H c = λ S c via
+    # LAPACK's divide-and-conquer driver (dsygvd / zhegvd).  This is more
+    # reliable than manually factorising S and back-transforming, and returns
+    # eigenvectors normalised so that cᴴ S c = I.  Eigenvalues are real;
+    # eigenvectors are kept complex when the problem is complex.
     local evals, vecs
     try
         F = eigen(H_sym, S_sym)
         evals = real.(F.values)
-        vecs = real.(F.vectors)
+        vecs = F.vectors
     catch e
         @error "Generalised eigenvalue decomposition failed" exception = e
         rethrow(e)

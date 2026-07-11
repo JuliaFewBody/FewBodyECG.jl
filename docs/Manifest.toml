@@ -389,7 +389,7 @@ version = "8.0.1+0"
 
 [[deps.FewBodyECG]]
 deps = ["Antique", "FewBodyHamiltonians", "ForwardDiff", "LinearAlgebra", "OptimKit", "QuasiMonteCarlo", "RecipesBase", "SpecialFunctions"]
-path = ".."
+path = "/Users/pzb464/Documents/FewBodyECG.jl"
 uuid = "083b1810-24a1-4a79-9a41-145bb2bb8ceb"
 version = "2.0.0"
 

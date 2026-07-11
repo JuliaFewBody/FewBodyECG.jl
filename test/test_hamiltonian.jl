@@ -81,6 +81,15 @@ end
 
 @testset "solve_generalized_eigenproblem" begin
 
+    @testset "Complex Hermitian problem keeps complex eigenvectors" begin
+        # off-diagonal √2·i makes the eigenvalues exactly 0 and 3
+        H = ComplexF64[1 sqrt(2) * im; -sqrt(2) * im 2]
+        S = Matrix{Float64}(I, 2, 2)
+        E, C = solve_generalized_eigenproblem(H, S)
+        @test E ≈ [0.0, 3.0]
+        @test eltype(C) <: Complex
+    end
+
     @testset "Basic solve" begin
         H = [2.0 0.5; 0.5 3.0]
         S = [1.0 0.1; 0.1 1.0]
@@ -280,6 +289,15 @@ end
 
 
 @testset "solve_generalized_eigenproblem" begin
+
+    @testset "Complex Hermitian problem keeps complex eigenvectors" begin
+        # off-diagonal √2·i makes the eigenvalues exactly 0 and 3
+        H = ComplexF64[1 sqrt(2) * im; -sqrt(2) * im 2]
+        S = Matrix{Float64}(I, 2, 2)
+        E, C = solve_generalized_eigenproblem(H, S)
+        @test E ≈ [0.0, 3.0]
+        @test eltype(C) <: Complex
+    end
 
     @testset "Basic solve" begin
         H = [2.0 0.5; 0.5 3.0]
@@ -488,7 +506,7 @@ end
     @testset "Correct dimension" begin
         for dim in [1, 2, 3, 5]
             s = generate_shift(:quasirandom, 1, dim, 1.0; qmc_sampler = HaltonSample())
-            @test length(s) == dim
+            @test size(s) == (dim, 3)
         end
     end
 end

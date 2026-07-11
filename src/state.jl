@@ -36,12 +36,15 @@ function _candidate_columns(cand, basis, operators)
 end
 
 # Draw the next quasi-random Rank0 candidate; advances the stream counter.
+# Stochastic candidates are unshifted (s = 0): the standard SVM correlated
+# Gaussian for spatially symmetric (L = 0) ground states, where a nonzero shift
+# only breaks the symmetry and degrades convergence.  Shifted bases are reached
+# through the gradient methods and manual construction (both N×3-aware).
 function _draw_candidate!(st::BasisState, scale::Float64, sampler, w_list, d)
     st.draw += 1
     bij = generate_bij(:quasirandom, st.draw, length(w_list), scale; qmc_sampler = sampler)
     A = _generate_A_matrix(bij, w_list)
-    s = generate_shift(:quasirandom, st.draw, d, scale; qmc_sampler = sampler)
-    return Rank0Gaussian(A, s)
+    return Rank0Gaussian(A, zeros(d, 3))
 end
 
 # Append `cand` (whose columns are `cols`): update eigensolver + S/H caches.

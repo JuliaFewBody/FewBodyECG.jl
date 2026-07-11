@@ -29,7 +29,7 @@ println("H2+ E0 = ", sol.E₀, " Ha  (reference ", h2p_ref, ", Δ = ", sol.E₀ 
 println("bound below H + p+ threshold? ", sol.E₀ < -0.5)
 
 plot(sol, h2p_ref)
-plot(wavefunction(sol); coord = 1, rmax = 80.0)
+plot(wavefunction(sol); coord = 1, rmax = 100.0)
 ````
 
 ---

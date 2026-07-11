@@ -14,11 +14,11 @@ function _ctx(terms, masses; state, tol, window, verbose)
     state ≥ 1 || throw(ArgumentError("state must be ≥ 1, got $state"))
     w_list = Vector{Float64}[
         op.w for op in terms
-            if op isa Union{CoulombOperator, GaussianOperator}
+            if op isa Union{CoulombOperator, GaussianOperator, OscillatorOperator}
     ]
     isempty(w_list) && throw(
         ArgumentError(
-            "need at least one pairwise potential term (Coulomb/Gaussian) " *
+            "need at least one pairwise potential term (Coulomb/Gaussian/Oscillator) " *
                 "to define the candidate geometry"
         )
     )

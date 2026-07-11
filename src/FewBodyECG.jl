@@ -15,12 +15,15 @@ const Operator = FewBodyHamiltonians.Operator
 # system building
 export Operators, coulomb_weights, Operator,
     KineticOperator, CoulombOperator, GaussianOperator,
+    OscillatorOperator, ManyBodyGaussianOperator,
+    GaussianTensorOperator, GaussianSpinOrbitOperator,
+    SpinProjection, up, down, SpinState, SpinGaussian,
     GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet
 # solving
 export solve, SVM, Refine, Variational, GrowVariational, Pipeline, →, AutoDiff
 # results
 export Solution, ConvergenceReport, StageResult, converged, energies
-export wavefunction, Wavefunction
+export wavefunction, Wavefunction, convergence, radial_profile
 # power-user layer
 export build_hamiltonian_matrix, build_overlap_matrix,
     solve_generalized_eigenproblem, Λ, jacobi_transform, default_scale
@@ -37,8 +40,10 @@ include("solution.jl")
 include("state.jl")
 include("solve.jl")
 include("gradient.jl")
-include("observables.jl")
-include("recipes.jl")
+include("utils/wavefunction.jl")
+include("utils/convergence.jl")
+include("utils/observables.jl")
+include("utils/plotting.jl")
 
 
 end

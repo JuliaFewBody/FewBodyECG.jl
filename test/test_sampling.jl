@@ -26,7 +26,7 @@ import FewBodyECG: _generate_A_matrix, build_rank0, generate_bij, generate_shift
     @testset "Full" begin
 
         s = generate_shift(:quasirandom, 1, 3, 2.0)
-        @test length(s) == 3
+        @test size(s) == (3, 3)   # N×3 supervector shift
         @test all(abs.(s) .<= 2.0 .+ eps())
 
         s_q1 = generate_shift(:quasirandom, 5, 3, 1.5)

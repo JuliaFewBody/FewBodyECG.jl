@@ -17,10 +17,12 @@ function generate_bij(
 end
 
 function generate_shift(method::Symbol, i::Int, dim::Int, scale::Real; qmc_sampler = HaltonSample())
-    u = method === :quasirandom ? _qmc_point(i, dim; sampler = qmc_sampler) :
-        method === :random ? rand(dim) :
+    # Sample a full three-dimensional shift for each of the `dim` Jacobi
+    # coordinates, returned as the paper's `dim × 3` supervector.
+    u = method === :quasirandom ? _qmc_point(i, 3 * dim; sampler = qmc_sampler) :
+        method === :random ? rand(3 * dim) :
         error("Unsupported method $method")
-    return scale .* (2.0 .* u .- 1.0)
+    return reshape(scale .* (2.0 .* u .- 1.0), dim, 3)
 end
 
 function _generate_A_matrix(bij::AbstractVector{<:Real}, w_list::AbstractVector{<:AbstractVector{<:Real}})

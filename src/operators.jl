@@ -137,12 +137,12 @@ end
 
 function Base.:+(ops::Operators, term::Tuple{<:AbstractString, <:Integer, <:Integer, <:Real})
     name, i, j, coeff = term
-    name == "Coulomb" ||
-        throw(ArgumentError("Unknown operator \"$name\". Supported: \"Coulomb\"."))
+    name in ("Coulomb", "Oscillator") ||
+        throw(ArgumentError("Unknown operator \"$name\". Supported: \"Coulomb\", \"Oscillator\"."))
     ops.masses !== nothing ||
         throw(
         ArgumentError(
-            "String-based \"Coulomb\" requires Operators(masses)."
+            "String-based \"$name\" requires Operators(masses)."
         )
     )
     i != j || throw(ArgumentError("Particle indices must be distinct, got i = j = $i."))
@@ -153,7 +153,11 @@ function Base.:+(ops::Operators, term::Tuple{<:AbstractString, <:Integer, <:Inte
     e_ij[i] = 1.0
     e_ij[j] = -1.0
     w = ops._U' * e_ij
-    push!(ops.terms, CoulombOperator(Float64(coeff), w))
+    if name == "Coulomb"
+        push!(ops.terms, CoulombOperator(Float64(coeff), w))
+    else
+        push!(ops.terms, OscillatorOperator(Float64(coeff), w))
+    end
     return ops
 end
 
@@ -180,6 +184,10 @@ function Base.show(io::IO, ops::Operators)
             println(io, "  + $(op.coefficient) × Coulomb(w = $(round.(op.w; digits = 3)))")
         elseif op isa GaussianOperator
             println(io, "  + $(op.coefficient) × Gaussian(γ = $(round(op.γ; digits = 3)), w = $(round.(op.w; digits = 3)))")
+        elseif op isa OscillatorOperator
+            println(io, "  + $(op.coefficient) × Oscillator(w = $(round.(op.w; digits = 3)))")
+        elseif op isa ManyBodyGaussianOperator
+            println(io, "  + $(op.coefficient) × ManyBodyGaussian(W = $(round.(op.W; digits = 3)))")
         else
             println(io, "  + $(typeof(op))")
         end
