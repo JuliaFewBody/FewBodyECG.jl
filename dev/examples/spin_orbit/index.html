@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Spin-orbit doublet · FewBodyECG.jl</title><meta name="title" content="Spin-orbit doublet · FewBodyECG.jl"/><meta property="og:title" content="Spin-orbit doublet · FewBodyECG.jl"/><meta property="twitter:title" content="Spin-orbit doublet · FewBodyECG.jl"/><meta name="description" content="Documentation for FewBodyECG.jl."/><meta property="og:description" content="Documentation for FewBodyECG.jl."/><meta property="twitter:description" content="Documentation for FewBodyECG.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">FewBodyECG.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../theory/">Theory</a></li><li><a class="tocitem" href="../../systems/">Building systems</a></li><li><a class="tocitem" href="../../solvers/">Choosing a solver</a></li><li><a class="tocitem" href="../../convergence/">Convergence</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../hydrogen/">Hydrogen</a></li><li><a class="tocitem" href="../positronium/">Positronium</a></li><li><a class="tocitem" href="../helium/">Helium and H-</a></li><li><a class="tocitem" href="../tdmu/">tdmu</a></li><li><a class="tocitem" href="../muonic_ions/">Muonic ions</a></li><li><a class="tocitem" href="../h2plus/">H2+ (non-BO)</a></li><li><a class="tocitem" href="../gaussian_well/">Gaussian wells</a></li><li><a class="tocitem" href="../harmonium/">Hooke&#39;s atom</a></li><li><a class="tocitem" href="../nuclear/">Nuclear (Minnesota/Volkov)</a></li><li><a class="tocitem" href="../three_body_gaussian/">Three-body Gaussian</a></li><li class="is-active"><a class="tocitem" href>Spin-orbit doublet</a><ul class="internal"><li><a class="tocitem" href="#Convergence-of-the-manifold"><span>Convergence of the manifold</span></a></li></ul></li><li><a class="tocitem" href="../workflow/">Workflow</a></li></ul></li><li><a class="tocitem" href="../../API/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Spin-orbit doublet</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Spin-orbit doublet</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/JuliaFewBody/FewBodyECG.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/JuliaFewBody/FewBodyECG.jl/blob/main/examples/spin_orbit.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Spin-orbit-doublet-—-the-complex-Hermitian-path"><a class="docs-heading-anchor" href="#Spin-orbit-doublet-—-the-complex-Hermitian-path">Spin-orbit doublet — the complex Hermitian path</a><a id="Spin-orbit-doublet-—-the-complex-Hermitian-path-1"></a><a class="docs-heading-anchor-permalink" href="#Spin-orbit-doublet-—-the-complex-Hermitian-path" title="Permalink"></a></h1><p>Spin-dependent interactions make the Hamiltonian <strong>complex Hermitian</strong>, and FewBodyECG assembles and diagonalises it directly.  Here two spin-½ particles share a p-wave-like spatial manifold — Gaussians shifted along <code>x</code>, <code>y</code>, <code>z</code>, each dressed with the spin-triplet state <code>|↑↑⟩</code> — bound by a central Gaussian attraction.  A <a href="../../API/#FewBodyECG.GaussianSpinOrbitOperator"><code>GaussianSpinOrbitOperator</code></a> couples the relative orbital motion to the total spin <code>S₁ + S₂</code>.</p><p>With the coupling off, the two upper orbital states are degenerate.  Turning it on lifts the degeneracy: the <code>m_ℓ = ±1</code> combinations shift in opposite directions, giving a doublet whose splitting grows <strong>linearly</strong> with the coupling strength — a model fine-structure splitting.</p><pre><code class="language-julia hljs">using FewBodyECG
+using LinearAlgebra
+using Plots
+
+masses = [1.0, 1.0]
+ops = Operators(masses)
+ops += &quot;Kinetic&quot;
+ops += (&quot;Gaussian&quot;, 1, 2, -4.0, 0.4)          # central binding well
+terms = ops.terms
+w = only(op.w for op in terms if op isa GaussianOperator)
+
+# p-wave-like manifold: unit-shifted Gaussians along x, y, z with |↑↑⟩ spin
+shift(dir) = (v = zeros(1, 3); v[1, dir] = 0.8; v)
+basis = BasisSet(
+    [
+        SpinGaussian(Rank0Gaussian([0.4;;], shift(d)), SpinState([up, up])) for d in 1:3
+    ]
+)
+
+H₀ = build_hamiltonian_matrix(basis, terms)                       # real, SO-free
+Hₛₒ = build_hamiltonian_matrix(basis, FewBodyECG.Operator[GaussianSpinOrbitOperator(1.0, 0.4, w, 1, 2)])
+S = build_overlap_matrix(basis)
+
+println(&quot;H₀  eltype = &quot;, eltype(H₀), &quot;  (spin-orbit-free, real)&quot;)
+println(&quot;Hₛₒ eltype = &quot;, eltype(Hₛₒ), &quot;  Hermitian? &quot;, isapprox(Hₛₒ, Hₛₒ&#39;))
+
+# Sweep the spin-orbit strength λ and collect the (real) spectrum
+λs = range(0, 2, length = 21)
+levels = map(λs) do λ
+    E, _ = solve_generalized_eigenproblem(H₀ .+ λ .* Hₛₒ, S)
+    sort(real.(E))
+end
+spectrum = reduce(hcat, levels)&#39;          # rows = λ, columns = levels
+
+# The upper two levels form the spin-orbit doublet; its gap is linear in λ.
+gap = spectrum[:, 3] .- spectrum[:, 2]
+println(&quot;doublet gap at λ = 0, 1, 2: &quot;, round.(gap[[1, 11, 21]], digits = 4))
+
+plot(
+    λs, spectrum;
+    xlabel = &quot;spin-orbit coupling λ&quot;, ylabel = &quot;E (Ha)&quot;,
+    label = [&quot;ground&quot; &quot;doublet⁻&quot; &quot;doublet⁺&quot;], linewidth = 2,
+    title = &quot;Spin-orbit doublet splitting&quot;,
+)</code></pre><img src="035d34a7.svg" alt="Example block output"/><h2 id="Convergence-of-the-manifold"><a class="docs-heading-anchor" href="#Convergence-of-the-manifold">Convergence of the manifold</a><a id="Convergence-of-the-manifold-1"></a><a class="docs-heading-anchor-permalink" href="#Convergence-of-the-manifold" title="Permalink"></a></h2><p>The three-function manifold above is the minimal one.  Enriching each Cartesian direction with a geometric ladder of widths gives a sequence of <strong>nested</strong> bases, so the ground-state energy (here at fixed coupling <code>λ = 1</code>) descends monotonically toward the variational limit.</p><pre><code class="language-julia hljs">αs = exp10.(range(-0.8, 0.6, length = 8))     # fixed ladder ⇒ nested bases
+sg(α, d) = SpinGaussian(Rank0Gaussian([α;;], shift(d)), SpinState([up, up]))
+λ = 1.0
+so = GaussianSpinOrbitOperator(1.0, 0.4, w, 1, 2)
+
+sizes = Int[]
+ground = Float64[]
+for k in 1:length(αs)
+    b = BasisSet([sg(α, d) for α in αs[1:k] for d in 1:3])
+    H = build_hamiltonian_matrix(b, terms) .+ λ .* build_hamiltonian_matrix(b, FewBodyECG.Operator[so])
+    E, _ = solve_generalized_eigenproblem(H, build_overlap_matrix(b))
+    push!(sizes, 3k)
+    push!(ground, minimum(real.(E)))
+end
+println(&quot;converged ground-state energy: &quot;, ground[end], &quot; Ha&quot;)
+
+plot(
+    sizes, ground;
+    xlabel = &quot;basis size&quot;, ylabel = &quot;E₀ (Ha)&quot;, label = &quot;ground state (λ = 1)&quot;,
+    marker = :circle, linewidth = 2, title = &quot;Basis-size convergence&quot;,
+)</code></pre><img src="42c6dc3a.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../three_body_gaussian/">« Three-body Gaussian</a><a class="docs-footer-nextpage" href="../workflow/">Workflow »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Saturday 11 July 2026 14:19">Saturday 11 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
