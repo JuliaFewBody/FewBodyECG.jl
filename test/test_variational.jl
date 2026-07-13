@@ -124,6 +124,29 @@ end
     @test issorted(energies(sol); rev = true)   # monotone non-increasing
 end
 
+@testset "Variational tracks the requested state" begin
+    sol = solve(_hydrogen_ops(), Variational(basis = 5, scale = 1.0, maxiter = 20); state = 2)
+
+    @test sol.state == 2
+    @test last(energies(sol)) > sol.E[1] + 1.0e-3
+end
+
+@testset "Gradient solvers initialise from pairwise geometry" begin
+    for term in (("Oscillator", 1, 2, 0.5), ("Gaussian", 1, 2, -1.0, 1.0))
+        ops = Operators([1.0e15, 1.0])
+        ops += "Kinetic"
+        ops += term
+
+        for alg in (
+                Variational(basis = 4, scale = 1.0, maxiter = 10),
+                GrowVariational(basis = 4, candidates = 2, scale = 1.0, maxiter_step = 10),
+            )
+            sol = solve(ops, alg)
+            @test isfinite(sol.E₀)
+        end
+    end
+end
+
 # ---------------------------------------------------------------------------
 # Variational — variational principle
 # ---------------------------------------------------------------------------
@@ -231,6 +254,16 @@ end
     @test length(energies(sol)) == 4
     # coefficients: one final matrix
     @test size(sol.coefficients) == (4, 4)
+end
+
+@testset "GrowVariational tracks the requested state" begin
+    sol = solve(
+        _hydrogen_ops(), GrowVariational(basis = 5, candidates = 3, scale = 1.0, maxiter_step = 20);
+        state = 2,
+    )
+
+    @test sol.state == 2
+    @test last(energies(sol)) > sol.E[1] + 1.0e-3
 end
 
 @testset "GrowVariational convergence is monotone" begin
