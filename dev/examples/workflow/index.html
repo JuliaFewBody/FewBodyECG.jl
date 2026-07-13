@@ -2,6 +2,7 @@
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Workflow · FewBodyECG.jl</title><meta name="title" content="Workflow · FewBodyECG.jl"/><meta property="og:title" content="Workflow · FewBodyECG.jl"/><meta property="twitter:title" content="Workflow · FewBodyECG.jl"/><meta name="description" content="Documentation for FewBodyECG.jl."/><meta property="og:description" content="Documentation for FewBodyECG.jl."/><meta property="twitter:description" content="Documentation for FewBodyECG.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">FewBodyECG.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../theory/">Theory</a></li><li><a class="tocitem" href="../../systems/">Building systems</a></li><li><a class="tocitem" href="../../solvers/">Choosing a solver</a></li><li><a class="tocitem" href="../../convergence/">Convergence</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../hydrogen/">Hydrogen</a></li><li><a class="tocitem" href="../positronium/">Positronium</a></li><li><a class="tocitem" href="../helium/">Helium and H-</a></li><li><a class="tocitem" href="../tdmu/">tdmu</a></li><li><a class="tocitem" href="../muonic_ions/">Muonic ions</a></li><li><a class="tocitem" href="../h2plus/">H2+ (non-BO)</a></li><li><a class="tocitem" href="../gaussian_well/">Gaussian wells</a></li><li><a class="tocitem" href="../harmonium/">Hooke&#39;s atom</a></li><li><a class="tocitem" href="../nuclear/">Nuclear (Minnesota/Volkov)</a></li><li><a class="tocitem" href="../three_body_gaussian/">Three-body Gaussian</a></li><li><a class="tocitem" href="../spin_orbit/">Spin-orbit doublet</a></li><li class="is-active"><a class="tocitem" href>Workflow</a></li></ul></li><li><a class="tocitem" href="../../API/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Workflow</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Workflow</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/JuliaFewBody/FewBodyECG.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/JuliaFewBody/FewBodyECG.jl/blob/main/examples/workflow.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Solver-comparison-on-hydrogen"><a class="docs-heading-anchor" href="#Solver-comparison-on-hydrogen">Solver comparison on hydrogen</a><a id="Solver-comparison-on-hydrogen-1"></a><a class="docs-heading-anchor-permalink" href="#Solver-comparison-on-hydrogen" title="Permalink"></a></h1><p>Hydrogen has an analytical ground-state energy, so it is a compact benchmark for comparing solver methods.</p><pre><code class="language-julia hljs">using FewBodyECG
 import Antique
 using Plots
+using QuasiMonteCarlo: GoldenSample, HaltonSample, SobolSample
 
 ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
 ops += &quot;Kinetic&quot;
@@ -15,9 +16,26 @@ function run_method(label, alg, ops, exact)
     return sol
 end
 
-svm = run_method(&quot;SVM&quot;, SVM(basis = 25, candidates = 20, scale = 1.0), ops, exact)
+svm_halton = run_method(
+    &quot;SVM (Halton)&quot;,
+    SVM(basis = 25, candidates = 20, scale = 1.0, sampler = HaltonSample()),
+    ops,
+    exact,
+)
+svm_sobol = run_method(
+    &quot;SVM (Sobol)&quot;,
+    SVM(basis = 25, candidates = 20, scale = 1.0, sampler = SobolSample()),
+    ops,
+    exact,
+)
+svm_golden = run_method(
+    &quot;SVM (Golden)&quot;,
+    SVM(basis = 25, candidates = 20, scale = 1.0, sampler = GoldenSample()),
+    ops,
+    exact,
+)
 refined = run_method(
-    &quot;SVM → Refine&quot;,
+    &quot;SVM (Halton) → Refine&quot;,
     SVM(basis = 25, candidates = 20, scale = 1.0) →
         Refine(sweeps = 1, candidates = 20, scale = 1.0),
     ops,
@@ -26,4 +44,23 @@ refined = run_method(
 variational = run_method(&quot;Variational&quot;, Variational(basis = 12, scale = 1.0, maxiter = 100), ops, exact)
 grown = run_method(&quot;GrowVariational&quot;, GrowVariational(basis = 8, candidates = 20, scale = 1.0), ops, exact)
 
-plot(grown, exact)</code></pre><img src="715d52b5.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../spin_orbit/">« Spin-orbit doublet</a><a class="docs-footer-nextpage" href="../../API/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Saturday 11 July 2026 14:19">Saturday 11 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+p = plot(
+    convergence(svm_halton)...;
+    label = &quot;SVM (Halton)&quot;,
+    linewidth = 2,
+    xlabel = &quot;solver iteration&quot;,
+    ylabel = &quot;E₀ (Ha)&quot;,
+    title = &quot;Hydrogen solver convergence&quot;,
+    legend = :bottomright,
+)
+for (label, sol) in [
+    &quot;SVM (Sobol)&quot; =&gt; svm_sobol,
+    &quot;SVM (Golden)&quot; =&gt; svm_golden,
+    &quot;SVM (Halton) → Refine&quot; =&gt; refined,
+    &quot;Variational&quot; =&gt; variational,
+    &quot;GrowVariational&quot; =&gt; grown,
+]
+    plot!(p, convergence(sol)...; label, linewidth = 2)
+end
+hline!(p, [exact]; label = &quot;exact&quot;, color = :black, linestyle = :dash)
+p</code></pre><img src="883a63f1.svg" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../spin_orbit/">« Spin-orbit doublet</a><a class="docs-footer-nextpage" href="../../API/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Monday 13 July 2026 11:40">Monday 13 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
