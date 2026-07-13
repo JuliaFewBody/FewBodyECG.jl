@@ -28,6 +28,21 @@ sol
 plot(sol, exact₁)
 ````
 
+## Targeting the 2s state
+
+`state = 2` directs the solver to optimise the second eigenvalue. With a
+Rank-0 basis this is the radial 2s state; p- and d-waves need the explicit
+angular prefactors shown below.
+
+````@example hydrogen
+sol₂s = solve(
+    ops, GrowVariational(basis = 8, candidates = 10, scale = 1.0, maxiter_step = 30);
+    state = 2,
+)
+println("2s energy: ", sol₂s.E₀, " Ha  (Antique ", exact₂, ", Δ = ", sol₂s.E₀ - exact₂, ")")
+sol₂s
+````
+
 ## p- and d-waves
 
 Rank-1 and Rank-2 prefactors are built manually and solved through the
@@ -36,7 +51,7 @@ power-user matrix layer.
 ````@example hydrogen
 αs = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0]
 basis₁ = BasisSet([Rank1Gaussian([α;;], [1.0], [0.0]) for α in αs])
-E₁, _ = solve_generalized_eigenproblem(
+E₁, c₁ = solve_generalized_eigenproblem(
     build_hamiltonian_matrix(basis₁, ops),
     build_overlap_matrix(basis₁),
 )
@@ -47,17 +62,41 @@ a = reshape([1.0, 0.0, 0.0], 1, 3)
 b = reshape([0.0, 1.0, 0.0], 1, 3)
 αd = exp10.(range(log10(0.002), log10(0.8), length = 24))
 basis₂ = BasisSet([Rank2Gaussian([α;;], a, b, [0.0]) for α in αd])
-E₂, _ = solve_generalized_eigenproblem(
+E₂, c₂ = solve_generalized_eigenproblem(
     build_hamiltonian_matrix(basis₂, ops),
     build_overlap_matrix(basis₂),
 )
 E₃d = minimum(E₂)
 println("3d energy: ", E₃d, " Ha  (Antique ", exact₃, ", Δ = ", E₃d - exact₃, ")")
+````
 
-ψ = wavefunction(sol)
-rs = range(1.0e-3, 12.0, length = 400)
-p = plot(ψ; coord = 1, rmax = 12.0)
-plot!(p, rs, [r^2 * abs2(Antique.ψ(H, r, 0.0, 0.0; n = 1, l = 0, m = 0)) for r in rs]; linestyle = :dash, label = "Antique.jl")
+## Wavefunction profiles
+
+Each radial density is normalized over the shown interval, so the comparison
+isolates its nodes and radial extent from angular/polarization normalization.
+
+````@example hydrogen
+ψs = (
+    wavefunction(sol),
+    wavefunction(sol₂s),
+    Wavefunction(basis₁, c₁[:, 1]),
+    Wavefunction(basis₂, c₂[:, 1]),
+)
+states = (("1s", 1, 0), ("2s", 2, 0), ("2p", 2, 1), ("3d", 3, 2))
+rs = range(0.0, 12.0, length = 400)
+
+function antique_density(n, l)
+    density = [r^2 * abs2(Antique.ψ(H, r, 0.0, 0.0; n = n, l = l, m = 0)) for r in rs]
+    area = sum((density[i] + density[i + 1]) * (rs[i + 1] - rs[i]) / 2 for i in 1:(length(rs) - 1))
+    return density ./ area
+end
+
+p = plot(; xlabel = "r (Jacobi coordinate, mass-weighted)", ylabel = "normalized r²|ψ(r)|²", legend = :topright)
+for (i, (ψ, (label, n, l))) in enumerate(zip(ψs, states))
+    r, density = radial_profile(ψ; rmax = 12.0, npoints = 400)
+    plot!(p, r, density; color = i, label = "ECG $label", linewidth = 2)
+    plot!(p, rs, antique_density(n, l); color = i, label = "Antique $label", linestyle = :dash)
+end
 p
 ````
 

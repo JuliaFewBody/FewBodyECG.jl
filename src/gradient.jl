@@ -58,7 +58,7 @@ end
 function _variational_engine(
         terms, n::Int, θ0, scale::Float64,
         maxiter::Int, gtol::Float64, verbose::Bool;
-        shift_init::Symbol = :zeros
+        state::Int = 1, shift_init::Symbol = :zeros
     )
     n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)
     n_chol = n_dim * (n_dim + 1) ÷ 2   # Cholesky params per Gaussian
@@ -66,7 +66,7 @@ function _variational_engine(
     regularization = 1.0e-10
 
     if θ0 === nothing
-        w_list = [op.w for op in terms if op isa CoulombOperator]
+        w_list = _pairwise_weights(terms)
         fns = Rank0Gaussian[]
         for i in 1:n
             bij = generate_bij(:quasirandom, i, length(w_list), scale)
@@ -91,14 +91,14 @@ function _variational_engine(
     # The LBFGS line search probes regions that can produce degenerate A
     # matrices; returning (Inf, zero-gradient) acts as an infinite-cost barrier.
     function fg(θ::AbstractVector)
-        # Primal: solve Float64 eigenproblem for λ_min and eigenvector c.
+        # Primal: solve Float64 eigenproblem for the target eigenpair.
         local val::Float64, c::Vector{Float64}
         try
             basis_f64 = _decode_basis(θ, n, n_dim)
             H = build_hamiltonian_matrix(basis_f64, terms)
             S = build_overlap_matrix(basis_f64)
             evals, evecs = solve_generalized_eigenproblem(H, S; regularization)
-            idx = argmin(evals)
+            idx = min(state, length(evals))
             val = evals[idx]
             c = evecs[:, idx]
         catch
@@ -136,7 +136,7 @@ function _variational_engine(
 end
 # Core sequential (SVM-style) engine: at each step k = k0+1, …, n draw
 # `candidates` quasi-random Gaussians, keep the one giving the lowest
-# pre-optimisation ground-state energy, then jointly LBFGS-optimise all k
+# pre-optimisation target-state energy, then jointly LBFGS-optimise all k
 # functions' parameters.  θ0 === nothing ⇒ start from an empty basis
 # (k0 = 0); otherwise θ0 seeds `θ_running` and growth continues from
 # `length(θ0) ÷ n_per` functions.  `gradnorm` is the final gradient norm
@@ -144,18 +144,18 @@ end
 function _sequential_engine(
         terms, n::Int, θ0, scale::Float64, candidates::Int,
         maxiter_step::Int, gtol::Float64, verbose::Bool;
-        shift_init::Symbol = :zeros
+        state::Int = 1, shift_init::Symbol = :zeros
     )
     n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)
     n_chol = n_dim * (n_dim + 1) ÷ 2
     n_per = n_chol + 3 * n_dim
-    w_list = [op.w for op in terms if op isa CoulombOperator]
+    w_list = _pairwise_weights(terms)
     regularization = 1.0e-10
 
     method = LBFGS(; maxiter = maxiter_step, gradtol = gtol, verbosity = 0)
 
     energy_log = Float64[]   # all fg values across all steps → cummin history
-    step_hist = Float64[]    # ground-state energy after each step's optimisation
+    step_hist = Float64[]    # target-state energy after each step's optimisation
     θ_running = θ0 === nothing ? Float64[] : copy(θ0)
     k0 = θ0 === nothing ? 0 : length(θ0) ÷ n_per
     gradnorm = NaN
@@ -165,7 +165,7 @@ function _sequential_engine(
 
         # ── candidate selection ──────────────────────────────────────────────
         # Sample `candidates` quasi-random Gaussians; keep the one giving the
-        # lowest ground-state energy before optimisation.
+        # lowest target-state energy before optimisation.
         best_E_cand = Inf
         best_θ_cand = Float64[]
 
@@ -182,7 +182,7 @@ function _sequential_engine(
                 H_t = build_hamiltonian_matrix(b_t, terms)
                 S_t = build_overlap_matrix(b_t)
                 ev_t, _ = solve_generalized_eigenproblem(H_t, S_t; regularization)
-                E_t = minimum(ev_t)
+                E_t = ev_t[min(state, length(ev_t))]
                 if E_t < best_E_cand
                     best_E_cand = E_t
                     best_θ_cand = θ_c
@@ -221,7 +221,7 @@ function _sequential_engine(
                 H = build_hamiltonian_matrix(b, terms)
                 S = build_overlap_matrix(b)
                 ev, ev_vecs = solve_generalized_eigenproblem(H, S; regularization)
-                idx = argmin(ev)
+                idx = min(state, length(ev))
                 val = ev[idx]
                 c = ev_vecs[:, idx]
             catch
@@ -252,14 +252,14 @@ function _sequential_engine(
         gradnorm = float(last(normgradhistory))
         append!(energy_log, step_log)
 
-        # Record the ground-state energy after this step's full optimisation.
+        # Record the target-state energy after this step's full optimisation.
         b_k = _decode_basis(θ_running, k, n_dim)
         H_k = build_hamiltonian_matrix(b_k, terms)
         S_k = build_overlap_matrix(b_k)
         ev_k, _ = solve_generalized_eigenproblem(H_k, S_k; regularization)
-        push!(step_hist, minimum(ev_k))
+        push!(step_hist, ev_k[min(state, length(ev_k))])
 
-        verbose && @info "Step $step/$n" E₀ = last(step_hist) fg_evals = length(step_log)
+        verbose && @info "Step $step/$n" E = last(step_hist) fg_evals = length(step_log)
     end
 
     # `n_built` may be < n if the search stopped early (singular basis).

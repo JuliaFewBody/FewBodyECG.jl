@@ -21,7 +21,7 @@ _gauss(g, r) = exp(-(r' * g.A * r) + _shift_z(g)' * r)
 _eval(g::Rank0Gaussian, r) = _gauss(g, r)
 _eval(g::Rank1Gaussian, r) = sum(_polar_projection(g.a, r)) * _gauss(g, r)
 _eval(g::Rank2Gaussian, r) =
-    dot(_polar_projection(g.a, r), _polar_projection(g.b, r)) * _gauss(g, r)
+    sum(_polar_projection(g.a, r)) * sum(_polar_projection(g.b, r)) * _gauss(g, r)
 
 (ψ::Wavefunction)(r::AbstractVector) =
     sum(ψ.c[i] * _eval(ψ.basis.functions[i], r) for i in eachindex(ψ.c))

@@ -28,6 +28,12 @@ sol = solve(ops, SVM(basis = 15, candidates = 15, scale = 1.0))
     g2 = Rank2Gaussian([1.0;;], [1.0], [1.0], [0.0])
     ψ2 = Wavefunction(BasisSet([g2]), [1.0])
     @test ψ2([0.7]) ≈ 0.7 * 0.7 * exp(-0.49) rtol = 1.0e-12
+
+    # Matrix-polarized pure d-wave components use the scalar projection sum.
+    a = reshape([1.0, 0.0, 0.0], 1, 3)
+    b = reshape([0.0, 1.0, 0.0], 1, 3)
+    ψ2_matrix = Wavefunction(BasisSet([Rank2Gaussian([1.0;;], a, b, [0.0])]), [1.0])
+    @test ψ2_matrix([0.7]) ≈ 0.7^2 * exp(-0.49) rtol = 1.0e-12
 end
 
 @testset "convergence and radial_profile utilities" begin

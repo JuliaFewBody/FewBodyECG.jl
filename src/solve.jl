@@ -10,12 +10,14 @@ struct _SolveCtx
     d::Int
 end
 
+_pairwise_weights(terms) = Vector{Float64}[
+    Vector{Float64}(op.w) for op in terms
+        if op isa Union{CoulombOperator, GaussianOperator, OscillatorOperator}
+]
+
 function _ctx(terms, masses; state, tol, window, verbose)
     state ≥ 1 || throw(ArgumentError("state must be ≥ 1, got $state"))
-    w_list = Vector{Float64}[
-        op.w for op in terms
-            if op isa Union{CoulombOperator, GaussianOperator, OscillatorOperator}
-    ]
+    w_list = _pairwise_weights(terms)
     isempty(w_list) && throw(
         ArgumentError(
             "need at least one pairwise potential term (Coulomb/Gaussian/Oscillator) " *
@@ -242,7 +244,9 @@ function _solve(
     scale = _resolve_scale(alg.scale, ctx.masses)
     θ0 = init === nothing ? nothing : _init_θ(init, alg.basis)
     basis, fg_hist, gradnorm =
-        _variational_engine(ctx.terms, alg.basis, θ0, scale, alg.maxiter, alg.gtol, verbose)
+        _variational_engine(
+        ctx.terms, alg.basis, θ0, scale, alg.maxiter, alg.gtol, verbose; state = ctx.state
+    )
     ΔE = length(fg_hist) ≥ 2 ? abs(fg_hist[end - 1] - fg_hist[end]) : NaN
     S = build_overlap_matrix(basis)
     rep = _gradient_report(gradnorm, alg.gtol, ΔE, cond(Symmetric(S)))
@@ -267,8 +271,8 @@ function _solve(
         θ0 = _encode_basis(BasisSet(Rank0Gaussian[g for g in init.basis.functions]))
     end
     basis, step_hist, _, gradnorm = _sequential_engine(
-        ctx.terms, alg.basis, θ0, scale, alg.candidates, alg.maxiter_step,
-        alg.gtol, verbose
+        ctx.terms, alg.basis, θ0, scale, alg.candidates, alg.maxiter_step, alg.gtol, verbose;
+        state = ctx.state
     )
     ΔE = length(step_hist) ≥ 2 ? step_hist[end - 1] - step_hist[end] : NaN
     S = build_overlap_matrix(basis)
