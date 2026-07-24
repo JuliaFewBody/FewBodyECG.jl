@@ -4,6 +4,7 @@ src/test.jl
 .DS_Store
 .vscode
 docs/build/
+docs/discussion/
 Manifest.toml
 .claude
 CLAUDE.md
