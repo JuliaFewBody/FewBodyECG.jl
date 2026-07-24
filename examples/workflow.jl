@@ -58,12 +58,12 @@ p = plot(
     legend = :bottomright,
 )
 for (label, sol) in [
-    "SVM (Sobol)" => svm_sobol,
-    "SVM (Golden)" => svm_golden,
-    "SVM (Halton) → Refine" => refined,
-    "Variational" => variational,
-    "GrowVariational" => grown,
-]
+        "SVM (Sobol)" => svm_sobol,
+        "SVM (Golden)" => svm_golden,
+        "SVM (Halton) → Refine" => refined,
+        "Variational" => variational,
+        "GrowVariational" => grown,
+    ]
     plot!(p, convergence(sol)...; label, linewidth = 2)
 end
 hline!(p, [exact]; label = "exact", color = :black, linestyle = :dash)

@@ -1,8 +1,3 @@
-# # Hydrogen: s-, p- and d-waves
-#
-# Exact non-relativistic hydrogen energies are -1/2, -1/8 and -1/18 Ha for
-# the lowest s, p and d states.
-
 using FewBodyECG
 import Antique
 using Plots

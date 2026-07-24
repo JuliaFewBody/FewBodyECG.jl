@@ -17,7 +17,7 @@ systems = [
     (
         "ttμ",
         [mt, mt, mμ],
-        -112.97300,       # Suzuki–Varga SVM, K = 200
+        -112.973,       # Suzuki–Varga SVM, K = 200
         -112.9730179,     # other method, K = 500
     ),
 ]
