@@ -1,274 +1,94 @@
 # Theory
 
-FewBodyECG.jl solves non-relativistic few-body Hamiltonians by expanding the
-wave function in explicitly correlated Gaussians and evaluating all matrix
-elements analytically.  The derivation below follows the shifted-Gaussian
-generating-function route used for rank-0, rank-1, and rank-2 matrix elements.
+## Basis expansion
 
-## Variational reduction
-
-We start from the Schrödinger equation
+`FewBodyECG.jl` solves the Schrödinger equation reformulated as an eigenvalue equation
 
 ```math
-\hat{H}|\psi\rangle = \epsilon|\psi\rangle.
+\hat{H}|\psi\rangle = \varepsilon |\psi\rangle,
 ```
-
-Approximate the wave function in a finite, non-orthogonal basis:
+where ``\hat{H}`` is the Hamiltonian of the few-body system with a discrete spectrum of eigenvalues ``\varepsilon`` and corresponding wave function ``|\psi\rangle``. We expand the wave function in terms of basis function and corresponding coefficients
 
 ```math
-|\psi\rangle = \sum_{i=1}^{n} c_i |G_i\rangle.
+|\psi\rangle = \sum_{i=1}^N c_i |\phi_i \rangle.
 ```
-
-Multiplying from the left by ``\langle G_k|`` gives
+We insert this expansion into the Schrödinger equation and multiply by ``\langle \phi_k|_{1\leq k \leq N}`` from the left
 
 ```math
-\sum_i \langle G_k|\hat{H}|G_i\rangle c_i
-=
-\epsilon \sum_i \langle G_k|G_i\rangle c_i.
+\sum_{i=1}^N \langle \phi_k | \hat{H} | \phi_i \rangle = \varepsilon \sum_{i=1}^N \langle \phi_k | \phi_i \rangle c_i.
 ```
-
-In matrix form,
+Writting this expression in matrix notation, the generalized eigenvalue problem now looks like
+```math
+   \mathcal{H}c = \varepsilon \mathcal{N}c,
+```
+where 
+```math
+   \mathcal{H} = \langle \phi_k | \hat{H} | \phi_i \rangle, \quad \mathcal{N} = \langle \phi_k | \phi_i \rangle, \quad c = (c_1, ..., c_N)^\top.
+```
+The overlap matrix, ``\mathcal{N}``, would be equal to a delta function if we picked an orthonormal basis, so we must pick a non-orthonormal basis for the variation method to work. The general idea is to use the Rayleigh-Ritz method to approximate the energy states and the wave functions
 
 ```math
-Hc = \epsilon N c,
-\qquad
-H_{ki} = \langle G_k|\hat{H}|G_i\rangle,
-\qquad
-N_{ki} = \langle G_k|G_i\rangle.
+E_0 \leq \frac{\langle \phi | \hat{H} | \phi \rangle }{\langle \phi | \phi \rangle }.
 ```
-
-The lowest eigenvalue is a variational upper bound for the represented
-Hamiltonian.  Improving the basis can only lower or leave unchanged the best
-energy.
-
-## Coordinates and Hamiltonian
-
-The package removes center-of-mass motion by transforming particle coordinates
-to Jacobi coordinates ``\mathbf{x}``.  In those coordinates the Hamiltonian has
-the form
+From this theorem we see that in order to approximate the ground state, ``E_0``, we have to minimize the functional wrt. the variational parameter, ``c``. The functional then becomes
+```math
+   E[\phi] = \frac{c^\dagger \mathcal{H} c}{c^\dagger \mathcal{N}c},
+```
+and by minimization we get the following condition for the generalized eigenvalue equation
 
 ```math
-\hat{H}
-=
--\frac{\partial}{\partial \mathbf{x}}
-\Lambda
-\frac{\partial}{\partial \mathbf{x}^{T}}
-+
-\sum_{i<j}\frac{Z_i Z_j}{|\omega_{ij}^{T}\mathbf{x}|}
-+
-\sum_\alpha V_\alpha
-\exp\left[-\gamma_\alpha(\omega_\alpha^T\mathbf{x})^2\right].
+   \frac{2}{c^\dagger \mathcal{N}c}(\mathcal{H}c-E[\phi]\mathcal{N}c)^\dagger = 0
 ```
 
-Here ``\Lambda`` is the reduced mass matrix in Jacobi coordinates and each
-``\omega`` vector selects one pair distance from ``\mathbf{x}``.
+## Basis functions
 
-## Shifted Gaussian generator
-
-The shifted correlated Gaussian is
+We use a non-orthonormal basis expansion called explicitly correlated Gaussians given by
 
 ```math
-\langle \mathbf{x}|A,\mathbf{a}\rangle
-=
-\exp\left(-\mathbf{x}^{T}A\mathbf{x}+\mathbf{a}^{T}\mathbf{x}\right),
+   \phi_g(\mathbf{r}_1, \dots, \mathbf{r}_N) = \exp\left( - \sum_{i,j=1}^N  A_{ij}\mathbf{r}_i \cdot \mathbf{r}_j + \sum_{i=1}^N \mathbf{s}_i \cdot \mathbf{r}_i \right),
 ```
-
-where ``A`` is symmetric positive definite and ``\mathbf{a}`` is a column of
-shift vectors.  The positive definiteness makes the basis function square
-integrable; the off-diagonal entries of ``A`` encode pair correlations.
-
-For a ket ``(A,\mathbf{a})`` and bra ``(B,\mathbf{b})`` define
+for a system of ``N`` total particles each with coordinates ``\mathbf{r}_i`` for ``i=1,...,N``. The bold faces denote vectors. Writing this in matrix notation we get
 
 ```math
-C = A + B,
-\qquad
-R = C^{-1},
-\qquad
-\mathbf{v} = \mathbf{a} + \mathbf{b}.
+   g(\mathbf{r}) = \exp(-\mathbf{r}^\top A \mathbf{r} + \mathbf{s}^\top \mathbf{r}),
 ```
+where ``A`` is a positive definite and symmetric matrix and ``\mathbf{s}`` are the shift vectors of the Gaussians. 
 
-Their product is another Gaussian, so completing the square gives the overlap
+Returning to the basis expansion, we can now represent the few-body wave function as a linear combination of explicitly correlated Gaussians
+```math
+   \Psi(\mathbf{r}_1,...,\mathbf{r}_N) = \sum_{i=1}^{N_{\text{G}}} c_i g_i(\mathbf{r}_1,...,\mathbf{r}_N), 
+```
+where ``N_{\text{G}}`` is the number of Gaussians you want in your expansion. 
+
+## Matrix elements
+
+We are now ready to show-case one of the advantages of this numerical method. All of the matrix elements are analytical and easy to calculate. We simply insert the operators and calculate the matrix element.
+
+### Overlap of two Gaussians
+First, we consider the overlap of two Gaussians, ``g'`` and ``g```
 
 ```math
-M(C,\mathbf{v})
-=
-\langle B,\mathbf{b}|A,\mathbf{a}\rangle
-=
-\left(\frac{\pi^n}{\det C}\right)^{3/2}
-\exp\left(\frac{1}{4}\mathbf{v}^{T}R\mathbf{v}\right).
+   \langle g' | g \rangle = \int \text{d}^3 \mathbf{r}_1 ... \text{d}^3 \, \mathbf{r}_N \exp(-\mathbf{r}^\top (A'+A)\mathbf{r}+(\mathbf{s}'+\mathbf{s})^\top \mathbf{r}).
 ```
-
-This shifted overlap is the generating function.  Polynomial prefactors and
-position moments are obtained by differentiating it with respect to the shift
-vectors and then setting shifts to zero.
-
-## Shifted operator matrix elements
-
-The shifted kinetic-energy matrix element can be written compactly as
+We define ``B=A'+A`` and ``\mathbf{v}=s'+s`` and make an orthogonal transformation from which we get
 
 ```math
-\langle B,\mathbf{b}|\hat{K}|A,\mathbf{a}\rangle
-=
-M(C,\mathbf{v})
-\left[
-6\operatorname{Tr}(B\Lambda A R)
-+
-(\mathbf{b}-BR\mathbf{v})^T
-\Lambda
-(\mathbf{a}-AR\mathbf{v})
-\right].
+   \langle g' | g \rangle = \text{e}^{\frac{1}{4}\mathbf{v}^\top B^{-1}\mathbf{v}} \left( \frac{\pi^N}{\text{det}(B)} \right)
 ```
 
-For a Coulomb term selected by ``\omega``, set
+### Kinetic operator
+
+Following the same approach we calculate the matrix elements for the kinetic operator given by
 
 ```math
-\beta = \frac{1}{\omega^T R\omega},
-\qquad
-\rho = \frac{1}{2}\omega^T R\mathbf{v}.
+   \hat{T} = - \sum_{ij=1}^N \frac{\partial }{\partial \mathbf{r}} \Lambda \frac{\partial }{\partial \mathbf{r}^\top},
 ```
-
-Then
+where ``\Lambda = \frac{\hbar^2}{2m_i}\delta_{ij}. Calculating the matrix elements yields
 
 ```math
-\left\langle B,\mathbf{b}\left|
-\frac{1}{|\omega^T\mathbf{x}|}
-\right|A,\mathbf{a}\right\rangle
-=
-M(C,\mathbf{v})\,\frac{\operatorname{erf}(\sqrt{\beta}\rho)}{\rho},
+   \langle g' | \hat{T} | g \rangle = (6 \text{Tr}(A'\Lambda A B^{-1})+2(A' \mathbf{u}-\mathbf{s'})^\top \Lambda(2A \mathbf{u}-\mathbf{s})) \text{e}^{\frac{1}{2}\mathbf{v^\top \mathbf{u}}} \left( \frac{\pi^N}{\text{det}(B)} \right)^{3/2},
 ```
-
-with the finite zero-shift limit
-
-```math
-2\sqrt{\frac{\beta}{\pi}}\,M(C,0).
-```
-
-The physical charge factor ``Z_iZ_j`` is multiplied in by `CoulombOperator`.
-A Gaussian pair potential is even simpler:
-
-```math
-V_0 e^{-\gamma(\omega^T\mathbf{x})^2}
-\quad\Longrightarrow\quad
-C \mapsto C + \gamma\,\omega\omega^T.
-```
-
-Its matrix element is ``V_0`` times the overlap evaluated with that modified
-quadratic form.
-
-## Rank-0 Gaussians
-
-Rank-0, or s-wave, Gaussians are the zero-shift limit:
-
-```math
-\langle \mathbf{x}|A\rangle
-=
-\lim_{\mathbf{a}\to 0}\langle \mathbf{x}|A,\mathbf{a}\rangle
-=
-\exp(-\mathbf{x}^{T}A\mathbf{x}).
-```
-
-The rank-0 overlap is
-
-```math
-M_0
-=
-\langle B|A\rangle
-=
-\left(\frac{\pi^n}{\det(A+B)}\right)^{3/2}.
-```
-
-The corresponding kinetic and Coulomb elements are
-
-```math
-\langle B|\hat{K}|A\rangle
-=
-6M_0\,\operatorname{Tr}(B\Lambda A(A+B)^{-1}),
-```
-
-and
-
-```math
-\left\langle B\left|\frac{1}{|\omega^T\mathbf{x}|}\right|A\right\rangle
-=
-2\sqrt{\frac{\beta}{\pi}}\,M_0,
-\qquad
-\beta = \frac{1}{\omega^T(A+B)^{-1}\omega}.
-```
-
-These are the formulas used for the high-level stochastic and variational
-solvers, which currently sample rank-0 bases.
-
-## Tensor prefactors
-
-Rank-1 and rank-2 Gaussians are generated by taking Taylor coefficients of the
-shifted Gaussian:
-
-```math
-\langle \mathbf{x}|(\mathbf{u})A\rangle
-=
-(\mathbf{u}^T\mathbf{x})e^{-\mathbf{x}^{T}A\mathbf{x}},
-```
-
-```math
-\langle \mathbf{x}|(\mathbf{u}\mathbf{v})A\rangle
-=
-(\mathbf{u}^T\mathbf{x})(\mathbf{v}^T\mathbf{x})
-e^{-\mathbf{x}^{T}A\mathbf{x}}.
-```
-
-For example, the rank-1 overlap comes from the ``O(\mathbf{u}\mathbf{v})``
-term in the shifted overlap:
-
-```math
-\langle (\mathbf{v})B|(\mathbf{u})A\rangle
-=
-\frac{1}{2}\mathbf{v}^{T}(A+B)^{-1}\mathbf{u}\,M_0.
-```
-
-Kinetic and Coulomb rank-1/rank-2 formulas are obtained the same way: expand
-the shifted matrix element, keep the coefficient with the required shift
-order, and set the remaining shifts to zero.  This is why one shifted formula
-can generate the s-, p-, and d-wave matrix elements used by the power-user
-matrix layer.
-
-## Basis construction
-
-Once the matrix elements are analytic, the numerical problem is choosing a
-useful basis:
-
-1. `SVM` draws quasi-random candidates and keeps the one that lowers the target
-   eigenvalue.
-2. `Refine` revisits existing basis slots and tries replacements.
-3. `Variational` jointly optimizes all rank-0 parameters with LBFGS.
-4. `GrowVariational` alternates growth and continuous optimization.
-
-Stochastic methods are cheap and robust but can saturate under a fixed
-sampling scale.  Gradient methods cost more but move the Gaussian parameters
-continuously after the sampled basis has found the right region.
-
-## Hydrogen check
-
-For hydrogen in Hartree units,
-
-```math
-\hat{H} = -\frac{1}{2}\nabla^2 - \frac{1}{r},
-\qquad
-E_n = -\frac{1}{2n^2}.
-```
-
-Rank-0, rank-1, and rank-2 Gaussian bases target the lowest s-, p-, and
-d-wave states.  The corresponding exact energies are
-
-```math
-E_{1s}=-\frac{1}{2},
-\qquad
-E_{2p}=-\frac{1}{8},
-\qquad
-E_{3d}=-\frac{1}{18}.
-```
-
-The hydrogen example compares these values against the analytical energies
-reported by Antique.jl.
+where ``B=A'+A`` and ``\mathbf{u} = \frac{1}{2}B^{-1}\mathbf{v}`` and ``\text{Tr}`` denotes the trace.
 
 ## References
 
