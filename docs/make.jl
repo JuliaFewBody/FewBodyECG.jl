@@ -1,4 +1,6 @@
-using Documenter, FewBodyECG
+using Documenter, FewBodyECG, DocumenterCitations
+
+bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"); style = :numeric)
 
 makedocs(
     build = "build",
@@ -10,9 +12,10 @@ makedocs(
         "Theoretical background" => "theory.md",
         "Building systems" => "systems.md",
         "Choosing a solver" => "solvers.md",
-        "Convergence" => "convergence.md",
+        "Examples" => "examples.md",
         "API" => "API.md",
     ],
+    plugins=[bib],
     format = Documenter.HTML()
 )
 

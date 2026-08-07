@@ -1,6 +1,7 @@
 [deps]
 Antique = "be6e5d0e-34a5-4c8f-af83-e1b5389203d8"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+DocumenterCitations = "daee34ce-89f3-4625-b898-19384cb65244"
 FewBodyECG = "083b1810-24a1-4a79-9a41-145bb2bb8ceb"
 FewBodyHamiltonians = "3a126c26-e5d7-4a95-83c3-3b69f8a11ded"
 Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"

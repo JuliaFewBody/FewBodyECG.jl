@@ -1,8 +1,3 @@
-# # Helium and H-
-#
-# A fixed nucleus plus two electrons exercises all three Coulomb pairs:
-# nucleus-electron attraction and electron-electron repulsion.
-
 using FewBodyECG
 using Plots
 
