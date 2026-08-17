@@ -1,8 +1,3 @@
-# # Positronium
-#
-# Positronium is the two-body electron-positron Coulomb problem.  With equal
-# masses the exact ground-state energy is -0.25 Ha.
-
 using FewBodyECG
 import Antique
 using Plots

@@ -248,12 +248,17 @@ function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::Cou
     # With 3D shifts the mean displacement wᵀR v is a Cartesian 3-vector; the
     # shifted Coulomb kernel depends on its magnitude q = ‖wᵀR v‖/2.
     qvec = 0.5 * (transpose(w) * R * v)
-    q = norm(qvec)
+    # Work with q² rather than q = ‖qvec‖: at zero shift qvec vanishes, and
+    # `norm` of an all-zero vector of dual numbers returns NaN (the rescale
+    # by ‖·‖_∞ divides 0 by 0), which would poison the AD gradients used by
+    # the variational solvers.  q² is a plain sum of squares and stays finite.
+    q2 = sum(abs2, qvec)
     # Use the limiting form 2√(β/π) when the scaled argument x = √β·q is
     # small so that erf(x)/q = √β·erf(x)/x → 2√(β/π) accurately.
-    # Thresholding on x (not q alone) correctly handles all β values.
-    x = sqrt(β) * q
-    f = abs(x) < 1.0e-7 ? (2 * sqrt(β / π)) : (erf(x) / q)
+    # Thresholding on x² = β·q² (not q alone) correctly handles all β values,
+    # and keeps the small-q branch free of any sqrt of a vanishing quantity.
+    x2 = β * q2
+    f = x2 < 1.0e-14 ? (2 * sqrt(β / π)) : (erf(sqrt(x2)) / sqrt(q2))
     return op.coefficient * f * M
 end
 

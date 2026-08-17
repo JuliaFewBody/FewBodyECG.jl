@@ -1,11 +1,6 @@
-using Documenter, Literate, FewBodyECG
+using Documenter, FewBodyECG, DocumenterCitations
 
-const EXDIR = joinpath(@__DIR__, "..", "examples")
-const OUTDIR = joinpath(@__DIR__, "src", "examples")
-mkpath(OUTDIR)
-for f in readdir(EXDIR; join = true)
-    endswith(f, ".jl") && Literate.markdown(f, OUTDIR; documenter = true)
-end
+bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"); style = :numeric)
 
 makedocs(
     build = "build",
@@ -13,27 +8,14 @@ makedocs(
     checkdocs = :exports,
     sitename = "FewBodyECG.jl",
     pages = [
-        "Home" => "index.md",
-        "Theory" => "theory.md",
+        "Introduction" => "index.md",
+        "Theoretical background" => "theory.md",
         "Building systems" => "systems.md",
         "Choosing a solver" => "solvers.md",
-        "Convergence" => "convergence.md",
-        "Examples" => [
-            "Hydrogen" => "examples/hydrogen.md",
-            "Positronium" => "examples/positronium.md",
-            "Helium and H-" => "examples/helium.md",
-            "tdmu" => "examples/tdmu.md",
-            "Muonic ions" => "examples/muonic_ions.md",
-            "H2+ (non-BO)" => "examples/h2plus.md",
-            "Gaussian wells" => "examples/gaussian_well.md",
-            "Hooke's atom" => "examples/harmonium.md",
-            "Nuclear (Minnesota/Volkov)" => "examples/nuclear.md",
-            "Three-body Gaussian" => "examples/three_body_gaussian.md",
-            "Spin-orbit doublet" => "examples/spin_orbit.md",
-            "Workflow" => "examples/workflow.md",
-        ],
+        "Examples" => "examples.md",
         "API" => "API.md",
     ],
+    plugins=[bib],
     format = Documenter.HTML()
 )
 
