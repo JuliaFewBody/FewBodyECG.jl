@@ -558,6 +558,24 @@ end
     end
 end
 
+@testset "NumericalPotential Hamiltonian assembly" begin
+    g1 = Rank0Gaussian([1.0;;], [0.0])
+    g2 = Rank0Gaussian([2.0;;], [0.0])
+    basis = BasisSet([g1, g2])
+    K = KineticOperator([0.5;;])
+    numerical = NumericalPotential(r -> exp(-2r^2), [1.0])
+    analytic = GaussianOperator(1.0, 2.0, [1.0])
+
+    H_numerical = build_hamiltonian_matrix(basis, [numerical])
+    H_analytic = build_hamiltonian_matrix(basis, [analytic])
+    H_both = build_hamiltonian_matrix(basis, [K, numerical])
+
+    @test H_numerical ≈ H_analytic rtol = 1.0e-8
+    @test H_both ≈ build_hamiltonian_matrix(basis, [K]) + H_numerical rtol = 1.0e-8
+    @test H_numerical ≈ H_numerical' rtol = 1.0e-12
+    @test all(isfinite, H_numerical)
+end
+
 @testset "Physics: Scale sensitivity" begin
     # Demonstrate that scale matters for convergence
 

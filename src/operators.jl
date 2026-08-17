@@ -1,7 +1,8 @@
 """
     Operators
 
-Accumulates `KineticOperator` and `CoulombOperator` terms to build a Hamiltonian.
+Accumulates kinetic and potential terms to build a Hamiltonian, including
+`NumericalPotential` terms whose radial quadrature is handled internally.
 Handles Jacobi coordinate transforms internally so that callers can work
 with physical particle indices rather than Jacobi-frame weight vectors.
 
@@ -18,9 +19,10 @@ transforms are computed internally.
 
 ```julia
 ops = Operators([m₁, m₂, m₃])
-ops += "Kinetic"
-ops += ("Coulomb", 1, 2, +1.0)   # pair (1,2) with coupling coefficient +1.0
-ops += ("Coulomb", 1, 3, -1.0)
+    ops += "Kinetic"
+    ops += ("Coulomb", 1, 2, +1.0)   # pair (1,2) with coupling coefficient +1.0
+    ops += ("Coulomb", 1, 3, -1.0)
+    ops += (r -> -exp(-r^2), numerical, 1, 2)
 ```
 
 When charges are also supplied, the fully-automatic shorthand `ops += "Coulomb"`
@@ -161,6 +163,26 @@ function Base.:+(ops::Operators, term::Tuple{<:AbstractString, <:Integer, <:Inte
     return ops
 end
 
+function Base.:+(
+        ops::Operators,
+        term::Tuple{F, NumericalPotentialMarker, I, J},
+    ) where {F, I <: Integer, J <: Integer}
+    f, _, i, j = term
+    ops.masses !== nothing ||
+        throw(ArgumentError("NumericalPotential shorthand requires Operators(masses)."))
+    i != j || throw(ArgumentError("Particle indices must be distinct, got i = j = $i."))
+    N = length(ops.masses)
+    1 ≤ i ≤ N || throw(ArgumentError("Particle index i=$i out of range [1, $N]."))
+    1 ≤ j ≤ N || throw(ArgumentError("Particle index j=$j out of range [1, $N]."))
+
+    e_ij = zeros(Float64, N)
+    e_ij[i] = 1.0
+    e_ij[j] = -1.0
+    w = ops._U' * e_ij
+    push!(ops.terms, NumericalPotential(f, w))
+    return ops
+end
+
 Base.length(ops::Operators) = length(ops.terms)
 Base.iterate(ops::Operators) = iterate(ops.terms)
 Base.iterate(ops::Operators, state) = iterate(ops.terms, state)
@@ -188,6 +210,12 @@ function Base.show(io::IO, ops::Operators)
             println(io, "  + $(op.coefficient) × Oscillator(w = $(round.(op.w; digits = 3)))")
         elseif op isa ManyBodyGaussianOperator
             println(io, "  + $(op.coefficient) × ManyBodyGaussian(W = $(round.(op.W; digits = 3)))")
+        elseif op isa NumericalPotential
+            println(
+                io,
+                "  + NumericalPotential(w = $(round.(op.w; digits = 3)), " *
+                    "rtol = $(op.rtol), atol = $(op.atol))",
+            )
         else
             println(io, "  + $(typeof(op))")
         end

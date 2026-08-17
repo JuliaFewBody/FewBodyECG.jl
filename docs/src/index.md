@@ -28,3 +28,25 @@ exact = Antique.E(Antique.HydrogenAtom(Z = 1), n = 1)
 println("E0 = ", sol.E₀, " Ha  (Antique ", exact, ", Δ = ", sol.E₀ - exact, ")")
 sol
 ```
+
+## Custom numerical potentials
+
+Define a radial pair potential as a scalar callable. The matrix elements are
+reduced analytically to a one-dimensional radial integral, and `QuadGK` is
+used internally by `NumericalPotential`:
+
+```@example numerical-potential
+using FewBodyECG
+
+ops = Operators([1.0e15, 1.0])
+ops += "Kinetic"
+f(r) = -exp(-r^2) / (1 + r^2)
+ops += (f, numerical, 1, 2)
+
+sol = solve(ops, SVM(basis = 8, candidates = 2, scale = 1.0))
+println(sol.E₀)
+```
+
+The callable receives the nonnegative pair distance `r`; users do not need to
+call `QuadGK` or construct matrix elements manually. For a precomputed Jacobi
+weight vector `w`, the equivalent low-level form is `NumericalPotential(f, w)`.

@@ -12,7 +12,7 @@ end
 
 _pairwise_weights(terms) = Vector{Float64}[
     Vector{Float64}(op.w) for op in terms
-        if op isa Union{CoulombOperator, GaussianOperator, OscillatorOperator}
+        if op isa Union{CoulombOperator, GaussianOperator, OscillatorOperator, NumericalPotential}
 ]
 
 function _ctx(terms, masses; state, tol, window, verbose)
@@ -20,7 +20,8 @@ function _ctx(terms, masses; state, tol, window, verbose)
     w_list = _pairwise_weights(terms)
     isempty(w_list) && throw(
         ArgumentError(
-            "need at least one pairwise potential term (Coulomb/Gaussian/Oscillator) " *
+            "need at least one pairwise potential term " *
+                "(Coulomb/Gaussian/Oscillator/NumericalPotential) " *
                 "to define the candidate geometry"
         )
     )

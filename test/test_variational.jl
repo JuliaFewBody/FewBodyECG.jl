@@ -266,6 +266,18 @@ end
     @test last(energies(sol)) > sol.E[1] + 1.0e-3
 end
 
+@testset "Variational with NumericalPotential" begin
+    ops = Operators([1.0e15, 1.0])
+    ops += "Kinetic"
+    ops += (r -> -exp(-r^2), numerical, 1, 2)
+
+    sol = solve(ops, Variational(basis = 2, scale = 1.0, maxiter = 3, gtol = 1.0e-3))
+    @test isfinite(sol.E₀)
+    @test all(isfinite, sol.coefficients)
+    @test sol.convergence.gradnorm !== nothing
+    @test isfinite(something(sol.convergence.gradnorm, NaN))
+end
+
 @testset "GrowVariational convergence is monotone" begin
     # By the variational principle, adding a linearly independent function
     # and then re-optimising cannot raise the ground-state energy.

@@ -275,6 +275,65 @@ struct ManyBodyGaussianOperator{T <: Real} <: FewBodyHamiltonians.PotentialTerm
     end
 end
 
+struct NumericalPotentialMarker end
+
+"""
+    numerical
+
+Marker used by the system-aware numerical-potential shorthand:
+`ops += (f, numerical, i, j)`.
+"""
+const numerical = NumericalPotentialMarker()
+
+"""
+    NumericalPotential(f, w; rtol = 1e-8, atol = 0.0, maxevals = 10_000)
+
+Numerical radial pair potential ``f(|w^T r|)`` in Jacobi coordinates.
+
+The callable `f` receives a nonnegative scalar distance. Matrix elements are
+evaluated by analytically reducing the ECG product to the radial coordinate
+selected by `w`, followed by adaptive numerical quadrature.
+
+# Fields
+- `f`        : user-supplied callable evaluated as `f(r)`.
+- `w`        : Jacobi-coordinate weight vector selecting the pair coordinate.
+- `rtol`     : relative quadrature tolerance.
+- `atol`     : absolute quadrature tolerance.
+- `maxevals` : maximum number of quadrature function evaluations.
+"""
+struct NumericalPotential{F, T <: Real} <: FewBodyHamiltonians.PotentialTerm
+    f::F
+    w::Vector{T}
+    rtol::Float64
+    atol::Float64
+    maxevals::Int
+    function NumericalPotential(
+            f,
+            w::AbstractVector{<:Real};
+            rtol::Real = 1.0e-8,
+            atol::Real = 0.0,
+            maxevals::Integer = 10_000
+        )
+        isempty(w) && throw(ArgumentError("w must be nonempty"))
+        all(isfinite, w) || throw(ArgumentError("w must contain only finite values"))
+        any(!iszero, w) || throw(ArgumentError("w must not be the zero vector"))
+        isfinite(rtol) && rtol > 0 ||
+            throw(ArgumentError("rtol must be finite and positive"))
+        isfinite(atol) && atol ≥ 0 ||
+            throw(ArgumentError("atol must be finite and nonnegative"))
+        maxevals > 0 || throw(ArgumentError("maxevals must be positive"))
+
+        T = promote_type(Float64, eltype(w))
+        return new{typeof(f), T}(
+            f,
+            Vector{T}(w),
+            Float64(rtol),
+            Float64(atol),
+            Int(maxevals),
+        )
+    end
+end
+
 """
     SpinProjection
 
