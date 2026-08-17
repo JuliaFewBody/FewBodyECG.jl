@@ -54,3 +54,15 @@ ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
     @test length(stuck.basis.functions) == length(small.basis.functions)
     @test any(occursin("no admissible candidate", n) for n in stuck.convergence.notes)
 end
+
+@testset "SVM with NumericalPotential" begin
+    masses = [1.0e15, 1.0]
+    ops = Operators(masses)
+    ops += "Kinetic"
+    ops += (r -> -exp(-r^2), numerical, 1, 2)
+
+    sol = solve(ops, SVM(basis = 4, candidates = 1, scale = 1.0))
+    @test sol isa Solution
+    @test isfinite(sol.E₀)
+    @test all(isfinite, sol.coefficients)
+end

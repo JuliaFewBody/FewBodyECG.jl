@@ -471,4 +471,27 @@ import FewBodyECG: jacobi_transform, Λ
         # unknown 4-tuple operator name is rejected
         @test_throws ArgumentError (Operators([1.0e15, 1.0]) + ("Nope", 1, 2, 0.5))
     end
+
+    @testset "Numerical potential builder" begin
+        masses = [1.0e15, 1.0]
+        _, U = jacobi_transform(masses)
+        f = r -> -exp(-r^2)
+        ops = Operators(masses)
+        ops += (f, numerical, 1, 2)
+
+        @test length(ops) == 1
+        @test ops[1] isa NumericalPotential
+        @test ops[1].f === f
+        @test ops[1].w ≈ U' * [1.0, -1.0]
+
+        str = sprint(show, ops)
+        @test occursin("NumericalPotential", str)
+        @test occursin("w =", str)
+
+        @test_throws ArgumentError Operators() + (f, numerical, 1, 2)
+        @test_throws ArgumentError Operators(masses) + (f, numerical, 1, 1)
+        @test_throws ArgumentError Operators(masses) + (f, numerical, 0, 2)
+        @test_throws ArgumentError Operators(masses) + (f, numerical, 1, 3)
+        @test_throws MethodError Operators(masses) + (f, :unknown, 1, 2)
+    end
 end

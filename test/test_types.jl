@@ -192,3 +192,22 @@ end
     @test ecg.basis === bset
     @test ecg.operators == [kop, cop]
 end
+
+@testset "NumericalPotential" begin
+    @test numerical isa FewBodyECG.NumericalPotentialMarker
+    f = r -> exp(-r^2)
+    op = NumericalPotential(f, [1.0, -1.0]; rtol = 1.0e-9, atol = 1.0e-12, maxevals = 5000)
+
+    @test op isa FewBodyHamiltonians.PotentialTerm
+    @test op.f === f
+    @test op.w == [1.0, -1.0]
+    @test op.rtol == 1.0e-9
+    @test op.atol == 1.0e-12
+    @test op.maxevals == 5000
+
+    @test_throws ArgumentError NumericalPotential(f, [0.0, 0.0])
+    @test_throws ArgumentError NumericalPotential(f, [1.0]; rtol = 0.0)
+    @test_throws ArgumentError NumericalPotential(f, [1.0]; atol = -1.0)
+    @test_throws ArgumentError NumericalPotential(f, [1.0]; maxevals = 0)
+    @test_throws ArgumentError NumericalPotential(f, [Inf])
+end

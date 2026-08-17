@@ -417,7 +417,7 @@ uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
 version = "8.0.1+0"
 
 [[deps.FewBodyECG]]
-deps = ["Antique", "FewBodyHamiltonians", "ForwardDiff", "LinearAlgebra", "OptimKit", "QuasiMonteCarlo", "RecipesBase", "SpecialFunctions"]
+deps = ["Antique", "FewBodyHamiltonians", "ForwardDiff", "LinearAlgebra", "OptimKit", "QuadGK", "QuasiMonteCarlo", "RecipesBase", "SpecialFunctions"]
 path = "/Users/pzb464/Documents/FewBodyECG.jl"
 uuid = "083b1810-24a1-4a79-9a41-145bb2bb8ceb"
 version = "2.0.0"
@@ -1107,6 +1107,18 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Qt6Base_jll", "Qt6Declarative_jll"
 git-tree-sha1 = "8f528b0851b5b7025032818eb5abbeb8a736f853"
 uuid = "e99dba38-086e-5de3-a5b1-6e4c66e897c3"
 version = "6.8.2+2"
+
+[[deps.QuadGK]]
+deps = ["DataStructures", "LinearAlgebra"]
+git-tree-sha1 = "5e8e8b0ab68215d7a2b14b9921a946fee794749e"
+uuid = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
+version = "2.11.3"
+
+    [deps.QuadGK.extensions]
+    QuadGKEnzymeExt = "Enzyme"
+
+    [deps.QuadGK.weakdeps]
+    Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 
 [[deps.QuasiMonteCarlo]]
 deps = ["Accessors", "ConcreteStructs", "LatticeRules", "LinearAlgebra", "PrecompileTools", "Primes", "Random", "Sobol"]

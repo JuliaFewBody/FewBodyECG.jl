@@ -564,3 +564,32 @@ end
     E, C = solve_generalized_eigenproblem(H, build_overlap_matrix(BasisSet([sg1, sg2])))
     @test all(isfinite, E)
 end
+
+@testset "Numerical potential matrix elements" begin
+    g1 = Rank0Gaussian([1.0;;], [0.0])
+    g2 = Rank0Gaussian([2.0;;], [0.0])
+    w = [1.0]
+
+    @test _compute_matrix_element(g1, g2, NumericalPotential(r -> 1.0, w)) ≈
+        _compute_matrix_element(g1, g2) rtol = 1.0e-8
+
+    @test _compute_matrix_element(g1, g2, NumericalPotential(r -> -1 / r, w)) ≈
+        _compute_matrix_element(g1, g2, CoulombOperator(-1.0, w)) rtol = 1.0e-7
+
+    @test _compute_matrix_element(g1, g2, NumericalPotential(r -> exp(-2r^2), w)) ≈
+        _compute_matrix_element(g1, g2, GaussianOperator(1.0, 2.0, w)) rtol = 1.0e-8
+
+    @test _compute_matrix_element(g1, g2, NumericalPotential(r -> 3r^2, w)) ≈
+        _compute_matrix_element(g1, g2, OscillatorOperator(3.0, w)) rtol = 1.0e-8
+
+    bra = Rank0Gaussian([1.2 0.1; 0.1 0.9], reshape([0.2, -0.1, 0.3, -0.2, 0.1, 0.4], 2, 3))
+    ket = Rank0Gaussian([0.8 0.0; 0.0 1.4], reshape([-0.1, 0.4, 0.2, 0.3, -0.2, 0.1], 2, 3))
+    w2 = [1.0, -0.5]
+    numerical_gaussian = NumericalPotential(r -> exp(-0.7r^2), w2)
+    @test _compute_matrix_element(bra, ket, numerical_gaussian) ≈
+        _compute_matrix_element(ket, bra, numerical_gaussian) rtol = 1.0e-8
+    @test _compute_matrix_element(bra, ket, numerical_gaussian) ≈
+        _compute_matrix_element(bra, ket, GaussianOperator(1.0, 0.7, w2)) rtol = 1.0e-7
+
+    @test_throws DimensionMismatch _compute_matrix_element(bra, ket, NumericalPotential(identity, [1.0]))
+end
