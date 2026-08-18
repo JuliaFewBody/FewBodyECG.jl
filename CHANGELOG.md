@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Solver method names
+
+| Previous API | New API |
+|---|---|
+| `Method` | `SolverMethod` |
+| `Variational` | `GVM` |
+| `GrowVariational` | `DynamicGVM` |
+
+`SolverMethod` now has the public subtypes `StochasticMethod` (`SVM`,
+`Refine`) and `GradientMethod` (`GVM`, `DynamicGVM`). `GradientBackend` and
+`AutoDiff` were removed because ForwardDiff/Hellmann–Feynman is the only
+implemented gradient path.
+
+`GVM()` infers its basis size from `init`; cold starts use
+`GVM(basis = n)`. `DynamicGVM(basis = n)` treats `n` as the final basis size.
+
 ## v2.0.0
 
 This is a breaking API release.

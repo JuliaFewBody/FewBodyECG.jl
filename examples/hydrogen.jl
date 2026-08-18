@@ -16,14 +16,14 @@ exact₁ = Antique.E(H, n = 1)
 exact₂ = Antique.E(H, n = 2)
 exact₃ = Antique.E(H, n = 3)
 
-sol = solve(ops, GrowVariational(basis = 10, candidates = 20, scale = 1.0))
+sol = solve(ops, DynamicGVM(basis = 10, candidates = 20, scale = 1.0))
 println("1s energy: ", sol.E₀, " Ha  (Antique ", exact₁, ", Δ = ", sol.E₀ - exact₁, ")")
 sol
 
 plot(sol, exact₁)
 
 sol₂s = solve(
-    ops, GrowVariational(basis = 15, candidates = 10, scale = 1.0, maxiter_step = 40);
+    ops, DynamicGVM(basis = 15, candidates = 10, scale = 1.0, maxiter_step = 40);
     state = 2,
 )
 println("2s energy: ", sol₂s.E₀, " Ha  (Antique ", exact₂, ", Δ = ", sol₂s.E₀ - exact₂, ")")

@@ -29,13 +29,15 @@ BasisSet
 
 ```@docs
 solve
+SolverMethod
+StochasticMethod
+GradientMethod
 SVM
 Refine
-Variational
-GrowVariational
+GVM
+DynamicGVM
 Pipeline
 →
-AutoDiff
 ```
 
 ## Results

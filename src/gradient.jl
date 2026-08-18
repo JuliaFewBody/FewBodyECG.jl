@@ -56,7 +56,7 @@ end
 # `scale`.  Returns the optimised basis, the cumulative-min fg history, and
 # the final gradient norm from OptimKit's normgradhistory.
 function _variational_engine(
-        terms, n::Int, θ0, scale::Float64,
+        terms, n::Int, θ0, scale::Union{Nothing, Float64},
         maxiter::Int, gtol::Float64, verbose::Bool;
         state::Int = 1, shift_init::Symbol = :zeros
     )
@@ -66,6 +66,7 @@ function _variational_engine(
     regularization = 1.0e-10
 
     if θ0 === nothing
+        scale === nothing && throw(ArgumentError("cold-start scale is required"))
         w_list = _pairwise_weights(terms)
         fns = Rank0Gaussian[]
         for i in 1:n
