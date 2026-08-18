@@ -5,6 +5,7 @@ using FewBodyECG
 @testset "FewBodyECG" begin
 
     include("Aqua.jl")
+    include("test_generic_axes.jl")
     include("test_sampling.jl")
     include("test_methods.jl")
     include("test_solution.jl")

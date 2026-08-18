@@ -23,8 +23,10 @@ _eval(g::Rank1Gaussian, r) = sum(_polar_projection(g.a, r)) * _gauss(g, r)
 _eval(g::Rank2Gaussian, r) =
     sum(_polar_projection(g.a, r)) * sum(_polar_projection(g.b, r)) * _gauss(g, r)
 
-(ψ::Wavefunction)(r::AbstractVector) =
-    sum(ψ.c[i] * _eval(ψ.basis.functions[i], r) for i in eachindex(ψ.c))
+function (ψ::Wavefunction)(r::AbstractVector)
+    Base.require_one_based_indexing(r)
+    return sum(ψ.c[i] * _eval(ψ.basis.functions[i], r) for i in eachindex(ψ.c))
+end
 
 """
     wavefunction(sol::Solution; state = sol.state) -> Wavefunction
