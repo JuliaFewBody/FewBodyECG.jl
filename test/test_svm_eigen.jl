@@ -113,6 +113,29 @@ end
         @test isfinite(wavefunction(sol)([0.5]))
     end
 
+    @testset "all-deflated arrowhead (candidate S-orthogonal to entire basis)" begin
+        # b ≈ 0 everywhere: the candidate couples to nothing already in the
+        # basis, so the arrowhead is exactly block-diagonal (poles ε and the
+        # isolated corner α), taking the `isempty(active)` branch in both
+        # smallest_arrowhead_eigval and full_arrowhead_eigen.
+        ε = [1.0, 2.0, 3.0]
+        b = zeros(3)
+
+        @test smallest_arrowhead_eigval(ε, b, 0.5) == 0.5          # α below all poles
+        @test smallest_arrowhead_eigval(ε, b, 5.0) == minimum(ε)   # α above all poles
+
+        for α in (0.5, 5.0)
+            λ, V = full_arrowhead_eigen(ε, b, α)
+            M = Symmetric(Matrix([Diagonal(ε) b; b' α]))
+            @test sort(λ) ≈ eigen(M).values rtol = 1.0e-12
+            @test V' * V ≈ I(4) atol = 1.0e-12
+            @test V' * M * V ≈ Diagonal(λ) atol = 1.0e-12
+        end
+
+        # k = 0: the very first candidate, with no existing basis to couple to.
+        @test smallest_arrowhead_eigval(Float64[], Float64[], 0.5) == 0.5
+    end
+
     @testset "matches LAPACK on the hydrogen ECG system" begin
         masses = [1.0e15, 1.0]
         Λmat = Λ(masses)

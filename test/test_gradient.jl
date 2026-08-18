@@ -2,7 +2,7 @@ using Test
 using LinearAlgebra
 using ForwardDiff
 using FewBodyECG
-import FewBodyECG: _compute_matrix_element
+import FewBodyECG: _compute_matrix_element, _sequential_engine
 
 ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
 
@@ -50,6 +50,25 @@ end
     @test length(g.basis.functions) == 6
     @test g.E₀ <= seed.E₀ + 1.0e-10
     @test !isnan(something(g.convergence.gradnorm, NaN))
+end
+
+@testset "DynamicGVM early stop when every candidate fails" begin
+    # An absurdly large `scale` pushes every quasi-random candidate's width
+    # into a regime where its matrix elements against `terms` are numerically
+    # degenerate, so every one of the 5 candidates throws inside the
+    # per-candidate try/catch and the "all candidates failed" branch fires at
+    # step 1 (with zero functions ever built, `_sequential_engine` itself
+    # then raises since it has nothing to return).
+    local caught
+    @test_logs (:warn, r"Sequential search stopped at step 1: all 5 candidates failed") match_mode = :any begin
+        try
+            _sequential_engine(ops.terms, 5, nothing, 1.0e105, 5, 50, 1.0e-6, true; state = 1)
+        catch e
+            caught = e
+        end
+    end
+    @test caught isa ErrorException
+    @test occursin("Sequential selection produced no basis functions", caught.msg)
 end
 
 @testset "engine cold-start shift_init" begin
