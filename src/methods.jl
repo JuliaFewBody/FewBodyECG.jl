@@ -1,29 +1,28 @@
 """
-    Method
+    SolverMethod
 
 Abstract supertype of all solver algorithms.  A method is a small struct of
 algorithm-level options; problem-level options (`state`, `tol`, `window`,
 `init`, `verbose`) live on [`solve`](@ref).  Adding a new method = defining a
 new subtype plus `solve`/`step!` methods — pure multiple dispatch.
 """
-abstract type Method end
+abstract type SolverMethod end
 
 """
-    GradientBackend
+    StochasticMethod <: SolverMethod
 
-How gradients are obtained in the gradient-based methods.  `AutoDiff` (the
-default and only v2.0 backend) uses ForwardDiff with Hellmann–Feynman
-gradients.  Analytic gradients (Fedorov, Few-Body Syst 58:21, 2017) can be
-added later as another subtype without interface changes.
+Abstract supertype for stochastic basis-selection methods such as [`SVM`](@ref)
+and [`Refine`](@ref).
 """
-abstract type GradientBackend end
+abstract type StochasticMethod <: SolverMethod end
 
 """
-    AutoDiff()
+    GradientMethod <: SolverMethod
 
-ForwardDiff-based gradient backend (Hellmann–Feynman theorem).
+Abstract supertype for gradient-optimization methods such as [`GVM`](@ref) and
+[`DynamicGVM`](@ref).
 """
-struct AutoDiff <: GradientBackend end
+abstract type GradientMethod <: SolverMethod end
 
 """
     SVM(basis; candidates = 25, scale = :auto, sampler = HaltonSample(), indep_tol = 1e-4)
@@ -34,7 +33,7 @@ incremental whitened eigensolver; the best admissible one is committed.
 `candidates = 1` is the accept-first strategy.  `scale = :auto` resolves via
 [`default_scale`](@ref) from the system's masses.
 """
-Base.@kwdef struct SVM <: Method
+Base.@kwdef struct SVM <: StochasticMethod
     basis::Int = 50
     candidates::Int = 25
     scale::Union{Float64, Symbol} = :auto
@@ -50,7 +49,7 @@ Suzuki–Varga cyclic refinement (Sect. 4.2.6, steps r1–r4): revisit each basi
 function in turn, draw `candidates` replacements, keep the best of
 {current, candidates}.  Requires an existing basis (`init =` or a pipeline).
 """
-Base.@kwdef struct Refine <: Method
+Base.@kwdef struct Refine <: StochasticMethod
     sweeps::Int = 1
     candidates::Int = 25
     scale::Union{Float64, Symbol} = :auto
@@ -60,35 +59,36 @@ end
 Refine(sweeps::Int; kw...) = Refine(; sweeps, kw...)
 
 """
-    Variational(basis; scale = :auto, maxiter = 500, gtol = 1e-6, gradient = AutoDiff())
+    GVM([basis]; scale = nothing, maxiter = 500, gtol = 1e-6)
 
 Joint LBFGS optimisation of all Gaussian parameters (widths via log-Cholesky
-encoding, plus shifts).  Cold-starts from a quasi-random basis unless
-`solve(...; init = sol)` provides one.
+encoding, plus shifts) using ForwardDiff/Hellmann–Feynman gradients.  A cold
+start requires `basis`; a warm start infers it from `init` when omitted.
+`scale` controls only cold-start sampling and must be omitted for warm starts.
 """
-Base.@kwdef struct Variational <: Method
-    basis::Int = 30
-    scale::Union{Float64, Symbol} = :auto
+Base.@kwdef struct GVM <: GradientMethod
+    basis::Union{Nothing, Int} = nothing
+    scale::Union{Nothing, Float64, Symbol} = nothing
     maxiter::Int = 500
     gtol::Float64 = 1.0e-6
-    gradient::GradientBackend = AutoDiff()
 end
-Variational(basis::Int; kw...) = Variational(; basis, kw...)
+GVM(basis::Int; kw...) = GVM(; basis, kw...)
 
 """
-    GrowVariational(basis; candidates = 10, scale = :auto, maxiter_step = 100, gtol = 1e-6)
+    DynamicGVM(basis; candidates = 10, scale = :auto, maxiter_step = 100, gtol = 1e-6)
 
 Per-step selection followed by joint LBFGS of the whole current basis
-(SVM-style sequential growth).
+(SVM-style sequential growth).  `basis` is the final basis size, including any
+functions supplied through `init`.
 """
-Base.@kwdef struct GrowVariational <: Method
+Base.@kwdef struct DynamicGVM <: GradientMethod
     basis::Int = 15
     candidates::Int = 10
     scale::Union{Float64, Symbol} = :auto
     maxiter_step::Int = 100
     gtol::Float64 = 1.0e-6
 end
-GrowVariational(basis::Int; kw...) = GrowVariational(; basis, kw...)
+DynamicGVM(basis::Int; kw...) = DynamicGVM(; basis, kw...)
 
 """
     Pipeline(stages)
@@ -97,8 +97,8 @@ GrowVariational(basis::Int; kw...) = GrowVariational(; basis, kw...)
 Composition of methods run left to right; each stage warm-starts from the
 previous stage's result.  Built with the `→` operator (`\\to<tab>`).
 """
-struct Pipeline <: Method
-    stages::Tuple{Vararg{Method}}
+struct Pipeline <: SolverMethod
+    stages::Tuple{Vararg{SolverMethod}}
 end
 
 """
@@ -106,15 +106,15 @@ end
 
 Compose two solver methods into a left-to-right `Pipeline`.
 """
-→(a::Method, b::Method) = Pipeline((a, b))
-→(p::Pipeline, b::Method) = Pipeline((p.stages..., b))
-→(a::Method, p::Pipeline) = Pipeline((a, p.stages...))
+→(a::SolverMethod, b::SolverMethod) = Pipeline((a, b))
+→(p::Pipeline, b::SolverMethod) = Pipeline((p.stages..., b))
+→(a::SolverMethod, p::Pipeline) = Pipeline((a, p.stages...))
 →(p::Pipeline, q::Pipeline) = Pipeline((p.stages..., q.stages...))
 
 Base.show(io::IO, m::SVM) = print(io, "SVM(", m.basis, ")")
 Base.show(io::IO, m::Refine) = print(io, "Refine(", m.sweeps, ")")
-Base.show(io::IO, m::Variational) = print(io, "Variational(", m.basis, ")")
-Base.show(io::IO, m::GrowVariational) = print(io, "GrowVariational(", m.basis, ")")
+Base.show(io::IO, m::GVM) = print(io, "GVM(", something(m.basis, "warm"), ")")
+Base.show(io::IO, m::DynamicGVM) = print(io, "DynamicGVM(", m.basis, ")")
 Base.show(io::IO, p::Pipeline) = join(io, p.stages, " → ")
 
 # Forward declaration: `solve` methods live in solve.jl (Task 4).  Defining

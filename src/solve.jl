@@ -32,13 +32,13 @@ function _ctx(terms, masses; state, tol, window, verbose)
 end
 
 """
-    solve(ops, alg::Method = SVM();
+    solve(ops, alg::SolverMethod = SVM();
           state = 1, tol = 1e-4, window = 20, init = nothing, verbose = false)
 
 Solve the few-body eigenproblem defined by `ops` (an [`Operators`](@ref)
 builder or a raw `Vector{<:Operator}`) with algorithm `alg` — one of
-[`SVM`](@ref), [`Refine`](@ref), [`Variational`](@ref),
-[`GrowVariational`](@ref), or a [`Pipeline`](@ref) composed with `→`.
+[`SVM`](@ref), [`Refine`](@ref), [`GVM`](@ref), [`DynamicGVM`](@ref), or a
+[`Pipeline`](@ref) composed with `→`.
 
 Problem-level keywords: `state` targets the `state`-th eigenvalue, `tol`
 (absolute, Hartree) and `window` define the stochastic saturation criterion,
@@ -47,8 +47,8 @@ Problem-level keywords: `state` targets the `state`-th eigenvalue, `tol`
 Returns a [`Solution`](@ref) carrying energies, the basis, S-orthonormal
 coefficients, and an honest [`ConvergenceReport`](@ref).
 """
-solve(ops::Operators, alg::Method = SVM(); kw...) = _solve(ops.terms, ops.masses, alg; kw...)
-solve(terms::Vector{<:FewBodyHamiltonians.Operator}, alg::Method = SVM(); kw...) =
+solve(ops::Operators, alg::SolverMethod = SVM(); kw...) = _solve(ops.terms, ops.masses, alg; kw...)
+solve(terms::Vector{<:FewBodyHamiltonians.Operator}, alg::SolverMethod = SVM(); kw...) =
     _solve(terms, nothing, alg; kw...)
 
 # One SVM growth step: draw → score all candidates → commit the best.
@@ -238,15 +238,35 @@ function _init_θ(init::Solution, n::Int)
 end
 
 function _solve(
-        terms, masses, alg::Variational;
+        terms, masses, alg::GVM;
         state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false
     )
     ctx = _ctx(terms, masses; state, tol, window, verbose)
-    scale = _resolve_scale(alg.scale, ctx.masses)
-    θ0 = init === nothing ? nothing : _init_θ(init, alg.basis)
+    local n::Int, θ0::Union{Nothing, Vector{Float64}}, scale::Union{Nothing, Float64}
+    if init === nothing
+        alg.basis === nothing && throw(
+            ArgumentError("cold GVM requires `basis`; use GVM(basis = n)")
+        )
+        n = alg.basis
+        θ0 = nothing
+        scale = _resolve_scale(alg.scale === nothing ? :auto : alg.scale, ctx.masses)
+    else
+        alg.scale === nothing || throw(
+            ArgumentError("warm GVM uses the basis from `init`; omit `scale`")
+        )
+        n = length(init.basis.functions)
+        alg.basis === nothing || alg.basis == n || throw(
+            ArgumentError(
+                "init has $n functions but GVM specifies basis = $(alg.basis); " *
+                    "omit `basis` or set basis = $n"
+            )
+        )
+        θ0 = _init_θ(init, n)
+        scale = nothing
+    end
     basis, fg_hist, gradnorm =
         _variational_engine(
-        ctx.terms, alg.basis, θ0, scale, alg.maxiter, alg.gtol, verbose; state = ctx.state
+        ctx.terms, n, θ0, scale, alg.maxiter, alg.gtol, verbose; state = ctx.state
     )
     ΔE = length(fg_hist) ≥ 2 ? abs(fg_hist[end - 1] - fg_hist[end]) : NaN
     S = build_overlap_matrix(basis)
@@ -255,7 +275,7 @@ function _solve(
 end
 
 function _solve(
-        terms, masses, alg::GrowVariational;
+        terms, masses, alg::DynamicGVM;
         state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false
     )
     ctx = _ctx(terms, masses; state, tol, window, verbose)
@@ -265,8 +285,8 @@ function _solve(
         k0 = length(init.basis.functions)
         k0 < alg.basis || throw(
             ArgumentError(
-                "init already has $k0 functions but GrowVariational grows to basis = $(alg.basis); " *
-                    "set basis > $k0 or use Variational(basis = $k0) to re-optimise"
+                "init already has $k0 functions but DynamicGVM grows to basis = $(alg.basis); " *
+                    "set basis > $k0 or use GVM() to re-optimise"
             )
         )
         θ0 = _encode_basis(BasisSet(Rank0Gaussian[g for g in init.basis.functions]))

@@ -170,12 +170,24 @@ end
 
 A collection of `GaussianBase` functions that form the variational basis.
 
+Supports the standard container interface: `length`, iteration, and indexing
+(including `begin`/`end`), with `eltype` reporting the concrete basis-function
+type `G`.
+
 # Fields
 - `functions` : `Vector{G}` of basis functions, all of the same concrete `GaussianBase` subtype `G`.
 """
 struct BasisSet{G <: GaussianBase}
     functions::Vector{G}
 end
+
+Base.length(basis::BasisSet) = length(basis.functions)
+Base.iterate(basis::BasisSet) = iterate(basis.functions)
+Base.iterate(basis::BasisSet, state) = iterate(basis.functions, state)
+Base.getindex(basis::BasisSet, i) = basis.functions[i]
+Base.firstindex(basis::BasisSet) = firstindex(basis.functions)
+Base.lastindex(basis::BasisSet) = lastindex(basis.functions)
+Base.eltype(::Type{BasisSet{G}}) where {G} = G
 
 """
     KineticOperator(K)
@@ -425,11 +437,6 @@ struct GaussianSpinOrbitOperator{T <: Real} <: FewBodyHamiltonians.PotentialTerm
         T = promote_type(typeof(coefficient), typeof(γ), eltype(w))
         return new{T}(T(coefficient), T(γ), Vector{T}(w), Int(i), Int(j))
     end
-end
-
-struct ECG{G <: GaussianBase, O}
-    basis::BasisSet{G}
-    operators::Vector{O}
 end
 
 validate!(g::Rank0Gaussian) = (cholesky(g.A); g)

@@ -34,7 +34,7 @@ One pipeline stage: the method that ran, its per-step target-state energies,
 and its convergence report.
 """
 struct StageResult
-    method::Method
+    method::SolverMethod
     energies::Vector{Float64}
     report::ConvergenceReport
 end

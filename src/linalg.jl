@@ -68,6 +68,7 @@ function solve_generalized_eigenproblem(
         max_condition::Real = 1.0e12,
         regularization::Real = 0.0
     )
+    Base.require_one_based_indexing(H, S)
 
     if any(!isfinite, H)
         error("Hamiltonian matrix H contains NaN or Inf values")

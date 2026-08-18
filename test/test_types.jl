@@ -163,7 +163,7 @@ end
     @test_throws ArgumentError Rank0Gaussian([1.0;;], reshape([0.1, 0.2], 1, 2))
 end
 
-@testset "BasisSet, KineticOperator, CoulombOperator, and ECG composition" begin
+@testset "BasisSet, KineticOperator, and CoulombOperator" begin
     A = [2.0 0.0; 0.0 3.0]
     s1 = [1.0, 0.0]
     s2 = [0.0, 1.0]
@@ -176,6 +176,27 @@ end
     @test bset.functions[1] == g1
     @test bset.functions[2] == g2
 
+    @testset "container interface" begin
+        @test length(bset) == 2
+        @test eltype(typeof(bset)) === Rank0Gaussian{Float64, Matrix{Float64}, Matrix{Float64}}
+        @test eltype(bset) === eltype(typeof(bset))
+
+        @test bset[1] === g1
+        @test bset[2] === g2
+        @test bset[begin] === g1
+        @test bset[end] === g2
+        @test bset[1:2] == [g1, g2]
+
+        @test collect(bset) == [g1, g2]
+        @test [g for g in bset] == [g1, g2]
+        @test first(bset) === g1
+        @test last(bset) === g2
+
+        # iteration/indexing agree with the underlying vector
+        @test collect(bset) == bset.functions
+        @test all(bset[i] === bset.functions[i] for i in eachindex(bset.functions))
+    end
+
     K = [1.0 0.0; 0.0 1.0]
     kop = KineticOperator(K)
     @test kop.K == K
@@ -187,10 +208,6 @@ end
     @test cop.coefficient == coeff
     @test cop.w == w
     @test cop isa FewBodyHamiltonians.PotentialTerm
-
-    ecg = FewBodyECG.ECG(bset, [kop, cop])
-    @test ecg.basis === bset
-    @test ecg.operators == [kop, cop]
 end
 
 @testset "NumericalPotential" begin

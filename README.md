@@ -37,14 +37,14 @@ plot(sol, -0.5)
 ## v2.0
 
 v2.0 is a breaking API release.  The old `solve_ECG*` entry points and
-`SolverResults` utilities are replaced by `solve(ops, Method())`,
+`SolverResults` utilities are replaced by `solve(ops, method)`,
 `Solution`, `energies`, `wavefunction`, and plotting recipes.  See
 `CHANGELOG.md` for the migration table.
 
 ## Features
 
-- Unified `solve` API with `SVM`, `Refine`, `Variational`, `GrowVariational`,
-  and `→` pipelines.
+- Unified `solve` API with stochastic `SVM`/`Refine`, gradient-based
+  `GVM`/`DynamicGVM`, and `→` pipelines.
 - Honest `ConvergenceReport` values on every `Solution`.
 - Incremental whitened eigensolver for stochastic basis growth.
 - Rank-0 stochastic/gradient solvers plus Rank-1/Rank-2 manual matrix-layer

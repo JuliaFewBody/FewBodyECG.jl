@@ -20,7 +20,8 @@ export Operators, coulomb_weights, Operator,
     SpinProjection, up, down, SpinState, SpinGaussian,
     GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet
 # solving
-export solve, SVM, Refine, Variational, GrowVariational, Pipeline, →, AutoDiff
+export solve, SolverMethod, StochasticMethod, GradientMethod,
+    SVM, Refine, GVM, DynamicGVM, Pipeline, →
 # results
 export Solution, ConvergenceReport, StageResult, converged, energies
 export wavefunction, Wavefunction, convergence, radial_profile

@@ -2,12 +2,12 @@ using Test
 using LinearAlgebra
 using ForwardDiff
 using FewBodyECG
-import FewBodyECG: _compute_matrix_element
+import FewBodyECG: _compute_matrix_element, _sequential_engine
 
 ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
 
-@testset "Variational and GrowVariational" begin
-    sol = solve(ops, Variational(basis = 8, scale = 1.0, maxiter = 300))
+@testset "GVM and DynamicGVM" begin
+    sol = solve(ops, GVM(basis = 8, scale = 1.0, maxiter = 300))
     @test sol.E₀ ≈ -0.5 atol = 1.0e-2
     @test sol.E₀ > -0.5 - 1.0e-6
     @test sol.convergence.criterion in (:stationarity, :max_steps)
@@ -17,30 +17,58 @@ ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
 
     # warm start from a stochastic run must not be worse than the start
     svm = solve(ops, SVM(basis = 8, candidates = 10, scale = 1.0))
-    ref = solve(ops, Variational(basis = 8, maxiter = 200); init = svm)
+    ref = solve(ops, GVM(maxiter = 200); init = svm)
     @test ref.E₀ <= svm.E₀ + 1.0e-10
     @test length(ref.basis.functions) == 8
+    @test ref.stages[1].method isa GVM
+
+    # an explicit warm-start size is allowed only when it matches
+    matched = solve(ops, GVM(basis = 8, maxiter = 10); init = svm)
+    @test length(matched.basis.functions) == 8
 
     # init size mismatch is a clear user error
-    @test_throws ArgumentError solve(ops, Variational(basis = 5); init = svm)
+    @test_throws ArgumentError solve(ops, GVM(basis = 5); init = svm)
+    # scale has no meaning when every Gaussian comes from init
+    @test_throws ArgumentError solve(ops, GVM(scale = 1.0); init = svm)
+    # a cold joint optimization cannot infer its basis size
+    @test_throws ArgumentError solve(ops, GVM(maxiter = 1))
 
-    g = solve(ops, GrowVariational(basis = 5, candidates = 5, scale = 1.0))
+    g = solve(ops, DynamicGVM(basis = 5, candidates = 5, scale = 1.0))
     @test g.E₀ < -0.45
     @test length(energies(g)) == length(g.basis.functions)
 end
 
-@testset "GrowVariational init sizing" begin
+@testset "DynamicGVM init sizing" begin
     seed = solve(ops, SVM(basis = 4, candidates = 10, scale = 1.0))
     @test_throws ArgumentError solve(
-        ops, GrowVariational(basis = 4, scale = 1.0); init = seed
+        ops, DynamicGVM(basis = 4, scale = 1.0); init = seed
     )
     @test_throws ArgumentError solve(
-        ops, GrowVariational(basis = 3, scale = 1.0); init = seed
+        ops, DynamicGVM(basis = 3, scale = 1.0); init = seed
     )
-    g = solve(ops, GrowVariational(basis = 6, candidates = 5, scale = 1.0); init = seed)
+    g = solve(ops, DynamicGVM(basis = 6, candidates = 5, scale = 1.0); init = seed)
     @test length(g.basis.functions) == 6
     @test g.E₀ <= seed.E₀ + 1.0e-10
     @test !isnan(something(g.convergence.gradnorm, NaN))
+end
+
+@testset "DynamicGVM early stop when every candidate fails" begin
+    # An absurdly large `scale` pushes every quasi-random candidate's width
+    # into a regime where its matrix elements against `terms` are numerically
+    # degenerate, so every one of the 5 candidates throws inside the
+    # per-candidate try/catch and the "all candidates failed" branch fires at
+    # step 1 (with zero functions ever built, `_sequential_engine` itself
+    # then raises since it has nothing to return).
+    local caught
+    @test_logs (:warn, r"Sequential search stopped at step 1: all 5 candidates failed") match_mode = :any begin
+        try
+            _sequential_engine(ops.terms, 5, nothing, 1.0e105, 5, 50, 1.0e-6, true; state = 1)
+        catch e
+            caught = e
+        end
+    end
+    @test caught isa ErrorException
+    @test occursin("Sequential selection produced no basis functions", caught.msg)
 end
 
 @testset "engine cold-start shift_init" begin
