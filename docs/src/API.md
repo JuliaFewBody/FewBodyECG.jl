@@ -11,6 +11,8 @@ CoulombOperator
 GaussianOperator
 OscillatorOperator
 ManyBodyGaussianOperator
+NumericalPotential
+numerical
 GaussianTensorOperator
 GaussianSpinOrbitOperator
 SpinProjection

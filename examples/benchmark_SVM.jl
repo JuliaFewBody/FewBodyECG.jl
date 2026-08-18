@@ -67,12 +67,12 @@ p = plot(
     legend = :topright,
 )
 for (label, sol) in [
-    "SVM (Sobol)" => svm_sobol,
-    "SVM (Golden)" => svm_golden,
-    "SVM (LatticeRuleSample)" => svm_lattice,
-    "SVM (Latin Hypercube)" => svm_hypercube,
-    "SVM (Grid sample)" => svm_grid,
-]
+        "SVM (Sobol)" => svm_sobol,
+        "SVM (Golden)" => svm_golden,
+        "SVM (LatticeRuleSample)" => svm_lattice,
+        "SVM (Latin Hypercube)" => svm_hypercube,
+        "SVM (Grid sample)" => svm_grid,
+    ]
     plot!(p, convergence(sol)...; label, linewidth = 1.5)
 end
 hline!(p, [exact]; label = "exact", color = :black, linestyle = :dash)

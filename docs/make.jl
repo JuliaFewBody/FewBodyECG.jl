@@ -15,7 +15,7 @@ makedocs(
         "Examples" => "examples.md",
         "API" => "API.md",
     ],
-    plugins=[bib],
+    plugins = [bib],
     format = Documenter.HTML()
 )
 

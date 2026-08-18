@@ -15,7 +15,7 @@ const Operator = FewBodyHamiltonians.Operator
 # system building
 export Operators, coulomb_weights, Operator,
     KineticOperator, CoulombOperator, GaussianOperator,
-    OscillatorOperator, ManyBodyGaussianOperator,
+    OscillatorOperator, ManyBodyGaussianOperator, NumericalPotential, numerical,
     GaussianTensorOperator, GaussianSpinOrbitOperator,
     SpinProjection, up, down, SpinState, SpinGaussian,
     GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet
@@ -32,6 +32,7 @@ export build_hamiltonian_matrix, build_overlap_matrix,
 include("types.jl")
 include("coordinates.jl")
 include("matrix_elements.jl")
+include("numerical_matrix_elements.jl")
 include("operators.jl")
 include("linalg.jl")
 include("eigen.jl")

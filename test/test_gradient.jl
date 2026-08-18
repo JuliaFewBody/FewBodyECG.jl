@@ -1,6 +1,8 @@
 using Test
 using LinearAlgebra
+using ForwardDiff
 using FewBodyECG
+import FewBodyECG: _compute_matrix_element
 
 ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
 
@@ -63,4 +65,25 @@ end
         terms, 1, nothing, 1.0, 0, 1.0e-6, false; shift_init = :qmc
     )
     @test !all(iszero, first(basis_q.functions).s)
+end
+
+@testset "NumericalPotential ForwardDiff compatibility" begin
+    numerical = NumericalPotential(r -> exp(-2r^2), [1.0])
+    analytic = GaussianOperator(1.0, 2.0, [1.0])
+
+    numerical_element(θ) = begin
+        g = Rank0Gaussian([exp(θ);;], [0.0])
+        _compute_matrix_element(g, g, numerical)
+    end
+    analytic_element(θ) = begin
+        g = Rank0Gaussian([exp(θ);;], [0.0])
+        _compute_matrix_element(g, g, analytic)
+    end
+
+    θ = 0.1
+    @test numerical_element(θ) ≈ analytic_element(θ) rtol = 1.0e-8
+    numerical_gradient = ForwardDiff.derivative(numerical_element, θ)
+    analytic_gradient = ForwardDiff.derivative(analytic_element, θ)
+    @test isfinite(numerical_gradient)
+    @test numerical_gradient ≈ analytic_gradient rtol = 1.0e-6
 end
