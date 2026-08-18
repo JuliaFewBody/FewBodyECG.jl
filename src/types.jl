@@ -368,11 +368,6 @@ struct GaussianSpinOrbitOperator{T <: Real} <: FewBodyHamiltonians.PotentialTerm
     end
 end
 
-struct ECG{G <: GaussianBase, O}
-    basis::BasisSet{G}
-    operators::Vector{O}
-end
-
 validate!(g::Rank0Gaussian) = (cholesky(g.A); g)
 validate!(g::Rank1Gaussian) = (cholesky(g.A); g)
 validate!(g::Rank2Gaussian) = (cholesky(g.A); g)
