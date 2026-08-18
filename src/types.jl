@@ -170,12 +170,24 @@ end
 
 A collection of `GaussianBase` functions that form the variational basis.
 
+Supports the standard container interface: `length`, iteration, and indexing
+(including `begin`/`end`), with `eltype` reporting the concrete basis-function
+type `G`.
+
 # Fields
 - `functions` : `Vector{G}` of basis functions, all of the same concrete `GaussianBase` subtype `G`.
 """
 struct BasisSet{G <: GaussianBase}
     functions::Vector{G}
 end
+
+Base.length(basis::BasisSet) = length(basis.functions)
+Base.iterate(basis::BasisSet) = iterate(basis.functions)
+Base.iterate(basis::BasisSet, state) = iterate(basis.functions, state)
+Base.getindex(basis::BasisSet, i) = basis.functions[i]
+Base.firstindex(basis::BasisSet) = firstindex(basis.functions)
+Base.lastindex(basis::BasisSet) = lastindex(basis.functions)
+Base.eltype(::Type{BasisSet{G}}) where {G} = G
 
 """
     KineticOperator(K)
