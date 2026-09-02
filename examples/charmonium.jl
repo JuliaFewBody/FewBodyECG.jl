@@ -20,13 +20,11 @@ coefficient = 2 * π * κκ / 3 / mass[1] / mass[2] / (sqrt(π) * r₀)^3 * σσ
 ops += ("Gaussian", 1, 2, coefficient, γ)
 ops
 
-sol = solve(ops, SVM(150))
+sol = solve(ops, GVM(basis = 5, maxiter = 100))
 
 rest_energy = sum(mass)
 E_total = sol.E₀ + rest_energy - Λ
 println("Charmonium ground state: E = ", E_total, " GeV")
-println("  (relative-coordinate eigenvalue ", sol.E₀, " GeV, close to the physical ηc(1S) mass of 2.984 GeV)")
-sol
 
 plot(wavefunction(sol); coord = 1, rmax = 5.0)
 plot(convergence(sol))
