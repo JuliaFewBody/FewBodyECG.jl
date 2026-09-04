@@ -1,6 +1,3 @@
-using FewBodyHamiltonians
-using LinearAlgebra
-
 function _compute_overlap_element(bra::GaussianBase, ket::GaussianBase)
     return _compute_matrix_element(bra, ket)
 end

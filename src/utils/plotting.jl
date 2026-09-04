@@ -1,4 +1,4 @@
-using RecipesBase
+using RecipesBase: @recipe, @series
 
 # plot(sol):        per-stage energy curves vs cumulative step
 # plot(sol, E_ref): same, plus a reference-energy hline

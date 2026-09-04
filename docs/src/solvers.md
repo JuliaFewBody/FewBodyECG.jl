@@ -44,12 +44,23 @@ initial basis, either through `init = sol` or a pipeline.
 ## GVM
 
 `GVM` (gradient variational method) jointly optimizes all Gaussian parameters
-with LBFGS and ForwardDiff/Hellmann-Feynman gradients.  A cold start specifies
-the number of functions and optionally a sampling scale:
+with ForwardDiff/Hellmann-Feynman gradients. The optimizer is an OptimKit
+algorithm object, so its iteration limit, gradient tolerance, line search, and
+verbosity stay together:
 
 ```julia
-sol = solve(ops, GVM(basis = 30, scale = 1.0))
+using OptimKit: GradientDescent
+
+gradient_method = GradientDescent(
+    maxiter = 100,
+    gradtol = 1e-6,
+    verbosity = 1,
+)
+sol = solve(ops, GVM(30; scale = 1.0, optimizer = gradient_method))
 ```
+
+`GradientDescent`, `ConjugateGradient`, and `LBFGS` are supported. `LBFGS` is
+the default.
 
 A warm start already has a basis, so the size is inferred and `scale` must be
 omitted:
@@ -62,8 +73,7 @@ sol = solve(ops, GVM(); init = seed)
 |---|---|
 | `basis` | number of functions for a cold start; optional with `init` |
 | `scale` | cold-start length scale; omit with `init` |
-| `maxiter` | LBFGS iteration cap |
-| `gtol` | gradient tolerance |
+| `optimizer` | OptimKit gradient algorithm and its settings |
 
 ## DynamicGVM
 
@@ -75,8 +85,12 @@ basis after each addition.
 | `basis` | final number of functions, including a warm-start basis |
 | `candidates` | candidates per growth step |
 | `scale` | candidate length scale |
-| `maxiter_step` | LBFGS iterations per step |
-| `gtol` | gradient tolerance |
+| `optimizer` | OptimKit gradient algorithm, reused at every growth step |
+
+Pass `verbose = true` to `solve` for one FewBodyECG progress message per
+accepted optimizer iteration (and per stochastic iteration or refinement
+sweep). OptimKit's own output remains controlled by the optimizer's
+`verbosity` setting.
 
 ## Pipelines
 

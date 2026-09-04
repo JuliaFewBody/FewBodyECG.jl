@@ -1,5 +1,3 @@
-using FewBodyHamiltonians
-
 """
     GaussianBase
 

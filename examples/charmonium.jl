@@ -1,4 +1,5 @@
 using FewBodyECG
+using OptimKit: LBFGS
 using Plots
 
 mass = [1.836, 1.836]
@@ -20,7 +21,7 @@ coefficient = 2 * π * κκ / 3 / mass[1] / mass[2] / (sqrt(π) * r₀)^3 * σσ
 ops += ("Gaussian", 1, 2, coefficient, γ)
 ops
 
-sol = solve(ops, GVM(basis = 5, maxiter = 100))
+sol = solve(ops, GVM(basis = 5, optimizer = LBFGS(; maxiter = 100)))
 
 rest_energy = sum(mass)
 E_total = sol.E₀ + rest_energy - Λ

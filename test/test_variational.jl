@@ -1,7 +1,11 @@
 using Test
 using LinearAlgebra
 using FewBodyECG
+using OptimKit: LBFGS
 import FewBodyECG: jacobi_transform, _encode_basis, _decode_basis, _chol_to_params, _params_to_matrix
+
+_variational_lbfgs(maxiter; gradtol = 1.0e-6) =
+    LBFGS(; maxiter, gradtol, verbosity = 0, ls_verbosity = 0)
 
 # ---------------------------------------------------------------------------
 # Shared 2-body (hydrogen) and 3-body (H⁻) operator fixtures
@@ -109,7 +113,7 @@ end
 
 @testset "GVM returns a valid Solution" begin
     ops = _hydrogen_ops()
-    sol = solve(ops, GVM(basis = 5, scale = 1.0, maxiter = 20))
+    sol = solve(ops, GVM(basis = 5, scale = 1.0, optimizer = _variational_lbfgs(20)))
 
     @test sol isa Solution
     @test length(sol.basis.functions) == 5
@@ -117,15 +121,19 @@ end
     @test sol.E₀ < 0.0          # bound state
     @test sol.stages[1].method isa GVM
     @test size(sol.coefficients) == (5, 5)
-    # energies(sol) records the cumulative-min energies from primal
-    # evaluations along the LBFGS trajectory (formerly `fg_history`).
+    # energies(sol) records accepted optimizer iterations, including the
+    # initial point.
     @test !isempty(energies(sol))
     @test last(energies(sol)) <= sol.E₀ + 1.0e-8
     @test issorted(energies(sol); rev = true)   # monotone non-increasing
 end
 
 @testset "GVM tracks the requested state" begin
-    sol = solve(_hydrogen_ops(), GVM(basis = 5, scale = 1.0, maxiter = 20); state = 2)
+    sol = solve(
+        _hydrogen_ops(),
+        GVM(basis = 5, scale = 1.0, optimizer = _variational_lbfgs(20));
+        state = 2,
+    )
 
     @test sol.state == 2
     @test last(energies(sol)) > sol.E[1] + 1.0e-3
@@ -138,8 +146,11 @@ end
         ops += term
 
         for alg in (
-                GVM(basis = 4, scale = 1.0, maxiter = 10),
-                DynamicGVM(basis = 4, candidates = 2, scale = 1.0, maxiter_step = 10),
+                GVM(basis = 4, scale = 1.0, optimizer = _variational_lbfgs(10)),
+                DynamicGVM(
+                    basis = 4, candidates = 2, scale = 1.0,
+                    optimizer = _variational_lbfgs(10)
+                ),
             )
             sol = solve(ops, alg)
             @test isfinite(sol.E₀)
@@ -155,7 +166,7 @@ end
     ops = _hydrogen_ops()
     E_exact = -0.5   # hydrogen 1s
 
-    sol = solve(ops, GVM(basis = 10, scale = 1.0, maxiter = 100))
+    sol = solve(ops, GVM(basis = 10, scale = 1.0, optimizer = _variational_lbfgs(100)))
 
     # Variational principle: E₀ ≥ E_exact
     @test sol.E₀ >= E_exact - 1.0e-6
@@ -167,7 +178,7 @@ end
     ops = _hydrogen_ops()
 
     sol_stoch = solve(ops, SVM(basis = 8, candidates = 1, scale = 1.0))
-    sol_var = solve(ops, GVM(basis = 8, scale = 1.0, maxiter = 150))
+    sol_var = solve(ops, GVM(basis = 8, scale = 1.0, optimizer = _variational_lbfgs(150)))
 
     # Optimised basis should be at least as good as the stochastic one
     @test sol_var.E₀ <= sol_stoch.E₀ + 1.0e-6
@@ -182,7 +193,7 @@ end
 
     sol_s = solve(ops, SVM(basis = 8, candidates = 1, scale = 1.0))
 
-    sol_v = solve(ops, GVM(maxiter = 100); init = sol_s)
+    sol_v = solve(ops, GVM(optimizer = _variational_lbfgs(100)); init = sol_s)
 
     # Variational principle holds
     @test sol_v.E₀ >= -0.528 - 1.0e-4
@@ -196,7 +207,7 @@ end
 
 @testset "wavefunction works with a GVM Solution" begin
     ops = _hydrogen_ops()
-    sol = solve(ops, GVM(basis = 5, scale = 1.0, maxiter = 20))
+    sol = solve(ops, GVM(basis = 5, scale = 1.0, optimizer = _variational_lbfgs(20)))
 
     r_vec = [0.5]   # some point in Jacobi space
     psi = wavefunction(sol; state = 1)(r_vec)
@@ -209,7 +220,7 @@ end
 
 @testset "energies(sol) returns correct axes (GVM)" begin
     ops = _hydrogen_ops()
-    sol = solve(ops, GVM(basis = 5, scale = 1.0, maxiter = 30))
+    sol = solve(ops, GVM(basis = 5, scale = 1.0, optimizer = _variational_lbfgs(30)))
 
     xs, ys = (1:length(energies(sol)), energies(sol))
     @test length(xs) == length(ys)
@@ -227,7 +238,7 @@ end
     # For a 1-D (hydrogen) basis: n_chol=1, 3·n_dim=3 → 4 params per function.
     # The shift is optimised; _decode_basis round-trips it.
     ops = _hydrogen_ops()
-    sol = solve(ops, GVM(basis = 4, scale = 1.0, maxiter = 50))
+    sol = solve(ops, GVM(basis = 4, scale = 1.0, optimizer = _variational_lbfgs(50)))
     # Each basis function has a 1×3 shift supervector stored in s.
     for g in sol.basis.functions
         @test size(g.s) == (1, 3)
@@ -242,7 +253,11 @@ end
 @testset "DynamicGVM returns a valid Solution" begin
     ops = _hydrogen_ops()
     sol = solve(
-        ops, DynamicGVM(basis = 4, candidates = 3, scale = 1.0, maxiter_step = 10)
+        ops,
+        DynamicGVM(
+            basis = 4, candidates = 3, scale = 1.0,
+            optimizer = _variational_lbfgs(10)
+        )
     )
 
     @test sol isa Solution
@@ -258,7 +273,11 @@ end
 
 @testset "DynamicGVM tracks the requested state" begin
     sol = solve(
-        _hydrogen_ops(), DynamicGVM(basis = 5, candidates = 3, scale = 1.0, maxiter_step = 20);
+        _hydrogen_ops(),
+        DynamicGVM(
+            basis = 5, candidates = 3, scale = 1.0,
+            optimizer = _variational_lbfgs(20)
+        );
         state = 2,
     )
 
@@ -271,7 +290,13 @@ end
     ops += "Kinetic"
     ops += (r -> -exp(-r^2), numerical, 1, 2)
 
-    sol = solve(ops, GVM(basis = 2, scale = 1.0, maxiter = 3, gtol = 1.0e-3))
+    sol = solve(
+        ops,
+        GVM(
+            basis = 2, scale = 1.0,
+            optimizer = _variational_lbfgs(3; gradtol = 1.0e-3)
+        ),
+    )
     @test isfinite(sol.E₀)
     @test all(isfinite, sol.coefficients)
     @test sol.convergence.gradnorm !== nothing
@@ -283,7 +308,11 @@ end
     # and then re-optimising cannot raise the ground-state energy.
     ops = _hydrogen_ops()
     sol = solve(
-        ops, DynamicGVM(basis = 6, candidates = 3, scale = 1.0, maxiter_step = 20)
+        ops,
+        DynamicGVM(
+            basis = 6, candidates = 3, scale = 1.0,
+            optimizer = _variational_lbfgs(20)
+        )
     )
     ener = energies(sol)
     for i in 2:length(ener)
@@ -296,7 +325,11 @@ end
     E_exact = -0.5   # hydrogen 1s ground state
 
     sol = solve(
-        ops, DynamicGVM(basis = 6, candidates = 5, scale = 1.0, maxiter_step = 50)
+        ops,
+        DynamicGVM(
+            basis = 6, candidates = 5, scale = 1.0,
+            optimizer = _variational_lbfgs(50)
+        )
     )
 
     @test sol.E₀ >= E_exact - 1.0e-6   # cannot go below exact
@@ -306,7 +339,11 @@ end
 @testset "energies(sol) is monotone (DynamicGVM)" begin
     ops = _hydrogen_ops()
     sol = solve(
-        ops, DynamicGVM(basis = 4, candidates = 3, scale = 1.0, maxiter_step = 15)
+        ops,
+        DynamicGVM(
+            basis = 4, candidates = 3, scale = 1.0,
+            optimizer = _variational_lbfgs(15)
+        )
     )
     xs, ys = (1:length(energies(sol)), energies(sol))
     @test length(xs) == length(ys)
@@ -318,7 +355,11 @@ end
 
     sol_stoch = solve(ops, SVM(basis = 6, candidates = 1, scale = 1.0))
     sol_seq = solve(
-        ops, DynamicGVM(basis = 6, candidates = 5, scale = 1.0, maxiter_step = 50)
+        ops,
+        DynamicGVM(
+            basis = 6, candidates = 5, scale = 1.0,
+            optimizer = _variational_lbfgs(50)
+        )
     )
 
     @test sol_seq.E₀ <= sol_stoch.E₀ + 1.0e-4
@@ -327,7 +368,11 @@ end
 @testset "wavefunction works with a DynamicGVM Solution" begin
     ops = _hminus_ops()
     sol = solve(
-        ops, DynamicGVM(basis = 4, candidates = 3, scale = 1.0, maxiter_step = 10)
+        ops,
+        DynamicGVM(
+            basis = 4, candidates = 3, scale = 1.0,
+            optimizer = _variational_lbfgs(10)
+        )
     )
 
     r_vec = [0.5, 0.3]

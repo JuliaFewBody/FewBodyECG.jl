@@ -2,22 +2,6 @@
 
 ## Unreleased
 
-### Solver method names
-
-| Previous API | New API |
-|---|---|
-| `Method` | `SolverMethod` |
-| `Variational` | `GVM` |
-| `GrowVariational` | `DynamicGVM` |
-
-`SolverMethod` now has the public subtypes `StochasticMethod` (`SVM`,
-`Refine`) and `GradientMethod` (`GVM`, `DynamicGVM`). `GradientBackend` and
-`AutoDiff` were removed because ForwardDiff/Hellmann–Feynman is the only
-implemented gradient path.
-
-`GVM()` infers its basis size from `init`; cold starts use
-`GVM(basis = n)`. `DynamicGVM(basis = n)` treats `n` as the final basis size.
-
 ## v2.0.0
 
 This is a breaking API release.
@@ -28,31 +12,49 @@ This is a breaking API release.
 |---|---|
 | `solve_ECG(ops, n; scale = s)` | `solve(ops, SVM(basis = n, candidates = 1, scale = s))` |
 | `solve_ECG_competitive(ops, n; n_candidates = k, scale = s)` | `solve(ops, SVM(basis = n, candidates = k, scale = s))` |
-| `solve_ECG_variational(ops, n; scale = s)` | `solve(ops, Variational(basis = n, scale = s))` |
-| `solve_ECG_sequential(ops, n; scale = s)` | `solve(ops, GrowVariational(basis = n, scale = s))` |
+| `solve_ECG_variational(ops, n; scale = s)` | `solve(ops, GVM(basis = n, scale = s))` |
+| `solve_ECG_sequential(ops, n; scale = s)` | `solve(ops, DynamicGVM(basis = n, scale = s))` |
 | `SolverResults` | `Solution` |
 | `sr.ground_state` | `sol.E₀` |
 | `sr.basis_functions` | `sol.basis.functions` |
 | `sr.energies` | `energies(sol)` |
 | `ψ₀(r, sr)` | `wavefunction(sol)(r)` |
-| `convergence(sr)`, `convergence_history(sr)` | `energies(sol)`, `plot(sol)` |
+| `convergence(sr)`, `convergence_history(sr)` | `convergence(sol)`, `energies(sol)`, `plot(sol)` |
 | `correlation_function(sr)` | `plot(wavefunction(sol); coord = i)` |
 
 ### Removed public names
 
 `solve_ECG`, `solve_ECG_competitive`, `solve_ECG_variational`,
-`solve_ECG_sequential`, `SolverResults`, `ψ₀`, `ψ`, `convergence`,
+`solve_ECG_sequential`, `SolverResults`, `ψ₀`, `ψ`,
 `convergence_history`, `correlation_function`, `ECG`, `generate_bij`,
 `_generate_A_matrix`, and `_jacobi_transform`.
 
 ### Added public names
 
-`solve`, `SVM`, `Refine`, `Variational`, `GrowVariational`, `Pipeline`, `→`,
-`AutoDiff`, `Solution`, `ConvergenceReport`, `StageResult`, `converged`,
-`energies`, `wavefunction`, `Wavefunction`, `jacobi_transform`, and
-`default_scale`.
+`solve`, `SolverMethod`, `StochasticMethod`, `GradientMethod`, `SVM`, `Refine`,
+`GVM`, `DynamicGVM`, `Pipeline`, `→`, `Solution`, `ConvergenceReport`,
+`StageResult`, `converged`, `energies`, `convergence`, `wavefunction`,
+`Wavefunction`, `radial_profile`, `jacobi_transform`, and `default_scale`.
+
+`GVM()` infers its basis size from `init`; cold starts use
+`GVM(basis = n)`. `DynamicGVM(basis = n)` treats `n` as the final basis size.
+Both gradient methods accept an OptimKit `GradientDescent`,
+`ConjugateGradient`, or `LBFGS` object through `optimizer`; iteration limits,
+gradient tolerances, and OptimKit verbosity belong to that object.
+
+All solvers accept `verbose = true` through `solve` for concise iteration-level
+progress messages. FewBodyECG no longer installs or suppresses loggers around
+solver calls.
+
+### Correctness and support
+
+- Require Julia 1.11 or newer.
+- Reject requested eigenstates that do not fit in the final basis instead of
+  silently targeting a lower state.
+- Surface automatic-differentiation failures and non-finite gradients instead
+  of reporting false stationarity.
 
 ### Dependencies
 
 Added `RecipesBase` for plotting recipes without requiring Plots at package
-load time.
+load time. `Antique` is now used only by tests and documentation.

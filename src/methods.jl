@@ -1,3 +1,5 @@
+using OptimKit: ConjugateGradient, GradientDescent, LBFGS
+
 """
     SolverMethod
 
@@ -58,35 +60,40 @@ Base.@kwdef struct Refine <: StochasticMethod
 end
 Refine(sweeps::Int; kw...) = Refine(; sweeps, kw...)
 
-"""
-    GVM([basis]; scale = nothing, maxiter = 500, gtol = 1e-6)
+const _GradientOptimizer = Union{GradientDescent, ConjugateGradient, LBFGS}
 
-Joint LBFGS optimisation of all Gaussian parameters (widths via log-Cholesky
-encoding, plus shifts) using ForwardDiff/Hellmann–Feynman gradients.  A cold
-start requires `basis`; a warm start infers it from `init` when omitted.
-`scale` controls only cold-start sampling and must be omitted for warm starts.
 """
-Base.@kwdef struct GVM <: GradientMethod
+    GVM([basis]; scale = nothing, optimizer = LBFGS(maxiter = 500, gradtol = 1e-6))
+
+Joint gradient optimisation of all Gaussian parameters (widths via
+log-Cholesky encoding, plus shifts) using ForwardDiff/Hellmann–Feynman
+gradients. `optimizer` accepts an OptimKit `LBFGS`, `ConjugateGradient`, or
+`GradientDescent` instance and owns settings such as `maxiter`, `gradtol`, and
+`verbosity`. A cold start requires `basis`; a warm start infers it from `init`
+when omitted. `scale` controls only cold-start sampling and must be omitted for
+warm starts.
+"""
+Base.@kwdef struct GVM{O <: _GradientOptimizer} <: GradientMethod
     basis::Union{Nothing, Int} = nothing
     scale::Union{Nothing, Float64, Symbol} = nothing
-    maxiter::Int = 500
-    gtol::Float64 = 1.0e-6
+    optimizer::O = LBFGS(; maxiter = 500, gradtol = 1.0e-6)
 end
 GVM(basis::Int; kw...) = GVM(; basis, kw...)
 
 """
-    DynamicGVM(basis; candidates = 10, scale = :auto, maxiter_step = 100, gtol = 1e-6)
+    DynamicGVM(basis; candidates = 10, scale = :auto,
+               optimizer = LBFGS(maxiter = 100, gradtol = 1e-6))
 
-Per-step selection followed by joint LBFGS of the whole current basis
-(SVM-style sequential growth).  `basis` is the final basis size, including any
-functions supplied through `init`.
+Per-step selection followed by joint gradient optimisation of the whole current
+basis (SVM-style sequential growth). `basis` is the final basis size, including
+any functions supplied through `init`. `optimizer` accepts the same OptimKit
+algorithm instances as [`GVM`](@ref) and is reused at every growth step.
 """
-Base.@kwdef struct DynamicGVM <: GradientMethod
+Base.@kwdef struct DynamicGVM{O <: _GradientOptimizer} <: GradientMethod
     basis::Int = 15
     candidates::Int = 10
     scale::Union{Float64, Symbol} = :auto
-    maxiter_step::Int = 100
-    gtol::Float64 = 1.0e-6
+    optimizer::O = LBFGS(; maxiter = 100, gradtol = 1.0e-6)
 end
 DynamicGVM(basis::Int; kw...) = DynamicGVM(; basis, kw...)
 

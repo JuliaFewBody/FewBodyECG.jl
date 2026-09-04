@@ -3,6 +3,15 @@ using FewBodyECG
 
 ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
 
+@testset "Refine verbosity" begin
+    seed = solve(ops, SVM(basis = 1, candidates = 1, scale = 1.0))
+    alg = Refine(sweeps = 1, candidates = 1, scale = 1.0)
+    @test_logs solve(ops, alg; init = seed, verbose = false)
+    @test_logs (:info, r"Refine: iteration 1/1") solve(
+        ops, alg; init = seed, verbose = true
+    )
+end
+
 @testset "Refine" begin
     # Deliberately poor starting basis (wrong scale), then refine at scale 1.
     poor = solve(ops, SVM(basis = 10, candidates = 5, scale = 4.0))

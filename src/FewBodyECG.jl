@@ -1,8 +1,9 @@
 module FewBodyECG
 
-using LinearAlgebra
-import Antique
-using FewBodyHamiltonians
+using LinearAlgebra: Diagonal, Hermitian, I, Symmetric, UpperTriangular,
+    cholesky, cond, cross, det, diag, dot, eigen, isposdef, issymmetric,
+    norm, pinv, tr
+import FewBodyHamiltonians
 
 """
     Operator

@@ -4,6 +4,12 @@ using FewBodyECG
 
 ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
 
+@testset "SVM verbosity" begin
+    alg = SVM(basis = 1, candidates = 1, scale = 1.0)
+    @test_logs solve(ops, alg; verbose = false)
+    @test_logs (:info, r"SVM: iteration 1/1") solve(ops, alg; verbose = true)
+end
+
 @testset "solve dispatch + SVM" begin
     sol = solve(ops, SVM(basis = 25, candidates = 20, scale = 1.0))
     @test sol isa Solution
@@ -35,6 +41,17 @@ ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
     # excited state targeting
     sol2 = solve(ops, SVM(basis = 25, candidates = 20, scale = 1.0); state = 2)
     @test sol2.state == 2 && sol2.E₀ == sol2.E[2] && sol2.E₀ > sol2.E[1]
+
+    # A requested eigenstate must not silently become the highest state that
+    # happens to fit in the final basis.
+    err = try
+        solve(ops, SVM(basis = 2, candidates = 1, scale = 1.0); state = 5)
+        nothing
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test occursin("requested state 5", sprint(showerror, err))
 
     # warm start grows an existing basis (unshifted candidates may occasionally
     # be linearly dependent and skipped — the report documents this honestly)

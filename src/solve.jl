@@ -74,7 +74,6 @@ function step!(st::BasisState, alg::SVM, ctx::_SolveCtx)
     best === nothing && return false
     commit!(st, best, bestcols) === nothing && return false
     push!(st.E_hist, st.eig.ε[min(ctx.state, length(st.eig.ε))])
-    ctx.verbose && @info "step $(nfuns(st))" E = last(st.E_hist)
     return true
 end
 
@@ -94,11 +93,19 @@ function _stochastic_report(st::BasisState, tol, window; extra_notes = String[])
     return ConvergenceReport(false, :max_steps, NaN, tol, window, nothing, condS, notes)
 end
 
+function _require_available_state(state::Int, nstates::Int)
+    state ≤ nstates || throw(
+        ArgumentError("requested state $state, but the solver produced only $nstates eigenstates")
+    )
+    return state
+end
+
 function _solution(st::BasisState, ctx::_SolveCtx, stages::Vector{StageResult})
     nfuns(st) > 0 || error("solver produced no basis functions")
+    state = _require_available_state(ctx.state, length(st.eig.ε))
     return Solution(
         copy(st.eig.ε), BasisSet(copy(st.basis)), coefficients(st.eig),
-        ctx.terms, min(ctx.state, length(st.eig.ε)),
+        ctx.terms, state,
         stages, last(stages).report
     )
 end
@@ -112,8 +119,11 @@ function _solve(
     n₀ = length(st.E_hist)
     n₀_funs = nfuns(st)
     failed = 0
-    for _ in 1:alg.basis
-        step!(st, alg, ctx) || (failed += 1)
+    for iteration in 1:alg.basis
+        accepted = step!(st, alg, ctx)
+        accepted || (failed += 1)
+        energy = isempty(st.E_hist) ? NaN : last(st.E_hist)
+        ctx.verbose && @info "SVM: iteration $iteration/$(alg.basis)" energy basis = nfuns(st) accepted
     end
     added = nfuns(st) - n₀_funs
     notes = String[]
@@ -173,7 +183,6 @@ function step!(st::BasisState, alg::Refine, ctx::_SolveCtx)
         improved |= replaced
     end
     push!(st.E_hist, st.eig.ε[min(ctx.state, length(st.eig.ε))])
-    ctx.verbose && @info "refine sweep done" E = last(st.E_hist)
     return st, improved
 end
 
@@ -187,9 +196,10 @@ function _solve(
     ctx = _ctx(terms, masses; state, tol, window, verbose)
     st = _solution_basis_state(init, ctx.terms)
     sweep_hist = Float64[]
-    for _ in 1:alg.sweeps
+    for iteration in 1:alg.sweeps
         st, _ = step!(st, alg, ctx)
         push!(sweep_hist, last(st.E_hist))
+        ctx.verbose && @info "Refine: iteration $iteration/$(alg.sweeps)" energy = last(st.E_hist)
     end
     ΔE = length(sweep_hist) ≥ 2 ? sweep_hist[end - 1] - sweep_hist[end] :
         (isempty(energies(init)) ? NaN : last(energies(init)) - sweep_hist[end])
@@ -202,103 +212,6 @@ function _solve(
         ]
     )
     return _solution(st, ctx, [StageResult(alg, sweep_hist, rep)])
-end
-
-function _gradient_report(gradnorm, gtol, ΔE, cond_S)
-    conv = gradnorm < gtol
-    return ConvergenceReport(
-        conv, conv ? :stationarity : :max_steps, ΔE, gtol, 0,
-        gradnorm, cond_S,
-        [
-            "stationary point of the parameter optimisation; " *
-                "the variational upper bound still applies",
-        ]
-    )
-end
-
-# Assemble a Solution by one dense eigensolve of the final basis.
-function _solution_from_basis(basis::BasisSet, ctx::_SolveCtx, stages)
-    H = build_hamiltonian_matrix(basis, ctx.terms)
-    S = build_overlap_matrix(basis)
-    evals, evecs = solve_generalized_eigenproblem(H, S)
-    return Solution(
-        evals, basis, evecs, ctx.terms,
-        min(ctx.state, length(evals)), stages, last(stages).report
-    )
-end
-
-function _init_θ(init::Solution, n::Int)
-    length(init.basis.functions) == n || throw(
-        ArgumentError(
-            "init has $(length(init.basis.functions)) functions but the method " *
-                "expects basis = $n; set basis = $(length(init.basis.functions))"
-        )
-    )
-    return _encode_basis(BasisSet(Rank0Gaussian[g for g in init.basis.functions]))
-end
-
-function _solve(
-        terms, masses, alg::GVM;
-        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false
-    )
-    ctx = _ctx(terms, masses; state, tol, window, verbose)
-    local n::Int, θ0::Union{Nothing, Vector{Float64}}, scale::Union{Nothing, Float64}
-    if init === nothing
-        alg.basis === nothing && throw(
-            ArgumentError("cold GVM requires `basis`; use GVM(basis = n)")
-        )
-        n = alg.basis
-        θ0 = nothing
-        scale = _resolve_scale(alg.scale === nothing ? :auto : alg.scale, ctx.masses)
-    else
-        alg.scale === nothing || throw(
-            ArgumentError("warm GVM uses the basis from `init`; omit `scale`")
-        )
-        n = length(init.basis.functions)
-        alg.basis === nothing || alg.basis == n || throw(
-            ArgumentError(
-                "init has $n functions but GVM specifies basis = $(alg.basis); " *
-                    "omit `basis` or set basis = $n"
-            )
-        )
-        θ0 = _init_θ(init, n)
-        scale = nothing
-    end
-    basis, fg_hist, gradnorm =
-        _variational_engine(
-        ctx.terms, n, θ0, scale, alg.maxiter, alg.gtol, verbose; state = ctx.state
-    )
-    ΔE = length(fg_hist) ≥ 2 ? abs(fg_hist[end - 1] - fg_hist[end]) : NaN
-    S = build_overlap_matrix(basis)
-    rep = _gradient_report(gradnorm, alg.gtol, ΔE, cond(Symmetric(S)))
-    return _solution_from_basis(basis, ctx, [StageResult(alg, fg_hist, rep)])
-end
-
-function _solve(
-        terms, masses, alg::DynamicGVM;
-        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false
-    )
-    ctx = _ctx(terms, masses; state, tol, window, verbose)
-    scale = _resolve_scale(alg.scale, ctx.masses)
-    θ0 = nothing
-    if init !== nothing
-        k0 = length(init.basis.functions)
-        k0 < alg.basis || throw(
-            ArgumentError(
-                "init already has $k0 functions but DynamicGVM grows to basis = $(alg.basis); " *
-                    "set basis > $k0 or use GVM() to re-optimise"
-            )
-        )
-        θ0 = _encode_basis(BasisSet(Rank0Gaussian[g for g in init.basis.functions]))
-    end
-    basis, step_hist, _, gradnorm = _sequential_engine(
-        ctx.terms, alg.basis, θ0, scale, alg.candidates, alg.maxiter_step, alg.gtol, verbose;
-        state = ctx.state
-    )
-    ΔE = length(step_hist) ≥ 2 ? step_hist[end - 1] - step_hist[end] : NaN
-    S = build_overlap_matrix(basis)
-    rep = _gradient_report(gradnorm, alg.gtol, ΔE, cond(Symmetric(S)))
-    return _solution_from_basis(basis, ctx, [StageResult(alg, step_hist, rep)])
 end
 
 # Fold a Pipeline left-to-right: each stage's own `_solve` runs unmodified,
