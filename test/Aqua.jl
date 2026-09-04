@@ -8,6 +8,6 @@ Aqua.test_all(FewBodyECG)
 ExplicitImports.test_explicit_imports(
     FewBodyECG;
     all_qualified_accesses_are_public = (;
-        ignore = (:Chunk, :GradientConfig, :gradient, :KineticTerm, :PotentialTerm),
+        ignore = (:Chunk, :GradientConfig, :gradient, :KineticTerm, :PotentialTerm, :require_one_based_indexing),
     ),
 )
