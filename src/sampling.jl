@@ -1,4 +1,4 @@
-using QuasiMonteCarlo
+using QuasiMonteCarlo: QuasiMonteCarlo, HaltonSample
 
 function _qmc_point(i::Int, d::Int; sampler = HaltonSample())
     return QuasiMonteCarlo.sample(i + 1, d, sampler)[:, end]

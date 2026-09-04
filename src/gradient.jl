@@ -1,6 +1,5 @@
-using OptimKit
-using LinearAlgebra
-using ForwardDiff
+using OptimKit: optimize
+import ForwardDiff
 
 function _chol_to_params(L::AbstractMatrix)
     n = size(L, 1)
@@ -52,221 +51,234 @@ function _decode_basis(θ::AbstractVector, n_basis::Int, n_dim::Int)
     end
     return BasisSet(fns)
 end
-# Core LBFGS engine.  θ0 === nothing ⇒ fresh QMC basis of n functions at
-# `scale`.  Returns the optimised basis, the cumulative-min fg history, and
-# the final gradient norm from OptimKit's normgradhistory.
-function _variational_engine(
-        terms, n::Int, θ0, scale::Union{Nothing, Float64},
-        maxiter::Int, gtol::Float64, verbose::Bool;
-        state::Int = 1, shift_init::Symbol = :zeros
-    )
-    n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)
-    n_chol = n_dim * (n_dim + 1) ÷ 2   # Cholesky params per Gaussian
-    n_per = n_chol + 3 * n_dim         # total params per Gaussian (A + N×3 shift)
-    regularization = 1.0e-10
 
-    if θ0 === nothing
-        scale === nothing && throw(ArgumentError("cold-start scale is required"))
-        w_list = _pairwise_weights(terms)
-        fns = Rank0Gaussian[]
-        for i in 1:n
-            bij = generate_bij(:quasirandom, i, length(w_list), scale)
-            A = _generate_A_matrix(bij, w_list)
-            s = shift_init === :zeros ? zeros(n_dim, 3) : generate_shift(:quasirandom, i, n_dim, scale)
-            push!(fns, Rank0Gaussian(A, s))
-        end
-        θ0 = _encode_basis(BasisSet(fns))
+function _energy_gradient(θ, n, n_dim, terms, grad_cfg, state, regularization, bad_gradient)
+    local energy::Float64, coefficients::Vector{Float64}
+    try
+        basis = _decode_basis(θ, n, n_dim)
+        H = build_hamiltonian_matrix(basis, terms)
+        S = build_overlap_matrix(basis)
+        values, vectors = solve_generalized_eigenproblem(H, S; regularization)
+        index = min(state, length(values))
+        energy = values[index]
+        coefficients = vectors[:, index]
+    catch
+        return Inf, zeros(Float64, length(θ))
     end
+    isfinite(energy) || return Inf, zeros(Float64, length(θ))
 
-    # Pre-allocate GradientConfig with a tuned chunk size.
-    # Grouping ~5 Gaussians per chunk gives ~10 passes for n=50 in 2D
-    # (vs the ForwardDiff default of 13), with larger gains for higher n_dim.
-    _chunk = min(n_per * 5, length(θ0))
-    _grad_cfg = ForwardDiff.GradientConfig(nothing, θ0, ForwardDiff.Chunk(_chunk))
-
-    # Accumulates objective values, then stores the cumulative minimum as the
-    # method's monotone energy history.
-    energy_log = Float64[]
-
-    # ---- combined value + ForwardDiff gradient (OptimKit interface) ---------
-    # The LBFGS line search probes regions that can produce degenerate A
-    # matrices; returning (Inf, zero-gradient) acts as an infinite-cost barrier.
-    function fg(θ::AbstractVector)
-        # Primal: solve Float64 eigenproblem for the target eigenpair.
-        local val::Float64, c::Vector{Float64}
-        try
-            basis_f64 = _decode_basis(θ, n, n_dim)
-            H = build_hamiltonian_matrix(basis_f64, terms)
-            S = build_overlap_matrix(basis_f64)
-            evals, evecs = solve_generalized_eigenproblem(H, S; regularization)
-            idx = min(state, length(evals))
-            val = evals[idx]
-            c = evecs[:, idx]
-        catch
-            return Inf, zeros(Float64, length(θ))
+    gradient = try
+        ForwardDiff.gradient(θ, grad_cfg, Val(false)) do θ_ad
+            basis = _decode_basis(θ_ad, n, n_dim)
+            H = build_hamiltonian_matrix(basis, terms)
+            S = build_overlap_matrix(basis)
+            dot(coefficients, H * coefficients) -
+                energy * dot(coefficients, S * coefficients)
         end
-        isfinite(val) || return Inf, zeros(Float64, length(θ))
-        push!(energy_log, val)
-        # Gradient via Hellmann-Feynman: ∂λ/∂θ = cᵀ(∂H/∂θ − λ·∂S/∂θ)c
-        G = try
-            ForwardDiff.gradient(θ, _grad_cfg, Val(false)) do θ_ad
-                basis_ad = _decode_basis(θ_ad, n, n_dim)
-                H_ad = build_hamiltonian_matrix(basis_ad, terms)
-                S_ad = build_overlap_matrix(basis_ad)
-                dot(c, H_ad * c) - val * dot(c, S_ad * c)
-            end
-        catch
-            zeros(Float64, length(θ))
-        end
-        # ForwardDiff through a near-singular overlap can yield silent NaNs;
-        # treat a non-finite gradient as a zero-gradient barrier.
-        all(isfinite, G) || (G = zeros(Float64, length(θ)))
-        return val, G
+    catch e
+        throw(
+            ArgumentError(
+                "automatic differentiation failed; operator matrix elements must " *
+                    "support ForwardDiff.Dual values: $(sprint(showerror, e))"
+            )
+        )
     end
-
-    # OptimKit emits @warn for linesearch bisection failures that it handles
-    # gracefully internally.  Suppress them to keep output clean.
-    x, _, _, _, normgradhistory = Base.CoreLogging.with_logger(
-        Base.CoreLogging.ConsoleLogger(Base.stderr, Base.CoreLogging.Error)
-    ) do
-        optimize(fg, θ0, LBFGS(; maxiter, gradtol = gtol, verbosity = verbose ? 2 : 0))
+    if !all(isfinite, gradient)
+        bad_gradient[] = gradient
+        return Inf, zeros(Float64, length(θ))
     end
-    basis = _decode_basis(x, n, n_dim)
-    fg_hist = isempty(energy_log) ? Float64[] : accumulate(min, energy_log)
-    return basis, fg_hist, float(last(normgradhistory))
+    return energy, gradient
 end
-# Core sequential (SVM-style) engine: at each step k = k0+1, …, n draw
-# `candidates` quasi-random Gaussians, keep the one giving the lowest
-# pre-optimisation target-state energy, then jointly LBFGS-optimise all k
-# functions' parameters.  θ0 === nothing ⇒ start from an empty basis
-# (k0 = 0); otherwise θ0 seeds `θ_running` and growth continues from
-# `length(θ0) ÷ n_per` functions.  `gradnorm` is the final gradient norm
-# from the LAST step's optimize call.
-function _sequential_engine(
-        terms, n::Int, θ0, scale::Float64, candidates::Int,
-        maxiter_step::Int, gtol::Float64, verbose::Bool;
-        state::Int = 1, shift_init::Symbol = :zeros
+
+function _check_optimization_result(x, energy, bad_gradient)
+    isfinite(energy) && return
+    bad_gradient[] === nothing && throw(
+        DomainError(x, "optimization ended at an invalid parameter point")
     )
+    throw(
+        DomainError(
+            bad_gradient[],
+            "automatic differentiation returned a non-finite gradient"
+        )
+    )
+end
+
+function _gradient_report(gradnorm, gradtol, ΔE, cond_S)
+    converged = gradnorm < gradtol
+    return ConvergenceReport(
+        converged, converged ? :stationarity : :max_steps, ΔE, gradtol, 0,
+        gradnorm, cond_S,
+        [
+            "stationary point of the parameter optimisation; " *
+                "the variational upper bound still applies",
+        ]
+    )
+end
+
+function _solution_from_basis(basis::BasisSet, ctx::_SolveCtx, stages)
+    H = build_hamiltonian_matrix(basis, ctx.terms)
+    S = build_overlap_matrix(basis)
+    values, vectors = solve_generalized_eigenproblem(H, S)
+    state = _require_available_state(ctx.state, length(values))
+    return Solution(
+        values, basis, vectors, ctx.terms,
+        state, stages, last(stages).report
+    )
+end
+
+function _solve(
+        terms, masses, alg::GVM;
+        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false
+    )
+    ctx = _ctx(terms, masses; state, tol, window, verbose)
     n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)
     n_chol = n_dim * (n_dim + 1) ÷ 2
     n_per = n_chol + 3 * n_dim
-    w_list = _pairwise_weights(terms)
-    regularization = 1.0e-10
 
-    method = LBFGS(; maxiter = maxiter_step, gradtol = gtol, verbosity = 0)
+    if init === nothing
+        alg.basis === nothing && throw(
+            ArgumentError("cold GVM requires `basis`; use GVM(basis = n)")
+        )
+        n = something(alg.basis)
+        scale = _resolve_scale(alg.scale === nothing ? :auto : alg.scale, ctx.masses)
+        functions = Rank0Gaussian[]
+        for i in 1:n
+            bij = generate_bij(:quasirandom, i, length(ctx.w_list), scale)
+            A = _generate_A_matrix(bij, ctx.w_list)
+            push!(functions, Rank0Gaussian(A, zeros(n_dim, 3)))
+        end
+        θ = _encode_basis(BasisSet(functions))
+    else
+        alg.scale === nothing || throw(
+            ArgumentError("warm GVM uses the basis from `init`; omit `scale`")
+        )
+        n = length(init.basis.functions)
+        alg.basis === nothing || alg.basis == n || throw(
+            ArgumentError(
+                "init has $n functions but GVM specifies basis = $(alg.basis); " *
+                    "omit `basis` or set basis = $n"
+            )
+        )
+        θ = _encode_basis(BasisSet(Rank0Gaussian[g for g in init.basis.functions]))
+    end
 
-    energy_log = Float64[]   # all fg values across all steps → cummin history
-    step_hist = Float64[]    # target-state energy after each step's optimisation
-    θ_running = θ0 === nothing ? Float64[] : copy(θ0)
-    k0 = θ0 === nothing ? 0 : length(θ0) ÷ n_per
+    chunk = min(n_per * 5, length(θ))
+    grad_cfg = ForwardDiff.GradientConfig(nothing, θ, ForwardDiff.Chunk(chunk))
+    bad_gradient = Ref{Union{Nothing, Vector{Float64}}}(nothing)
+    fg = x -> _energy_gradient(
+        x, n, n_dim, ctx.terms, grad_cfg, ctx.state, 1.0e-10, bad_gradient
+    )
+    report_iteration = function (x, energy, gradient, iteration)
+        verbose && @info "GVM: iteration $iteration" energy gradnorm = norm(gradient)
+        return x, energy, gradient
+    end
+
+    x, energy, gradient, _, history = optimize(
+        fg, θ, alg.optimizer; finalize! = report_iteration
+    )
+    _check_optimization_result(x, energy, bad_gradient)
+
+    basis = _decode_basis(x, n, n_dim)
+    energy_history = accumulate(min, history[:, 1])
+    ΔE = length(energy_history) ≥ 2 ? abs(energy_history[end - 1] - energy_history[end]) : NaN
+    report = _gradient_report(
+        norm(gradient), alg.optimizer.gradtol, ΔE,
+        cond(Symmetric(build_overlap_matrix(basis)))
+    )
+    return _solution_from_basis(
+        basis, ctx, [StageResult(alg, energy_history, report)]
+    )
+end
+
+function _solve(
+        terms, masses, alg::DynamicGVM;
+        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false
+    )
+    ctx = _ctx(terms, masses; state, tol, window, verbose)
+    scale = _resolve_scale(alg.scale, ctx.masses)
+    n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)
+    n_chol = n_dim * (n_dim + 1) ÷ 2
+    n_per = n_chol + 3 * n_dim
+    θ = Float64[]
+
+    if init !== nothing
+        initial_size = length(init.basis.functions)
+        initial_size < alg.basis || throw(
+            ArgumentError(
+                "init already has $initial_size functions but DynamicGVM grows to " *
+                    "basis = $(alg.basis); set basis > $initial_size or use GVM() " *
+                    "to re-optimise"
+            )
+        )
+        θ = _encode_basis(BasisSet(Rank0Gaussian[g for g in init.basis.functions]))
+    end
+
+    initial_size = length(θ) ÷ n_per
+    energy_history = Float64[]
     gradnorm = NaN
 
-    for step in (k0 + 1):n
-        k = step   # basis size after this step
+    for step in (initial_size + 1):alg.basis
+        best_energy = Inf
+        best_candidate = Float64[]
 
-        # ── candidate selection ──────────────────────────────────────────────
-        # Sample `candidates` quasi-random Gaussians; keep the one giving the
-        # lowest target-state energy before optimisation.
-        best_E_cand = Inf
-        best_θ_cand = Float64[]
-
-        for c in 1:candidates
-            attempt = (step - 1) * candidates + c
-            bij = generate_bij(:quasirandom, attempt, length(w_list), scale)
-            A = _generate_A_matrix(bij, w_list)
-            s = shift_init === :zeros ? zeros(n_dim, 3) : generate_shift(:quasirandom, attempt, n_dim, scale)
-            cand = Rank0Gaussian(A, s)
-            θ_c = _encode_basis(BasisSet([cand]))
-            θ_t = [θ_running; θ_c]
+        for candidate in 1:alg.candidates
+            attempt = (step - 1) * alg.candidates + candidate
+            bij = generate_bij(:quasirandom, attempt, length(ctx.w_list), scale)
+            A = _generate_A_matrix(bij, ctx.w_list)
+            candidate_parameters = _encode_basis(
+                BasisSet([Rank0Gaussian(A, zeros(n_dim, 3))])
+            )
+            trial_parameters = [θ; candidate_parameters]
             try
-                b_t = _decode_basis(θ_t, k, n_dim)
-                H_t = build_hamiltonian_matrix(b_t, terms)
-                S_t = build_overlap_matrix(b_t)
-                ev_t, _ = solve_generalized_eigenproblem(H_t, S_t; regularization)
-                E_t = ev_t[min(state, length(ev_t))]
-                if E_t < best_E_cand
-                    best_E_cand = E_t
-                    best_θ_cand = θ_c
+                basis = _decode_basis(trial_parameters, step, n_dim)
+                H = build_hamiltonian_matrix(basis, ctx.terms)
+                S = build_overlap_matrix(basis)
+                values, _ = solve_generalized_eigenproblem(H, S; regularization = 1.0e-10)
+                energy = values[min(ctx.state, length(values))]
+                if energy < best_energy
+                    best_energy = energy
+                    best_candidate = candidate_parameters
                 end
             catch
                 continue
             end
         end
 
-        # If every candidate failed, the accumulated basis has become singular
-        # (functions collapsed onto each other during optimisation — common when
-        # `scale` is too large for the system).  Rather than crash, stop here and
-        # return the functions built so far.
-        if isempty(best_θ_cand)
-            verbose && @warn "Sequential search stopped at step $step: all $candidates candidates failed (overlap likely singular). Returning the $(step - 1) functions built so far; try a smaller `scale`."
+        if isempty(best_candidate)
+            verbose && @warn "Sequential search stopped at step $step: all $(alg.candidates) candidates failed (overlap likely singular). Returning the $(step - 1) functions built so far; try a smaller `scale`."
             break
         end
 
-        θ_running = [θ_running; best_θ_cand]
-
-        # ── optimise all k-function parameters ──────────────────────────────
-        _chunk = min(n_per * 5, length(θ_running))
-        _grad_cfg = ForwardDiff.GradientConfig(
-            nothing, θ_running,
-            ForwardDiff.Chunk(_chunk)
+        append!(θ, best_candidate)
+        chunk = min(n_per * 5, length(θ))
+        grad_cfg = ForwardDiff.GradientConfig(nothing, θ, ForwardDiff.Chunk(chunk))
+        bad_gradient = Ref{Union{Nothing, Vector{Float64}}}(nothing)
+        fg = x -> _energy_gradient(
+            x, step, n_dim, ctx.terms, grad_cfg, ctx.state, 1.0e-10, bad_gradient
         )
-        step_log = Float64[]
-
-        # Build the fg closure for the current k-function basis.
-        # Capture k, _grad_cfg, step_log, and other constants by reference;
-        # each loop iteration creates a fresh set of these locals.
-        fg_k = (θ::AbstractVector) -> begin
-            local val::Float64, c::Vector{Float64}
-            try
-                b = _decode_basis(θ, k, n_dim)
-                H = build_hamiltonian_matrix(b, terms)
-                S = build_overlap_matrix(b)
-                ev, ev_vecs = solve_generalized_eigenproblem(H, S; regularization)
-                idx = min(state, length(ev))
-                val = ev[idx]
-                c = ev_vecs[:, idx]
-            catch
-                return Inf, zeros(Float64, length(θ))
-            end
-            isfinite(val) || return Inf, zeros(Float64, length(θ))
-            push!(step_log, val)
-            G = try
-                ForwardDiff.gradient(θ, _grad_cfg, Val(false)) do θ_ad
-                    b_ad = _decode_basis(θ_ad, k, n_dim)
-                    H_ad = build_hamiltonian_matrix(b_ad, terms)
-                    S_ad = build_overlap_matrix(b_ad)
-                    dot(c, H_ad * c) - val * dot(c, S_ad * c)
-                end
-            catch
-                zeros(Float64, length(θ))
-            end
-            all(isfinite, G) || (G = zeros(Float64, length(θ)))
-            return val, G
+        report_iteration = function (x, energy, gradient, iteration)
+            verbose && @info "DynamicGVM: step $step/$(alg.basis), iteration $iteration" energy gradnorm = norm(gradient)
+            return x, energy, gradient
         end
 
-        θ_opt, _, _, _, normgradhistory = Base.CoreLogging.with_logger(
-            Base.CoreLogging.ConsoleLogger(Base.stderr, Base.CoreLogging.Error)
-        ) do
-            optimize(fg_k, θ_running, method)
-        end
-        θ_running = θ_opt
-        gradnorm = float(last(normgradhistory))
-        append!(energy_log, step_log)
-
-        # Record the target-state energy after this step's full optimisation.
-        b_k = _decode_basis(θ_running, k, n_dim)
-        H_k = build_hamiltonian_matrix(b_k, terms)
-        S_k = build_overlap_matrix(b_k)
-        ev_k, _ = solve_generalized_eigenproblem(H_k, S_k; regularization)
-        push!(step_hist, ev_k[min(state, length(ev_k))])
-
-        verbose && @info "Step $step/$n" E = last(step_hist) fg_evals = length(step_log)
+        θ, energy, gradient, evaluations, _ = optimize(
+            fg, θ, alg.optimizer; finalize! = report_iteration
+        )
+        _check_optimization_result(θ, energy, bad_gradient)
+        gradnorm = norm(gradient)
+        push!(energy_history, energy)
+        verbose && @info "DynamicGVM: completed step $step/$(alg.basis)" energy evaluations
     end
 
-    # `n_built` may be < n if the search stopped early (singular basis).
-    n_built = length(θ_running) ÷ n_per
-    n_built >= 1 || error("Sequential selection produced no basis functions")
-    basis = _decode_basis(θ_running, n_built, n_dim)
-    fg_hist = isempty(energy_log) ? Float64[] : accumulate(min, energy_log)
-    return basis, step_hist, fg_hist, gradnorm
+    n_built = length(θ) ÷ n_per
+    n_built ≥ 1 || error("Sequential selection produced no basis functions")
+    basis = _decode_basis(θ, n_built, n_dim)
+    ΔE = length(energy_history) ≥ 2 ? energy_history[end - 1] - energy_history[end] : NaN
+    report = _gradient_report(
+        gradnorm, alg.optimizer.gradtol, ΔE,
+        cond(Symmetric(build_overlap_matrix(basis)))
+    )
+    return _solution_from_basis(
+        basis, ctx, [StageResult(alg, energy_history, report)]
+    )
 end

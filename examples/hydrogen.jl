@@ -5,6 +5,7 @@
 
 using FewBodyECG
 import Antique
+using OptimKit: LBFGS
 using Plots
 
 ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
@@ -23,7 +24,11 @@ sol
 plot(sol, exact₁)
 
 sol₂s = solve(
-    ops, DynamicGVM(basis = 15, candidates = 10, scale = 1.0, maxiter_step = 40);
+    ops,
+    DynamicGVM(
+        basis = 15, candidates = 10, scale = 1.0,
+        optimizer = LBFGS(; maxiter = 40, gradtol = 1.0e-6),
+    );
     state = 2,
 )
 println("2s energy: ", sol₂s.E₀, " Ha  (Antique ", exact₂, ", Δ = ", sol₂s.E₀ - exact₂, ")")
