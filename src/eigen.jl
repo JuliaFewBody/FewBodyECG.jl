@@ -310,6 +310,17 @@ function _whiten_candidate(
     return (β, ω, ρ2, y, r)
 end
 
+function _candidate_eigenvalues(
+        eig::SVMEigen, s_col, h_col, s_diag, h_diag;
+        min_resid_ratio::Real = 0.0
+    )
+    β, ω, ρ2, _, _ = _whiten_candidate(eig, s_col, h_col, s_diag, h_diag)
+    ρ2 <= max(0.0, min_resid_ratio * s_diag) && return nothing
+    eig.k == 0 && return [ω]
+    λ, _ = full_arrowhead_eigen(eig.ε, collect(β), ω)
+    return λ
+end
+
 """
     score_candidate(eig, s_col, h_col, s_diag, h_diag; state=1, min_resid_ratio=0) -> Float64 or nothing
 
@@ -323,17 +334,29 @@ function score_candidate(
         eig::SVMEigen, s_col, h_col, s_diag, h_diag;
         state::Int = 1, min_resid_ratio::Real = 0.0
     )
-    β, ω, ρ2, _, _ = _whiten_candidate(eig, s_col, h_col, s_diag, h_diag)
-    ρ2 <= max(0.0, min_resid_ratio * s_diag) && return nothing
-    if eig.k == 0
-        return ω                       # 1×1 problem: ε = h_diag/s_diag
-    end
     if state == 1
+        β, ω, ρ2, _, _ = _whiten_candidate(eig, s_col, h_col, s_diag, h_diag)
+        ρ2 <= max(0.0, min_resid_ratio * s_diag) && return nothing
+        eig.k == 0 && return ω           # 1×1 problem: ε = h_diag/s_diag
         return smallest_arrowhead_eigval(eig.ε, β, ω)
-    else
-        λ, _ = full_arrowhead_eigen(eig.ε, collect(β), ω)
-        return λ[min(state, length(λ))]
     end
+    λ = _candidate_eigenvalues(
+        eig, s_col, h_col, s_diag, h_diag; min_resid_ratio
+    )
+    λ === nothing && return nothing
+    return λ[min(state, length(λ))]
+end
+
+function _score_candidate_sum(
+        eig, s_col, h_col, s_diag, h_diag;
+        levels::UnitRange{Int}, min_resid_ratio::Real = 0.0
+    )
+    first(levels) == 1 || throw(ArgumentError("levels must be 1:n"))
+    λ = _candidate_eigenvalues(
+        eig, s_col, h_col, s_diag, h_diag; min_resid_ratio
+    )
+    λ === nothing && return nothing
+    return sum(@view λ[1:min(last(levels), length(λ))])
 end
 
 """

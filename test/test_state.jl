@@ -43,6 +43,27 @@ d = length(w_list[1])
     @test r.draw == st.draw                      # QMC stream carried over
 end
 
+@testset "BasisState preserves the Gaussian type" begin
+    w = [1.0]
+    terms = Operator[KineticOperator([0.5;;]), OscillatorOperator(0.5, w)]
+    makep(A) = Rank1Gaussian(A, w, zeros(1))
+    st = BasisState(Rank1Gaussian)
+    for α in (0.4, 0.8, 1.6)
+        cand = makep([α;;])
+        cols = _candidate_columns(cand, st.basis, terms)
+        commit!(st, cand, cols)
+    end
+    @test BasisSet(st.basis) isa BasisSet
+    @test st.S ≈ build_overlap_matrix(BasisSet(st.basis))
+    @test st.H ≈ build_hamiltonian_matrix(BasisSet(st.basis), terms)
+    @test rebuild_without(st, 2).basis isa Vector{<:Rank1Gaussian}
+
+    drawn = _draw_candidate!(
+        BasisState(Rank1Gaussian), 1.0, FewBodyECG.HaltonSample(), [w], makep
+    )
+    @test drawn isa Rank1Gaussian
+end
+
 @testset "rebuild_without boundaries and warm start" begin
     st = BasisState()
     for _ in 1:8

@@ -356,6 +356,83 @@ function _updated_rank0_data(bra::Rank0Gaussian, ket::Rank0Gaussian, W)
     return (; R, v, M)
 end
 
+function _with_extra_exponent(g::Rank1Gaussian, W)
+    T = promote_type(eltype(g.A), eltype(W))
+    return Rank1Gaussian(T.(parent(g.A) + W), T.(g.a), T.(g.s))
+end
+
+function _with_extra_exponent(g::Rank2Gaussian, W)
+    T = promote_type(eltype(g.A), eltype(W))
+    return Rank2Gaussian(T.(parent(g.A) + W), T.(g.a), T.(g.b), T.(g.s))
+end
+
+function _prefactor_gaussian_element(bra, ket, coefficient, W)
+    return coefficient * _compute_matrix_element(
+        _with_extra_exponent(bra, W / 2),
+        _with_extra_exponent(ket, W / 2),
+    )
+end
+
+for G in (Rank1Gaussian, Rank2Gaussian)
+    @eval begin
+        _compute_matrix_element(bra::$G, ket::$G, op::GaussianOperator) =
+            _prefactor_gaussian_element(bra, ket, op.coefficient, op.γ * (op.w * op.w'))
+        _compute_matrix_element(bra::$G, ket::$G, op::ManyBodyGaussianOperator) =
+            _prefactor_gaussian_element(bra, ket, op.coefficient, op.W)
+    end
+end
+
+function _compute_matrix_element(
+        bra::Rank1Gaussian,
+        ket::Rank1Gaussian,
+        op::OscillatorOperator
+    )
+    if any(!iszero, bra.s) || any(!iszero, ket.s)
+        throw(ArgumentError("Rank1 oscillator matrix elements currently require zero shifts"))
+    end
+
+    A, B = bra.A, ket.A
+    R = inv(A + B)
+    n = size(R, 1)
+    M0 = (π^n / det(A + B))^(3 / 2)
+    Rw = R * op.w
+    ρ = dot(op.w, Rw)
+    P = _polar_contract(bra.a, R, ket.a)
+    Q = _polar_project_dot(bra.a, Rw, ket.a, Rw)
+    return op.coefficient * M0 * (3 * ρ * P / 4 + Q / 2)
+end
+
+function _compute_matrix_element(
+        bra::Rank2Gaussian,
+        ket::Rank2Gaussian,
+        op::OscillatorOperator
+    )
+    if any(!iszero, bra.s) || any(!iszero, ket.s)
+        throw(ArgumentError("Rank2 oscillator matrix elements currently require zero shifts"))
+    end
+
+    A, B = bra.A, ket.A
+    a, b, c, d = bra.a, bra.b, ket.a, ket.b
+    _check_polarization_compat(a, b)
+    _check_polarization_compat(c, d)
+    _check_polarization_compat(a, c)
+    R = inv(A + B)
+    n = size(R, 1)
+    M0 = (π^n / det(A + B))^(3 / 2)
+    Rw = R * op.w
+    ρ = dot(op.w, Rw)
+    P(x, y) = _polar_contract(x, R, y)
+    Q(x, y) = _polar_project_dot(x, Rw, y, Rw)
+
+    U = P(a, b) * P(c, d) +
+        P(a, c) * P(b, d) +
+        P(a, d) * P(b, c)
+    V = Q(a, b) * P(c, d) + P(a, b) * Q(c, d) +
+        Q(a, c) * P(b, d) + P(a, c) * Q(b, d) +
+        Q(a, d) * P(b, c) + P(a, d) * Q(b, c)
+    return op.coefficient * M0 * (3 * ρ * U / 8 + V / 4)
+end
+
 function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::GaussianOperator)
     # V(r_ij) = coefficient·exp(-γ (w'r)²) shifts the exponent by γ w wᵀ.
     data = _updated_rank0_data(bra, ket, op.γ * (op.w * op.w'))

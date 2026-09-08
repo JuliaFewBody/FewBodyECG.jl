@@ -56,6 +56,17 @@ Wavefunction
 radial_profile
 ```
 
+## Scattering
+
+```@docs
+ScatteringChannel
+TrapSpectrum
+ScatteringParameters
+trapped_spectrum
+fit_scattering_parameters
+scattering_parameters
+```
+
 ## Power-user layer
 
 ```@docs

@@ -17,6 +17,7 @@ using FewBodyECG
     include("test_observables.jl")
     include("test_coordinates.jl")
     include("test_matrix_elements.jl")
+    include("test_scattering.jl")
     include("test_hamiltonian.jl")
     include("test_svm_eigen.jl")
     include("test_hydrogen.jl")

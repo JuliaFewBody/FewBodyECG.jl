@@ -2,7 +2,7 @@ module FewBodyECG
 
 using LinearAlgebra: Diagonal, Hermitian, I, Symmetric, UpperTriangular,
     cholesky, cond, cross, det, diag, dot, eigen, isposdef, issymmetric,
-    norm, pinv, tr
+    norm, pinv, qr, rank, tr
 import FewBodyHamiltonians
 
 """
@@ -26,6 +26,9 @@ export solve, SolverMethod, StochasticMethod, GradientMethod,
 # results
 export Solution, ConvergenceReport, StageResult, converged, energies
 export wavefunction, Wavefunction, convergence, radial_profile
+# scattering
+export ScatteringChannel, TrapSpectrum, ScatteringParameters, fit_scattering_parameters,
+    trapped_spectrum, scattering_parameters
 # power-user layer
 export build_hamiltonian_matrix, build_overlap_matrix,
     solve_generalized_eigenproblem, Λ, jacobi_transform, default_scale
@@ -42,6 +45,7 @@ include("methods.jl")
 include("solution.jl")
 include("state.jl")
 include("solve.jl")
+include("scattering.jl")
 include("gradient.jl")
 include("utils/wavefunction.jl")
 include("utils/convergence.jl")

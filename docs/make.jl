@@ -12,6 +12,7 @@ makedocs(
         "Theoretical background" => "theory.md",
         "Building systems" => "systems.md",
         "Choosing a solver" => "solvers.md",
+        "Scattering from trapped spectra" => "scattering.md",
         "Examples" => "examples.md",
         "API" => "API.md",
     ],

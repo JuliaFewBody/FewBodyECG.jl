@@ -5,7 +5,7 @@ using FewBodyECG
 
 # Internal (unexported) symbols under test.
 using FewBodyECG: SVMEigen, commit_candidate!, score_candidate,
-    full_arrowhead_eigen, smallest_arrowhead_eigval, coefficients
+    _score_candidate_sum, full_arrowhead_eigen, smallest_arrowhead_eigval, coefficients
 
 # Build the generalised eigendecomposition of (H, S) incrementally, one column
 # at a time, exactly as the SVM does.
@@ -61,6 +61,32 @@ end
             @test E_score ≈ minimum(λ_ref) rtol = 1.0e-9
             commit_candidate!(eig, s_col, h_col, S[k + 1, k + 1], H[k + 1, k + 1])
         end
+    end
+
+    @testset "multi-state scoring sums all available requested levels" begin
+        Snew = [1.4 0.12 0.08; 0.12 1.1 -0.04; 0.08 -0.04 0.9]
+        Hnew = [-0.7 0.16 -0.05; 0.16 0.2 0.09; -0.05 0.09 0.8]
+        eig = incremental_decomp(Hnew[1:2, 1:2], Snew[1:2, 1:2])
+        s_col = Snew[1:2, 3]
+        h_col = Hnew[1:2, 3]
+        s_diag = Snew[3, 3]
+        h_diag = Hnew[3, 3]
+
+        λ = eigen(Symmetric(Hnew), Symmetric(Snew)).values
+        got = _score_candidate_sum(
+            eig, s_col, h_col, s_diag, h_diag;
+            levels = 1:2, min_resid_ratio = 0.0
+        )
+        @test got ≈ sum(λ[1:2]) rtol = 1.0e-9
+
+        first = _score_candidate_sum(
+            SVMEigen(), Float64[], Float64[], 2.0, -0.5;
+            levels = 1:2, min_resid_ratio = 0.0
+        )
+        @test first ≈ -0.25
+        @test_throws ArgumentError _score_candidate_sum(
+            eig, s_col, h_col, s_diag, h_diag; levels = 2:3
+        )
     end
 
     @testset "rejects linearly dependent candidates" begin

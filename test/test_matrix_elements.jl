@@ -1,9 +1,10 @@
 using Test
 using FewBodyECG
 using LinearAlgebra
+using QuadGK: quadgk
 using Random
 
-import FewBodyECG: _compute_matrix_element
+import FewBodyECG: _compute_matrix_element, _polar_contract, _polar_project_dot
 
 @testset "Overlap ⟨g′|g⟩" begin
 
@@ -256,6 +257,164 @@ end
             @test gotV ≈ refV rtol = 1.0e-10 atol = 1.0e-12
         end
     end
+end
+
+@testset "Rank1/Rank2 Gaussian central operators" begin
+    A = [1.2 0.1; 0.1 0.9]
+    B = [0.8 -0.05; -0.05 1.4]
+    w = [1.0, -0.4]
+    W = [0.3 0.04; 0.04 0.2]
+    s = zeros(2)
+
+    p, q = [0.7, -0.2], [-0.3, 0.8]
+    g1p, g2p = Rank1Gaussian(A, p, s), Rank1Gaussian(B, q, s)
+    halfpair = 0.35 .* (w * w')
+    @test _compute_matrix_element(g1p, g2p, GaussianOperator(2.0, 0.7, w)) ≈
+        2.0 * _compute_matrix_element(
+        Rank1Gaussian(A + halfpair, p, s),
+        Rank1Gaussian(B + halfpair, q, s),
+    ) rtol = 1.0e-12
+    @test _compute_matrix_element(g1p, g2p, ManyBodyGaussianOperator(-1.5, W)) ≈
+        -1.5 * _compute_matrix_element(
+        Rank1Gaussian(A + W / 2, p, s),
+        Rank1Gaussian(B + W / 2, q, s),
+    ) rtol = 1.0e-12
+
+    a = hcat(w, zeros(2), zeros(2))
+    b = hcat(zeros(2), w, zeros(2))
+    g1d, g2d = Rank2Gaussian(A, a, b, s), Rank2Gaussian(B, a, b, s)
+    @test _compute_matrix_element(g1d, g2d, GaussianOperator(2.0, 0.7, w)) ≈
+        2.0 * _compute_matrix_element(
+        Rank2Gaussian(A + halfpair, a, b, s),
+        Rank2Gaussian(B + halfpair, a, b, s),
+    ) rtol = 1.0e-12
+    @test _compute_matrix_element(g1d, g2d, ManyBodyGaussianOperator(-1.5, W)) ≈
+        -1.5 * _compute_matrix_element(
+        Rank2Gaussian(A + W / 2, a, b, s),
+        Rank2Gaussian(B + W / 2, a, b, s),
+    ) rtol = 1.0e-12
+
+    A32, B32 = Float32.(A), Float32.(B)
+    p32, q32, s32 = Float32.(p), Float32.(q), Float32.(s)
+    g1p32 = Rank1Gaussian(A32, p32, s32)
+    g2p32 = Rank1Gaussian(B32, q32, s32)
+    @test _compute_matrix_element(g1p32, g2p32, GaussianOperator(2.0, 0.7, w)) ≈
+        2.0 * _compute_matrix_element(
+        Rank1Gaussian(Float64.(A32) + halfpair, Float64.(p32), Float64.(s32)),
+        Rank1Gaussian(Float64.(B32) + halfpair, Float64.(q32), Float64.(s32)),
+    ) rtol = 1.0e-12
+    @test _compute_matrix_element(g1p32, g2p32, ManyBodyGaussianOperator(-1.5, W)) ≈
+        -1.5 * _compute_matrix_element(
+        Rank1Gaussian(Float64.(A32) + W / 2, Float64.(p32), Float64.(s32)),
+        Rank1Gaussian(Float64.(B32) + W / 2, Float64.(q32), Float64.(s32)),
+    ) rtol = 1.0e-12
+
+    a32, b32 = Float32.(a), Float32.(b)
+    g1d32 = Rank2Gaussian(A32, a32, b32, s32)
+    g2d32 = Rank2Gaussian(B32, a32, b32, s32)
+    @test _compute_matrix_element(g1d32, g2d32, GaussianOperator(2.0, 0.7, w)) ≈
+        2.0 * _compute_matrix_element(
+        Rank2Gaussian(
+            Float64.(A32) + halfpair,
+            Float64.(a32),
+            Float64.(b32),
+            Float64.(s32),
+        ),
+        Rank2Gaussian(
+            Float64.(B32) + halfpair,
+            Float64.(a32),
+            Float64.(b32),
+            Float64.(s32),
+        ),
+    ) rtol = 1.0e-12
+    @test _compute_matrix_element(g1d32, g2d32, ManyBodyGaussianOperator(-1.5, W)) ≈
+        -1.5 * _compute_matrix_element(
+        Rank2Gaussian(
+            Float64.(A32) + W / 2,
+            Float64.(a32),
+            Float64.(b32),
+            Float64.(s32),
+        ),
+        Rank2Gaussian(
+            Float64.(B32) + W / 2,
+            Float64.(a32),
+            Float64.(b32),
+            Float64.(s32),
+        ),
+    ) rtol = 1.0e-12
+
+    Ai, Bi = [2 0; 0 1], [1 0; 0 2]
+    pi, qi, si = [1, -1], [2, 1], zeros(Int, 2)
+    g1pi, g2pi = Rank1Gaussian(Ai, pi, si), Rank1Gaussian(Bi, qi, si)
+    @test _compute_matrix_element(g1pi, g2pi, GaussianOperator(2.0, 0.7, w)) ≈
+        2.0 * _compute_matrix_element(
+        Rank1Gaussian(Float64.(Ai) + halfpair, Float64.(pi), Float64.(si)),
+        Rank1Gaussian(Float64.(Bi) + halfpair, Float64.(qi), Float64.(si)),
+    ) rtol = 1.0e-12
+
+    R = inv(A + B)
+    ρ = dot(w, R * w)
+    P(x, y) = _polar_contract(x, R, y)
+    Q(x, y) = _polar_project_dot(x, R * w, y, R * w)
+    M0 = (π^size(R, 1) / det(A + B))^(3 / 2)
+    c = 1.7
+    expected_p = c * M0 * (3ρ * P(p, q) / 4 + Q(p, q) / 2)
+    @test _compute_matrix_element(g1p, g2p, OscillatorOperator(c, w)) ≈ expected_p
+
+    aa, ab, ka, kb = g1d.a, g1d.b, g2d.a, g2d.b
+    U = P(aa, ab) * P(ka, kb) +
+        P(aa, ka) * P(ab, kb) +
+        P(aa, kb) * P(ab, ka)
+    V = Q(aa, ab) * P(ka, kb) + P(aa, ab) * Q(ka, kb) +
+        Q(aa, ka) * P(ab, kb) + P(aa, ka) * Q(ab, kb) +
+        Q(aa, kb) * P(ab, ka) + P(aa, kb) * Q(ab, ka)
+    expected_d = c * M0 * (3ρ * U / 8 + V / 4)
+    @test _compute_matrix_element(g1d, g2d, OscillatorOperator(c, w)) ≈ expected_d
+
+    rng = MersenneTwister(19)
+    for _ in 1:4
+        X, Y = randn(rng, 2, 2), randn(rng, 2, 2)
+        Ar, Br = X' * X + I, Y' * Y + I
+        pr, qr = randn(rng, 2, 3), randn(rng, 2, 3)
+        ar, br = randn(rng, 2, 3), randn(rng, 2, 3)
+        kr, lr = randn(rng, 2, 3), randn(rng, 2, 3)
+        g1pr = Rank1Gaussian(Ar, pr, s)
+        g2pr = Rank1Gaussian(Br, qr, s)
+        g1dr = Rank2Gaussian(Ar, ar, br, s)
+        g2dr = Rank2Gaussian(Br, kr, lr, s)
+        op = OscillatorOperator(c, w)
+
+        @test _compute_matrix_element(g1pr, g2pr, op) ≈
+            _compute_matrix_element(g2pr, g1pr, op) rtol = 1.0e-12
+        @test _compute_matrix_element(g1dr, g2dr, op) ≈
+            _compute_matrix_element(g2dr, g1dr, op) rtol = 1.0e-12
+    end
+
+    shifted = [0.1, 0.0]
+    @test_throws ArgumentError _compute_matrix_element(
+        Rank1Gaussian(A, p, shifted), g2p, OscillatorOperator(c, w)
+    )
+    @test_throws ArgumentError _compute_matrix_element(
+        Rank2Gaussian(A, a, b, shifted), g2d, OscillatorOperator(c, w)
+    )
+end
+
+@testset "One-particle oscillator limits" begin
+    α, β = 0.8, 1.3
+    w = [1.0]
+    s = zeros(1)
+
+    gpα = Rank1Gaussian([α;;], [1.0], s)
+    gpβ = Rank1Gaussian([β;;], [1.0], s)
+    Ip = 4π / 3 * first(quadgk(r -> r^6 * exp(-(α + β) * r^2), 0, Inf))
+    @test _compute_matrix_element(gpα, gpβ, OscillatorOperator(1.0, w)) ≈ Ip
+
+    a = hcat([1.0], [0.0], [0.0])
+    b = hcat([0.0], [1.0], [0.0])
+    gdα = Rank2Gaussian([α;;], a, b, s)
+    gdβ = Rank2Gaussian([β;;], a, b, s)
+    Id = 4π / 15 * first(quadgk(r -> r^8 * exp(-(α + β) * r^2), 0, Inf))
+    @test _compute_matrix_element(gdα, gdβ, OscillatorOperator(1.0, w)) ≈ Id
 end
 
 @testset "Kinetic Energy ⟨g′|K|g⟩" begin
@@ -592,4 +751,62 @@ end
         _compute_matrix_element(bra, ket, GaussianOperator(1.0, 0.7, w2)) rtol = 1.0e-7
 
     @test_throws DimensionMismatch _compute_matrix_element(bra, ket, NumericalPotential(identity, [1.0]))
+
+    @testset "Zero-shift prefactor Gaussians" begin
+        f(r) = exp(-0.4r) / (1 + r^2)
+        α, β = 0.7, 1.3
+        w = [1.0]
+        gpα = Rank1Gaussian([α;;], [1.0], [0.0])
+        gpβ = Rank1Gaussian([β;;], [1.0], [0.0])
+        a = reshape([1.0, 0.0, 0.0], 1, 3)
+        b = reshape([0.0, 1.0, 0.0], 1, 3)
+        gdα = Rank2Gaussian([α;;], a, b, [0.0])
+        gdβ = Rank2Gaussian([β;;], a, b, [0.0])
+
+        Ip = 4π / 3 * first(quadgk(r -> r^4 * exp(-(α + β) * r^2) * f(r), 0, Inf))
+        Id = 4π / 15 * first(quadgk(r -> r^6 * exp(-(α + β) * r^2) * f(r), 0, Inf))
+        @test _compute_matrix_element(gpα, gpβ, NumericalPotential(f, w)) ≈ Ip rtol = 1.0e-8
+        @test _compute_matrix_element(gdα, gdβ, NumericalPotential(f, w)) ≈ Id rtol = 1.0e-8
+
+        A = [1.2 0.1; 0.1 0.9]
+        B = [0.8 -0.05; -0.05 1.4]
+        w2 = [0.6, -0.9]
+        s = zeros(2)
+        p = [1.0 0.0 0.0; 0.2 0.4 -0.1]
+        q = [0.1 -0.3 0.5; -0.6 0.8 0.2]
+        x = [0.8 -0.2 0.3; 0.1 0.7 -0.4]
+        y = [-0.3 0.5 0.2; 0.9 -0.1 0.6]
+        z = [0.4 0.1 -0.6; -0.2 0.8 0.5]
+        t = [0.7 -0.4 0.2; 0.3 0.6 -0.5]
+        gp1, gp2 = Rank1Gaussian(A, p, s), Rank1Gaussian(B, q, s)
+        gd1, gd2 = Rank2Gaussian(A, x, y, s), Rank2Gaussian(B, z, t, s)
+
+        numerical_gaussian = NumericalPotential(r -> -1.2exp(-0.6r^2), w2)
+        numerical_oscillator = NumericalPotential(r -> 1.7r^2, w2)
+        for (g1p, g2p) in ((gp1, gp2), (gd1, gd2))
+            @test _compute_matrix_element(g1p, g2p, numerical_gaussian) ≈
+                _compute_matrix_element(g1p, g2p, GaussianOperator(-1.2, 0.6, w2)) rtol = 1.0e-8
+            @test _compute_matrix_element(g1p, g2p, numerical_oscillator) ≈
+                _compute_matrix_element(g1p, g2p, OscillatorOperator(1.7, w2)) rtol = 1.0e-8
+            @test _compute_matrix_element(g1p, g2p, NumericalPotential(f, w2)) ≈
+                _compute_matrix_element(g2p, g1p, NumericalPotential(f, w2)) rtol = 1.0e-8
+        end
+
+        shifted = [0.1, 0.0]
+        @test_throws ArgumentError _compute_matrix_element(
+            Rank1Gaussian(A, p, shifted), gp2, NumericalPotential(f, w2)
+        )
+        @test_throws ArgumentError _compute_matrix_element(
+            Rank2Gaussian(A, x, y, shifted), gd2, NumericalPotential(f, w2)
+        )
+        @test_throws DimensionMismatch _compute_matrix_element(
+            gp1, gp2, NumericalPotential(f, [1.0])
+        )
+        @test_throws ArgumentError _compute_matrix_element(
+            gp1, gp2, NumericalPotential(_ -> "not a number", w2)
+        )
+        @test_throws DomainError _compute_matrix_element(
+            gd1, gd2, NumericalPotential(_ -> Inf, w2)
+        )
+    end
 end
