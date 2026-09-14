@@ -1,5 +1,13 @@
 # Code examples
 
+## Scattering
+
+The standalone [scattering example](https://github.com/JuliaFewBody/FewBodyECG.jl/blob/main/examples/scattering.jl)
+computes a converged trapped spectrum for a finite-range Gaussian interaction,
+then extracts the s-wave scattering length, effective range, and shape
+coefficient. See the [scattering guide](scattering.md) for the physical
+conventions, diagnostics, and supported domain.
+
 ## Positronium
 
 ```@example positronium
