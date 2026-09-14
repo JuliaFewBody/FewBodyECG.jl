@@ -77,8 +77,13 @@ converged(sol::Solution) = converged(getfield(sol, :convergence))
 
 Per-step target-state energy history — concatenated across stages, or of
 stage `i`.  Ready for plotting (see also `plot(sol)`).
+For a single stage, returns its stored energy history without copying.
 """
-energies(sol::Solution) = reduce(vcat, (s.energies for s in getfield(sol, :stages)))
+function energies(sol::Solution)
+    stages = getfield(sol, :stages)
+    length(stages) == 1 && return only(stages).energies
+    return reduce(vcat, (s.energies for s in stages))
+end
 energies(sol::Solution, i::Integer) = getfield(sol, :stages)[i].energies
 
 function _fmtE(x)
