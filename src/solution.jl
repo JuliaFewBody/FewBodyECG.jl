@@ -28,14 +28,14 @@ struct ConvergenceReport
 end
 
 """
-    StageResult(method, energies, report)
+    StageResult(method, history, report)
 
-One pipeline stage: the method that ran, its per-step target-state energies,
-and its convergence report.
+One pipeline stage: the method that ran, its per-step target-state energy
+`history`, and its convergence report.
 """
 struct StageResult
     method::SolverMethod
-    energies::Vector{Float64}
+    history::Vector{Float64}
     report::ConvergenceReport
 end
 
@@ -72,19 +72,35 @@ converged(r::ConvergenceReport) = r.converged
 converged(sol::Solution) = converged(getfield(sol, :convergence))
 
 """
-    energies(sol::Solution)            -> Vector{Float64}
-    energies(sol::Solution, i::Integer)
+    energy_history(sol::Solution)            -> Vector{Float64}
+    energy_history(sol::Solution, i::Integer)
 
 Per-step target-state energy history — concatenated across stages, or of
 stage `i`.  Ready for plotting (see also `plot(sol)`).
 For a single stage, returns its stored energy history without copying.
+The eigenvalues of the final basis are `sol.E`; see [`energy`](@ref) for a
+single one.
 """
-function energies(sol::Solution)
+function energy_history(sol::Solution)
     stages = getfield(sol, :stages)
-    length(stages) == 1 && return only(stages).energies
-    return reduce(vcat, (s.energies for s in stages))
+    length(stages) == 1 && return only(stages).history
+    return reduce(vcat, (s.history for s in stages))
 end
-energies(sol::Solution, i::Integer) = getfield(sol, :stages)[i].energies
+energy_history(sol::Solution, i::Integer) = getfield(sol, :stages)[i].history
+
+"""
+    energy(sol::Solution; state = sol.state) -> Float64
+
+Eigenvalue `state` of the final basis, `sol.E[state]`.  With the default
+`state` this equals `sol.E₀`, the energy of the state the solver targeted.
+"""
+function energy(sol::Solution; state::Integer = getfield(sol, :state))
+    E = getfield(sol, :E)
+    1 ≤ state ≤ length(E) || throw(
+        ArgumentError("state must be in 1:$(length(E)), got $state")
+    )
+    return E[state]
+end
 
 function _fmtE(x)
     # Format energy with sigdigits, preferring exponential for small numbers
@@ -130,7 +146,7 @@ function Base.show(io::IO, ::MIME"text/plain", sol::Solution)
     println(io)
     if length(getfield(sol, :stages)) > 1
         chain = join(
-            ("$(s.method): E→$(_fmtE(last(s.energies)))" for s in getfield(sol, :stages)),
+            ("$(s.method): E→$(_fmtE(last(s.history)))" for s in getfield(sol, :stages)),
             "  →  "
         )
         println(io, "  stages       ", chain)

@@ -21,8 +21,13 @@ end
     @test sol.E == [-0.42, 1.7]
     @test converged(sol)
     @test !converged(_dummy_solution(converged = false))
-    @test energies(sol) == [-0.3, -0.42, -0.3, -0.42]
-    @test energies(sol, 2) == [-0.3, -0.42]
+    @test energy_history(sol) == [-0.3, -0.42, -0.3, -0.42]
+    @test energy_history(sol, 2) == [-0.3, -0.42]
+    @test sol.stages[1].history == [-0.3, -0.42]
+    @test energy(sol) == sol.E₀
+    @test energy(sol; state = 2) == sol.E[2]
+    @test_throws "state must be in 1:2, got 3" energy(sol; state = 3)
+    @test_throws "state must be in 1:2, got 0" energy(sol; state = 0)
     @test :E₀ in propertynames(sol)
 
     out = sprint(show, MIME"text/plain"(), sol)

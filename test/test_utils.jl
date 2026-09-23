@@ -51,14 +51,14 @@ end
         sol = create_mock_solution(n_basis = 3, dim = 2)
 
         @test length(sol.basis.functions) == 3
-        @test length(energies(sol)) == 3
+        @test length(energy_history(sol)) == 3
         @test size(sol.coefficients, 2) == 3
         @test sol.stages[1].method.scale == 1.0
     end
 
     @testset "Ground state is last (best) step energy" begin
         sol = create_mock_solution(n_basis = 5)
-        @test sol.E₀ == energies(sol)[end]
+        @test sol.E₀ == energy_history(sol)[end]
     end
 
     @testset "Operators stored correctly" begin
@@ -192,22 +192,22 @@ end
     end
 end
 
-@testset "energies helper (per-step history)" begin
+@testset "energy_history helper (per-step history)" begin
 
-    @testset "Returns correct range and energies" begin
+    @testset "Returns correct range and history" begin
         sol = create_mock_solution(n_basis = 10)
 
-        idx, ener = (1:length(energies(sol)), energies(sol))
+        idx, ener = (1:length(energy_history(sol)), energy_history(sol))
 
         @test idx == 1:10
-        @test ener == energies(sol)
+        @test ener == energy_history(sol)
         @test length(idx) == length(ener)
     end
 
     @testset "Single basis function" begin
         sol = create_mock_solution(n_basis = 1)
 
-        idx, ener = (1:length(energies(sol)), energies(sol))
+        idx, ener = (1:length(energy_history(sol)), energy_history(sol))
 
         @test idx == 1:1
         @test length(ener) == 1
@@ -217,7 +217,7 @@ end
         sol = create_mock_solution(n_basis = 5)
 
         # Should be the same array (not a copy)
-        @test energies(sol) === sol.stages[1].energies
+        @test energy_history(sol) === sol.stages[1].history
     end
 end
 
@@ -236,7 +236,7 @@ end
         sol = solve(ops, SVM(basis = 15, candidates = 1, scale = 1.5))
 
         # Test per-step energy history
-        idx, ener = (1:length(energies(sol)), energies(sol))
+        idx, ener = (1:length(energy_history(sol)), energy_history(sol))
         @test length(idx) == length(sol.basis.functions)
         @test ener[end] == sol.E₀
 
@@ -261,7 +261,7 @@ end
 
         sol = solve(ops, SVM(basis = 10, candidates = 1, scale = 1.0))
 
-        _, ener = (1:length(energies(sol)), energies(sol))
+        _, ener = (1:length(energy_history(sol)), energy_history(sol))
         for i in 2:length(ener)
             @test ener[i] <= ener[i - 1] + 1.0e-10
         end
@@ -283,7 +283,7 @@ end
 
         # All utilities should work
         @test wavefunction(sol)([0.0]) ≈ 1.0
-        @test (1:length(energies(sol)), energies(sol)) == (1:1, [-0.5])
+        @test (1:length(energy_history(sol)), energy_history(sol)) == (1:1, [-0.5])
     end
 
     @testset "Large coordinates" begin

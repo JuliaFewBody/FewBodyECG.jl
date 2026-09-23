@@ -24,7 +24,7 @@ export Operators, Operator,
 export solve, SolverMethod, StochasticMethod, GradientMethod,
     SVM, Refine, GVM, DynamicGVM, Pipeline, →
 # results
-export Solution, ConvergenceReport, StageResult, converged, energies
+export Solution, ConvergenceReport, StageResult, converged, energy, energy_history
 export wavefunction, Wavefunction, convergence, radial_profile
 # matrix-level layer and generic names: documented and supported, reached via
 # `FewBodyECG.name` or `using FewBodyECG: name`

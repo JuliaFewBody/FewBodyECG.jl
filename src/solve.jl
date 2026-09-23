@@ -202,7 +202,7 @@ function _solve(
         ctx.verbose && @info "Refine: iteration $iteration/$(alg.sweeps)" energy = last(st.E_hist)
     end
     ΔE = length(sweep_hist) ≥ 2 ? sweep_hist[end - 1] - sweep_hist[end] :
-        (isempty(energies(init)) ? NaN : last(energies(init)) - sweep_hist[end])
+        (isempty(energy_history(init)) ? NaN : last(energy_history(init)) - sweep_hist[end])
     sat = isfinite(ΔE) && 0 ≤ ΔE < tol
     rep = ConvergenceReport(
         sat, sat ? :saturation : :max_steps, ΔE, tol, 1, nothing,

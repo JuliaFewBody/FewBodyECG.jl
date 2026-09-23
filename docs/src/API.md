@@ -46,7 +46,8 @@ Solution
 ConvergenceReport
 StageResult
 converged
-energies
+energy
+energy_history
 convergence
 wavefunction
 Wavefunction

@@ -1,4 +1,4 @@
-using RecipesBase: @recipe, @series
+using RecipesBase: RecipesBase, @recipe, @series
 
 # plot(sol):        per-stage energy curves vs cumulative step
 # plot(sol, E_ref): same, plus a reference-energy hline
@@ -8,13 +8,13 @@ using RecipesBase: @recipe, @series
     legend --> :topright
     offset = 0
     for st in getfield(sol, :stages)
-        xs = offset .+ (1:length(st.energies))
-        offset += length(st.energies)
+        xs = offset .+ (1:length(st.history))
+        offset += length(st.history)
         @series begin
             label --> sprint(show, st.method)
             seriestype --> :path
             linewidth --> 2
-            xs, st.energies
+            xs, st.history
         end
     end
     if reference !== nothing

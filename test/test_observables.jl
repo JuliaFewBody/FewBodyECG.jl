@@ -39,7 +39,7 @@ end
 @testset "convergence and radial_profile utilities" begin
     steps, history = convergence(sol)
     @test steps == 1:length(history)
-    @test history == energies(sol)
+    @test history == energy_history(sol)
 
     r, density = radial_profile(wavefunction(sol); rmax = 4, npoints = 200)
     @test first(r) ≥ 0
