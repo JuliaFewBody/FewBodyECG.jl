@@ -44,6 +44,11 @@ This is a breaking API release.
 They remain documented and supported; call them as `FewBodyECG.name` or bring
 them into scope with `using FewBodyECG: name`.
 
+### `Operators` term addition
+
+`ops + term` returns a new `Operators` and leaves `ops` unchanged;
+`push!(ops, term)` adds a term in place. `ops += term` works as before.
+
 `GVM()` infers its basis size from `init`; cold starts use
 `GVM(basis = n)`. `DynamicGVM(basis = n)` treats `n` as the final basis size.
 Both gradient methods accept an OptimKit `GradientDescent`,

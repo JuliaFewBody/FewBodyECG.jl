@@ -495,4 +495,56 @@ using FewBodyECG: build_hamiltonian_matrix, coulomb_weights
         @test_throws ArgumentError Operators(masses) + (f, numerical, 1, 3)
         @test_throws MethodError Operators(masses) + (f, :unknown, 1, 2)
     end
+
+    @testset "push! mutates, + copies" begin
+        masses, charges = [1.0e15, 1.0, 1.0], [+2.0, -1.0, -1.0]
+        _, U = jacobi_transform(masses)
+        f(r) = -exp(-r^2)
+        terms = (
+            KineticOperator(masses),
+            "Kinetic",
+            "Coulomb",
+            ("Coulomb", 1, 2, -2.0),
+            ("Oscillator", 2, 3, 0.5),
+            ("Gaussian", 1, 3, -1.0, 0.7),
+            (f, numerical, 2, 3),
+        )
+        for term in terms
+            base = Operators(masses, charges)
+            push!(base, "Kinetic")
+            n0 = length(base)
+
+            extended = base + term
+            @test length(base) == n0
+            @test extended !== base
+            @test length(extended) > n0
+
+            pushed = Operators(masses, charges)
+            push!(pushed, "Kinetic")
+            @test push!(pushed, term) === pushed
+            @test length(pushed) == length(extended)
+
+            rebound = Operators(masses, charges)
+            rebound += "Kinetic"
+            rebound += term
+            @test length(rebound) == length(extended)
+            for (a, b) in zip(extended, pushed)
+                @test typeof(a) == typeof(b)
+            end
+            for (a, b) in zip(extended, rebound)
+                @test typeof(a) == typeof(b)
+            end
+        end
+
+        base = Operators(masses, charges)
+        copied = copy(base)
+        push!(copied, "Kinetic")
+        @test length(base) == 0
+        @test copied.masses == base.masses
+        @test copied.charges == base.charges
+
+        @test_throws "Unknown operator \"kinetic\"" push!(Operators(masses), "kinetic")
+        @test_throws "Unknown operator \"kinetic\"" Operators(masses) + "kinetic"
+        @test_throws MethodError push!(Operators(masses), ("Coulomb", 1, 2))
+    end
 end
