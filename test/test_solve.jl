@@ -1,6 +1,7 @@
 using Test
 using LinearAlgebra
 using FewBodyECG
+using FewBodyECG: build_overlap_matrix
 
 ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
 

@@ -14,11 +14,11 @@ be typed as `Operator[...]` alongside the `Operators` builder.
 const Operator = FewBodyHamiltonians.Operator
 
 # system building
-export Operators, coulomb_weights, Operator,
+export Operators, Operator,
     KineticOperator, CoulombOperator, GaussianOperator,
     OscillatorOperator, ManyBodyGaussianOperator, NumericalPotential, numerical,
     GaussianTensorOperator, GaussianSpinOrbitOperator,
-    SpinProjection, up, down, SpinState, SpinGaussian,
+    SpinProjection, SpinState, SpinGaussian,
     GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet
 # solving
 export solve, SolverMethod, StochasticMethod, GradientMethod,
@@ -26,9 +26,11 @@ export solve, SolverMethod, StochasticMethod, GradientMethod,
 # results
 export Solution, ConvergenceReport, StageResult, converged, energies
 export wavefunction, Wavefunction, convergence, radial_profile
-# power-user layer
-export build_hamiltonian_matrix, build_overlap_matrix,
-    solve_generalized_eigenproblem, Λ, jacobi_transform, default_scale
+# matrix-level layer and generic names: documented and supported, reached via
+# `FewBodyECG.name` or `using FewBodyECG: name`
+public build_hamiltonian_matrix, build_overlap_matrix,
+    solve_generalized_eigenproblem, Λ, jacobi_transform, default_scale,
+    coulomb_weights, up, down
 
 include("types.jl")
 include("coordinates.jl")

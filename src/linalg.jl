@@ -3,7 +3,7 @@ function _compute_overlap_element(bra::GaussianBase, ket::GaussianBase)
 end
 
 """
-    build_overlap_matrix(basis)
+    FewBodyECG.build_overlap_matrix(basis)
 
 Return the ECG overlap matrix `S` with entries `<g_i|g_j>` for a `BasisSet`.
 """
@@ -34,7 +34,7 @@ function _build_operator_matrix(basis::BasisSet{<:GaussianBase}, op::FewBodyHami
 end
 
 """
-    build_hamiltonian_matrix(basis, operators)
+    FewBodyECG.build_hamiltonian_matrix(basis, operators)
 
 Return the Hamiltonian matrix assembled from all operator matrix elements over
 `basis`. `operators` may be an `Operators` builder or a vector of operator
@@ -54,7 +54,7 @@ function build_hamiltonian_matrix(basis::BasisSet{<:GaussianBase}, operators::Ab
 end
 
 """
-    solve_generalized_eigenproblem(H, S; max_condition=1e12, regularization=0)
+    FewBodyECG.solve_generalized_eigenproblem(H, S; max_condition=1e12, regularization=0)
 
 Solve the symmetric generalized eigenproblem `H*c = E*S*c`, returning
 eigenvalues and `S`-orthonormal eigenvectors.
@@ -157,7 +157,7 @@ function is_linearly_independent(
 end
 
 """
-    default_scale(masses)
+    FewBodyECG.default_scale(masses)
 
 Return the default Gaussian length scale inferred from the lightest finite
 particle mass in atomic units.

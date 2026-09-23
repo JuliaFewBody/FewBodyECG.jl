@@ -4,7 +4,6 @@
 
 ```@docs
 Operators
-coulomb_weights
 Operator
 KineticOperator
 CoulombOperator
@@ -16,8 +15,6 @@ numerical
 GaussianTensorOperator
 GaussianSpinOrbitOperator
 SpinProjection
-up
-down
 SpinState
 SpinGaussian
 GaussianBase
@@ -56,13 +53,24 @@ Wavefunction
 radial_profile
 ```
 
-## Power-user layer
+## Matrix-level layer (public, not exported)
+
+These names are part of the supported API but are not brought into scope by
+`using FewBodyECG`. Call them as `FewBodyECG.name`, or import them explicitly:
+
+```julia
+using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix,
+    solve_generalized_eigenproblem, up, down
+```
 
 ```@docs
-build_hamiltonian_matrix
-build_overlap_matrix
-solve_generalized_eigenproblem
-Λ
-jacobi_transform
-default_scale
+FewBodyECG.build_hamiltonian_matrix
+FewBodyECG.build_overlap_matrix
+FewBodyECG.solve_generalized_eigenproblem
+FewBodyECG.Λ
+FewBodyECG.jacobi_transform
+FewBodyECG.default_scale
+FewBodyECG.coulomb_weights
+FewBodyECG.up
+FewBodyECG.down
 ```

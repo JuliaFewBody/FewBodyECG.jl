@@ -36,6 +36,14 @@ This is a breaking API release.
 `StageResult`, `converged`, `energies`, `convergence`, `wavefunction`,
 `Wavefunction`, `radial_profile`, `jacobi_transform`, and `default_scale`.
 
+### Public but no longer exported
+
+`build_hamiltonian_matrix`, `build_overlap_matrix`,
+`solve_generalized_eigenproblem`, `Λ`, `jacobi_transform`, `default_scale`,
+`coulomb_weights`, `up`, and `down` are declared `public` instead of exported.
+They remain documented and supported; call them as `FewBodyECG.name` or bring
+them into scope with `using FewBodyECG: name`.
+
 `GVM()` infers its basis size from `init`; cold starts use
 `GVM(basis = n)`. `DynamicGVM(basis = n)` treats `n` as the final basis size.
 Both gradient methods accept an OptimKit `GradientDescent`,

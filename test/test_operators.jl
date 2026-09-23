@@ -3,6 +3,7 @@ using LinearAlgebra
 using FewBodyHamiltonians
 using FewBodyECG
 import FewBodyECG: jacobi_transform, Λ
+using FewBodyECG: build_hamiltonian_matrix, coulomb_weights
 
 @testset "Operators" begin
 

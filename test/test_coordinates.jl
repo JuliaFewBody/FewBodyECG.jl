@@ -2,6 +2,7 @@ using Test
 using FewBodyECG
 using LinearAlgebra
 import FewBodyECG: jacobi_transform, _transform_coordinates, _inverse_transform_coordinates
+using FewBodyECG: Λ
 
 @testset "Coordinates Module Tests" begin
     @testset "jacobi_transform" begin

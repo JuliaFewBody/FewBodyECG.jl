@@ -1,5 +1,6 @@
 using Test
 using FewBodyECG
+using FewBodyECG: jacobi_transform
 
 # Hooke's atom (harmonium): two electrons in a harmonic trap with Coulomb
 # repulsion.  For ω = 1/2 the ground-state energy is exactly 2 Ha

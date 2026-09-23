@@ -3,6 +3,7 @@ using LinearAlgebra
 using FewBodyECG
 using OptimKit: LBFGS
 import FewBodyECG: jacobi_transform, _encode_basis, _decode_basis, _chol_to_params, _params_to_matrix
+using FewBodyECG: Λ
 
 _variational_lbfgs(maxiter; gradtol = 1.0e-6) =
     LBFGS(; maxiter, gradtol, verbosity = 0, ls_verbosity = 0)

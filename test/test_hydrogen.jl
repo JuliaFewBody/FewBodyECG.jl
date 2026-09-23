@@ -2,6 +2,7 @@ using Test
 using FewBodyECG
 using LinearAlgebra
 using QuasiMonteCarlo
+using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, Λ, jacobi_transform
 
 import FewBodyECG: _generate_A_matrix, _compute_overlap_element, generate_bij
 

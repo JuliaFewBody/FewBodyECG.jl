@@ -4,6 +4,7 @@ using FewBodyHamiltonians
 using FewBodyECG
 import FewBodyECG: _compute_overlap_element, _build_operator_matrix, _compute_matrix_element, normalized_overlap, is_linearly_independent
 using QuasiMonteCarlo
+using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem, Λ, jacobi_transform, default_scale
 
 @testset "build_overlap_matrix" begin
 

@@ -11,3 +11,6 @@ Manifest-v*.toml
 *.jl.mem
 .claude
 CLAUDE.md
+docs/discussion/
+docs/superpowers/
+.superpowers/

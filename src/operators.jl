@@ -224,7 +224,7 @@ function Base.show(io::IO, ops::Operators)
 end
 
 """
-    coulomb_weights(ops::Operators) -> Vector{Vector{Float64}}
+    FewBodyECG.coulomb_weights(ops::Operators) -> Vector{Vector{Float64}}
 
 Return the Jacobi-frame weight vectors for every `CoulombOperator` in `ops`,
 in the order they were added. Useful for manual basis construction:

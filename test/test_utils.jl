@@ -5,6 +5,7 @@ using FewBodyECG
 using FewBodyECG: SATURATION_CAVEAT
 import FewBodyECG: jacobi_transform, _generate_A_matrix, generate_bij, generate_shift
 using QuasiMonteCarlo
+using FewBodyECG: Λ
 
 function create_mock_solution(;
         n_basis::Int = 5,

@@ -2,6 +2,7 @@ using Test
 using LinearAlgebra
 using Random
 using FewBodyECG
+using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem, Λ, jacobi_transform
 
 # Internal (unexported) symbols under test.
 using FewBodyECG: SVMEigen, commit_candidate!, score_candidate,
