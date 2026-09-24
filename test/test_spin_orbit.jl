@@ -1,6 +1,7 @@
 using Test
 using LinearAlgebra
 using FewBodyECG
+using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem, up
 
 # Model spin-orbit doublet: two spin-½ particles in a p-wave-like manifold of
 # shifted Gaussians bound by a central well.  A GaussianSpinOrbitOperator makes

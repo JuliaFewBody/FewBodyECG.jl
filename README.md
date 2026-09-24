@@ -38,7 +38,7 @@ plot(sol, -0.5)
 
 v2.0 is a breaking API release.  The old `solve_ECG*` entry points and
 `SolverResults` utilities are replaced by `solve(ops, method)`,
-`Solution`, `energies`, `wavefunction`, and plotting recipes.  See
+`Solution`, `energy`, `energy_history`, `wavefunction`, and plotting recipes.  See
 `CHANGELOG.md` for the migration table.
 
 ## Features

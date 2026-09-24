@@ -1,5 +1,5 @@
 """
-    jacobi_transform(masses) -> (J, U)
+    FewBodyECG.jacobi_transform(masses) -> (J, U)
 
 Compute the Jacobi coordinate transformation matrix `J` and its pseudo-inverse `U`
 for a system with the given particle `masses`.
@@ -36,7 +36,7 @@ function jacobi_transform(masses::Vector{Float64})::Tuple{Matrix{Float64}, Matri
 end
 
 """
-    Λ(masses) -> Symmetric matrix
+    FewBodyECG.Λ(masses) -> Symmetric matrix
 
 Compute the kinetic-energy matrix in Jacobi coordinates for a system with the
 given particle `masses` (in atomic units).

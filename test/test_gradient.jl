@@ -80,7 +80,7 @@ end
         ; maxiter = 1, gradtol = 0.0, verbosity = 0, ls_verbosity = 0
     )
     sol = solve(ops, GVM(basis = 1, scale = 1.0, optimizer = optimizer))
-    @test length(energies(sol)) == 2 # initial point and one accepted iteration
+    @test length(energy_history(sol)) == 2 # initial point and one accepted iteration
 end
 
 @testset "GVM and DynamicGVM" begin
@@ -90,7 +90,7 @@ end
     @test sol.convergence.criterion in (:stationarity, :max_steps)
     @test sol.convergence.gradnorm isa Float64
     @test sol.convergence.window == 0
-    @test !isempty(energies(sol))
+    @test !isempty(energy_history(sol))
 
     # warm start from a stochastic run must not be worse than the start
     svm = solve(ops, SVM(basis = 8, candidates = 10, scale = 1.0))
@@ -121,7 +121,7 @@ end
 
     g = solve(ops, DynamicGVM(basis = 5, candidates = 5, scale = 1.0))
     @test g.E₀ < -0.45
-    @test length(energies(g)) == length(g.basis.functions)
+    @test length(energy_history(g)) == length(g.basis.functions)
 end
 
 @testset "gradient solvers surface automatic-differentiation failures" begin

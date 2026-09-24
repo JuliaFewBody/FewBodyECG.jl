@@ -1,4 +1,5 @@
 using OffsetArrays
+using FewBodyECG: build_hamiltonian_matrix, solve_generalized_eigenproblem
 
 @testset "generic axes" begin
     @testset "solve_generalized_eigenproblem" begin

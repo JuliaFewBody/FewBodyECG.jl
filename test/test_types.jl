@@ -228,3 +228,15 @@ end
     @test_throws ArgumentError NumericalPotential(f, [1.0]; maxevals = 0)
     @test_throws ArgumentError NumericalPotential(f, [Inf])
 end
+
+@testset "public but unexported names" begin
+    for name in (
+            :build_hamiltonian_matrix, :build_overlap_matrix,
+            :solve_generalized_eigenproblem, :Λ, :jacobi_transform, :default_scale,
+            :coulomb_weights, :up, :down,
+        )
+        @test Base.ispublic(FewBodyECG, name)
+        @test !Base.isexported(FewBodyECG, name)
+    end
+    @test Base.isexported(FewBodyECG, :numerical)
+end

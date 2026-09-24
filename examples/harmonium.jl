@@ -1,5 +1,6 @@
 using FewBodyECG
 using Plots
+using FewBodyECG: jacobi_transform
 
 ω = 0.5
 masses = [1.0e15, 1.0, 1.0]

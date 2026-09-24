@@ -2,6 +2,7 @@ using Test
 using LinearAlgebra
 using Random
 using FewBodyECG
+using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem, Λ, jacobi_transform
 
 # Internal (unexported) symbols under test.
 using FewBodyECG: SVMEigen, commit_candidate!, score_candidate,
@@ -106,7 +107,7 @@ end
         @test sol.E₀ ≈ minimum(λ_ref) atol = 1.0e-5
         @test sol.E₀ > -0.5 - 1.0e-6          # variational: above exact H ground state
         # Energy history is non-increasing (competitive selection keeps the best).
-        @test all(diff(energies(sol)) .<= 1.0e-9)
+        @test all(diff(energy_history(sol)) .<= 1.0e-9)
         # Stored coefficients are S-normalised → wavefunction usable.
         c = sol.coefficients[:, 1]
         @test c' * S * c ≈ 1.0 atol = 1.0e-6

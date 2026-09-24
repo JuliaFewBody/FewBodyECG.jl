@@ -4,6 +4,7 @@ using FewBodyECG
 using FewBodyECG: BasisState, nfuns, commit!, rebuild_without,
     _candidate_columns, _draw_candidate!, _solution_basis_state,
     ConvergenceReport, Solution, SVM, StageResult
+using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix
 
 # hydrogen-like fixture
 ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"

@@ -15,7 +15,7 @@ ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
     @test sol.stages[1].method isa SVM
     @test sol.stages[3].method isa GVM
     # monotone: each stage's final energy ≤ the previous stage's
-    finals = [last(s.energies) for s in sol.stages]
+    finals = [last(s.history) for s in sol.stages]
     @test all(diff(finals) .<= 1.0e-10)
     @test sol.convergence === sol.stages[end].report
     @test occursin("→", sprint(show, MIME"text/plain"(), sol))

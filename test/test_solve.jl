@@ -1,6 +1,7 @@
 using Test
 using LinearAlgebra
 using FewBodyECG
+using FewBodyECG: build_overlap_matrix
 
 ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
 
@@ -17,7 +18,7 @@ end
     @test sol.E₀ > -0.5 - 1.0e-6                    # variational bound
     @test length(sol.stages) == 1
     @test sol.stages[1].method isa SVM
-    @test all(diff(energies(sol)) .<= 1.0e-9)       # monotone selection
+    @test all(diff(energy_history(sol)) .<= 1.0e-9)       # monotone selection
     @test sol.convergence.criterion in (:saturation, :max_steps)
     @test FewBodyECG.SATURATION_CAVEAT in sol.convergence.notes
     @test size(sol.coefficients, 2) == length(sol.E)
@@ -41,6 +42,9 @@ end
     # excited state targeting
     sol2 = solve(ops, SVM(basis = 25, candidates = 20, scale = 1.0); state = 2)
     @test sol2.state == 2 && sol2.E₀ == sol2.E[2] && sol2.E₀ > sol2.E[1]
+    @test energy(sol2) == sol2.E₀
+    @test energy(sol2; state = 1) == sol2.E[1]
+    @test last(energy_history(sol2)) == sol2.E₀
 
     # A requested eigenstate must not silently become the highest state that
     # happens to fit in the final basis.

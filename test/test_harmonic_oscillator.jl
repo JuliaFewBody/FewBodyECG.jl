@@ -2,6 +2,7 @@ using Test
 using LinearAlgebra
 using FewBodyECG
 import Antique
+using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem
 
 # Isotropic 3D harmonic oscillator (k = m = ℏ = 1) modelled as a unit-mass
 # particle bound to a fixed centre by an OscillatorOperator.  Its l = 0 states

@@ -2,6 +2,7 @@ using Test
 using FewBodyECG
 using LinearAlgebra
 using Random
+using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem, Λ, up, down
 
 import FewBodyECG: _compute_matrix_element
 

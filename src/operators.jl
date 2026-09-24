@@ -12,6 +12,13 @@ with physical particle indices rather than Jacobi-frame weight vectors.
     Operators(masses)              # system-aware; enables string/index shorthand
     Operators(masses, charges)     # fully automatic; enables `ops += "Coulomb"` shorthand
 
+# Adding terms
+
+`push!(ops, term)` appends `term` to `ops` in place and returns `ops`.
+`ops + term` returns a new `Operators` and leaves `ops` unchanged, so
+`ops += term` rebinds `ops` to the extended copy. Both accept every term form
+shown below.
+
 # System-aware interface
 
 Particle indices follow the original ordering of `masses`.  All Jacobi
@@ -19,10 +26,10 @@ transforms are computed internally.
 
 ```julia
 ops = Operators([m₁, m₂, m₃])
-    ops += "Kinetic"
-    ops += ("Coulomb", 1, 2, +1.0)   # pair (1,2) with coupling coefficient +1.0
-    ops += ("Coulomb", 1, 3, -1.0)
-    ops += (r -> -exp(-r^2), numerical, 1, 2)
+ops += "Kinetic"
+ops += ("Coulomb", 1, 2, +1.0)   # pair (1,2) with coupling coefficient +1.0
+ops += ("Coulomb", 1, 3, -1.0)
+ops += (r -> -exp(-r^2), numerical, 1, 2)
 ```
 
 When charges are also supplied, the fully-automatic shorthand `ops += "Coulomb"`
@@ -82,12 +89,12 @@ function Operators(masses::Vector{<:Real}, charges::Vector{<:Real})
     return Operators(FewBodyHamiltonians.Operator[], Float64.(masses), Float64.(charges), U)
 end
 
-function Base.:+(ops::Operators, op::FewBodyHamiltonians.Operator)
+function Base.push!(ops::Operators, op::FewBodyHamiltonians.Operator)
     push!(ops.terms, op)
     return ops
 end
 
-function Base.:+(ops::Operators, name::AbstractString)
+function Base.push!(ops::Operators, name::AbstractString)
     if name == "Kinetic"
         ops.masses !== nothing ||
             throw(ArgumentError("\"Kinetic\" requires Operators(masses)."))
@@ -118,7 +125,7 @@ function Base.:+(ops::Operators, name::AbstractString)
     return ops
 end
 
-function Base.:+(ops::Operators, term::Tuple{<:AbstractString, <:Integer, <:Integer, <:Real, <:Real})
+function Base.push!(ops::Operators, term::Tuple{<:AbstractString, <:Integer, <:Integer, <:Real, <:Real})
     name, i, j, coeff, γ = term
     name == "Gaussian" ||
         throw(ArgumentError("Unknown operator \"$name\". Supported: \"Gaussian\"."))
@@ -137,7 +144,7 @@ function Base.:+(ops::Operators, term::Tuple{<:AbstractString, <:Integer, <:Inte
     return ops
 end
 
-function Base.:+(ops::Operators, term::Tuple{<:AbstractString, <:Integer, <:Integer, <:Real})
+function Base.push!(ops::Operators, term::Tuple{<:AbstractString, <:Integer, <:Integer, <:Real})
     name, i, j, coeff = term
     name in ("Coulomb", "Oscillator") ||
         throw(ArgumentError("Unknown operator \"$name\". Supported: \"Coulomb\", \"Oscillator\"."))
@@ -163,7 +170,7 @@ function Base.:+(ops::Operators, term::Tuple{<:AbstractString, <:Integer, <:Inte
     return ops
 end
 
-function Base.:+(
+function Base.push!(
         ops::Operators,
         term::Tuple{F, NumericalPotentialMarker, I, J},
     ) where {F, I <: Integer, J <: Integer}
@@ -182,6 +189,12 @@ function Base.:+(
     push!(ops.terms, NumericalPotential(f, w))
     return ops
 end
+
+# `copy` duplicates the term list only; masses, charges, and the Jacobi matrix
+# are never mutated after construction, so the copy shares them.
+Base.copy(ops::Operators) = Operators(copy(ops.terms), ops.masses, ops.charges, ops._U)
+
+Base.:+(ops::Operators, term) = push!(copy(ops), term)
 
 Base.length(ops::Operators) = length(ops.terms)
 Base.iterate(ops::Operators) = iterate(ops.terms)
@@ -224,7 +237,7 @@ function Base.show(io::IO, ops::Operators)
 end
 
 """
-    coulomb_weights(ops::Operators) -> Vector{Vector{Float64}}
+    FewBodyECG.coulomb_weights(ops::Operators) -> Vector{Vector{Float64}}
 
 Return the Jacobi-frame weight vectors for every `CoulombOperator` in `ops`,
 in the order they were added. Useful for manual basis construction:

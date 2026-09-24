@@ -3,6 +3,7 @@ using LinearAlgebra
 using FewBodyECG
 using OptimKit: LBFGS
 import FewBodyECG: jacobi_transform, _encode_basis, _decode_basis, _chol_to_params, _params_to_matrix
+using FewBodyECG: Λ
 
 _variational_lbfgs(maxiter; gradtol = 1.0e-6) =
     LBFGS(; maxiter, gradtol, verbosity = 0, ls_verbosity = 0)
@@ -121,11 +122,11 @@ end
     @test sol.E₀ < 0.0          # bound state
     @test sol.stages[1].method isa GVM
     @test size(sol.coefficients) == (5, 5)
-    # energies(sol) records accepted optimizer iterations, including the
+    # energy_history(sol) records accepted optimizer iterations, including the
     # initial point.
-    @test !isempty(energies(sol))
-    @test last(energies(sol)) <= sol.E₀ + 1.0e-8
-    @test issorted(energies(sol); rev = true)   # monotone non-increasing
+    @test !isempty(energy_history(sol))
+    @test last(energy_history(sol)) <= sol.E₀ + 1.0e-8
+    @test issorted(energy_history(sol); rev = true)   # monotone non-increasing
 end
 
 @testset "GVM tracks the requested state" begin
@@ -136,7 +137,7 @@ end
     )
 
     @test sol.state == 2
-    @test last(energies(sol)) > sol.E[1] + 1.0e-3
+    @test last(energy_history(sol)) > sol.E[1] + 1.0e-3
 end
 
 @testset "Gradient solvers initialise from pairwise geometry" begin
@@ -215,17 +216,17 @@ end
 end
 
 # ---------------------------------------------------------------------------
-# energies(sol) as the per-iteration convergence trace
+# energy_history(sol) as the per-iteration convergence trace
 # ---------------------------------------------------------------------------
 
-@testset "energies(sol) returns correct axes (GVM)" begin
+@testset "energy_history(sol) returns correct axes (GVM)" begin
     ops = _hydrogen_ops()
     sol = solve(ops, GVM(basis = 5, scale = 1.0, optimizer = _variational_lbfgs(30)))
 
-    xs, ys = (1:length(energies(sol)), energies(sol))
+    xs, ys = (1:length(energy_history(sol)), energy_history(sol))
     @test length(xs) == length(ys)
-    @test xs == 1:length(energies(sol))
-    @test ys === energies(sol)
+    @test xs == 1:length(energy_history(sol))
+    @test ys === energy_history(sol)
     @test issorted(ys; rev = true)   # monotone non-increasing by construction
 end
 
@@ -265,8 +266,8 @@ end
     @test isfinite(sol.E₀)
     @test sol.E₀ < 0.0
     @test sol.stages[1].method isa DynamicGVM
-    # energies(sol) has one entry per sequential growth step
-    @test length(energies(sol)) == 4
+    # energy_history(sol) has one entry per sequential growth step
+    @test length(energy_history(sol)) == 4
     # coefficients: one final matrix
     @test size(sol.coefficients) == (4, 4)
 end
@@ -282,7 +283,7 @@ end
     )
 
     @test sol.state == 2
-    @test last(energies(sol)) > sol.E[1] + 1.0e-3
+    @test last(energy_history(sol)) > sol.E[1] + 1.0e-3
 end
 
 @testset "GVM with NumericalPotential" begin
@@ -314,7 +315,7 @@ end
             optimizer = _variational_lbfgs(20)
         )
     )
-    ener = energies(sol)
+    ener = energy_history(sol)
     for i in 2:length(ener)
         @test ener[i] <= ener[i - 1] + 1.0e-8
     end
@@ -336,7 +337,7 @@ end
     @test sol.E₀ < E_exact + 0.01       # should be close with 6 functions
 end
 
-@testset "energies(sol) is monotone (DynamicGVM)" begin
+@testset "energy_history(sol) is monotone (DynamicGVM)" begin
     ops = _hydrogen_ops()
     sol = solve(
         ops,
@@ -345,7 +346,7 @@ end
             optimizer = _variational_lbfgs(15)
         )
     )
-    xs, ys = (1:length(energies(sol)), energies(sol))
+    xs, ys = (1:length(energy_history(sol)), energy_history(sol))
     @test length(xs) == length(ys)
     @test issorted(ys; rev = true)
 end

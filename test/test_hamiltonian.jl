@@ -4,6 +4,7 @@ using FewBodyHamiltonians
 using FewBodyECG
 import FewBodyECG: _compute_overlap_element, _build_operator_matrix, _compute_matrix_element, normalized_overlap, is_linearly_independent
 using QuasiMonteCarlo
+using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem, Λ, jacobi_transform, default_scale
 
 @testset "build_overlap_matrix" begin
 
@@ -552,7 +553,7 @@ end
     sol = solve(ops, SVM(basis = 20, candidates = 1, scale = 1.5))
 
     # Check monotonic decrease (with some tolerance for numerical noise)
-    ener = energies(sol)
+    ener = energy_history(sol)
     for i in 2:length(ener)
         @test ener[i] <= ener[i - 1] + 1.0e-10
     end
@@ -611,9 +612,9 @@ end
 
         sol = solve(ops, SVM(basis = 10, candidates = 1, scale = 1.0))
 
-        @test length(sol.basis.functions) == length(energies(sol))
-        @test sol.E₀ == last(energies(sol))
-        @test sol.E₀ == minimum(energies(sol))
+        @test length(sol.basis.functions) == length(energy_history(sol))
+        @test sol.E₀ == last(energy_history(sol))
+        @test sol.E₀ == minimum(energy_history(sol))
     end
 
     @testset "Growth steps that fail independence are reported honestly" begin

@@ -352,14 +352,14 @@ Spin-½ projection eigenstates: [`up`](@ref) (+½) and [`down`](@ref) (−½).
 @enum SpinProjection down = -1 up = 1
 
 """
-    up :: SpinProjection
+    FewBodyECG.up :: SpinProjection
 
 Spin-½ projection eigenstate with eigenvalue +½.
 """
 up
 
 """
-    down :: SpinProjection
+    FewBodyECG.down :: SpinProjection
 
 Spin-½ projection eigenstate with eigenvalue −½.
 """

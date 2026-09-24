@@ -15,11 +15,11 @@ This is a breaking API release.
 | `solve_ECG_variational(ops, n; scale = s)` | `solve(ops, GVM(basis = n, scale = s))` |
 | `solve_ECG_sequential(ops, n; scale = s)` | `solve(ops, DynamicGVM(basis = n, scale = s))` |
 | `SolverResults` | `Solution` |
-| `sr.ground_state` | `sol.E₀` |
+| `sr.ground_state` | `sol.E₀` or `energy(sol)` |
 | `sr.basis_functions` | `sol.basis.functions` |
-| `sr.energies` | `energies(sol)` |
+| `sr.energies` | `energy_history(sol)` |
 | `ψ₀(r, sr)` | `wavefunction(sol)(r)` |
-| `convergence(sr)`, `convergence_history(sr)` | `convergence(sol)`, `energies(sol)`, `plot(sol)` |
+| `convergence(sr)`, `convergence_history(sr)` | `convergence(sol)`, `energy_history(sol)`, `plot(sol)` |
 | `correlation_function(sr)` | `plot(wavefunction(sol); coord = i)` |
 
 ### Removed public names
@@ -33,8 +33,21 @@ This is a breaking API release.
 
 `solve`, `SolverMethod`, `StochasticMethod`, `GradientMethod`, `SVM`, `Refine`,
 `GVM`, `DynamicGVM`, `Pipeline`, `→`, `Solution`, `ConvergenceReport`,
-`StageResult`, `converged`, `energies`, `convergence`, `wavefunction`,
+`StageResult`, `converged`, `energy`, `energy_history`, `convergence`, `wavefunction`,
 `Wavefunction`, `radial_profile`, `jacobi_transform`, and `default_scale`.
+
+### Public but no longer exported
+
+`build_hamiltonian_matrix`, `build_overlap_matrix`,
+`solve_generalized_eigenproblem`, `Λ`, `jacobi_transform`, `default_scale`,
+`coulomb_weights`, `up`, and `down` are declared `public` instead of exported.
+They remain documented and supported; call them as `FewBodyECG.name` or bring
+them into scope with `using FewBodyECG: name`.
+
+### `Operators` term addition
+
+`ops + term` returns a new `Operators` and leaves `ops` unchanged;
+`push!(ops, term)` adds a term in place. `ops += term` works as before.
 
 `GVM()` infers its basis size from `init`; cold starts use
 `GVM(basis = n)`. `DynamicGVM(basis = n)` treats `n` as the final basis size.

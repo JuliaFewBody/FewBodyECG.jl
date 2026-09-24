@@ -5,7 +5,7 @@ bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"); style = :numer
 makedocs(
     build = "build",
     modules = [FewBodyECG],
-    checkdocs = :exports,
+    checkdocs = :public,
     sitename = "FewBodyECG.jl",
     pages = [
         "Introduction" => "index.md",

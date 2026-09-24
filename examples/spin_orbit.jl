@@ -15,6 +15,7 @@
 using FewBodyECG
 using LinearAlgebra
 using Plots
+using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem, up
 
 masses = [1.0, 1.0]
 ops = Operators(masses)
