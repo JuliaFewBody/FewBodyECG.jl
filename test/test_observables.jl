@@ -1,9 +1,13 @@
 using Test
+using LinearAlgebra
 using RecipesBase
 using FewBodyECG
 
-# test-only: lets recipes resolve attributes without a Plots backend (mirrors RecipesBase's own test suite)
-RecipesBase.is_key_supported(::Symbol) = true
+# test-only: lets recipes resolve attributes without a Plots backend (mirrors
+# RecipesBase's own test suite); `KEY_SUPPORTED[] = false` simulates a backend
+# that supports no attributes.
+const KEY_SUPPORTED = Ref(true)
+RecipesBase.is_key_supported(::Symbol) = KEY_SUPPORTED[]
 
 ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
 sol = solve(ops, SVM(basis = 15, candidates = 15, scale = 1.0))
@@ -29,11 +33,30 @@ sol = solve(ops, SVM(basis = 15, candidates = 15, scale = 1.0))
     ψ2 = Wavefunction(BasisSet([g2]), [1.0])
     @test ψ2([0.7]) ≈ 0.7 * 0.7 * exp(-0.49) rtol = 1.0e-12
 
-    # Matrix-polarized pure d-wave components use the scalar projection sum.
-    a = reshape([1.0, 0.0, 0.0], 1, 3)
-    b = reshape([0.0, 1.0, 0.0], 1, 3)
-    ψ2_matrix = Wavefunction(BasisSet([Rank2Gaussian([1.0;;], a, b, [0.0])]), [1.0])
-    @test ψ2_matrix([0.7]) ≈ 0.7^2 * exp(-0.49) rtol = 1.0e-12
+    # Cartesian N×3 positions: (a·r)(b·r)·exp(−tr(rᵀAr) + tr(sᵀr)) with a·r = tr(aᵀr)
+    a = [1.0 0.0 0.0]
+    b = [0.0 1.0 0.0]
+    ψxy = Wavefunction(BasisSet([Rank2Gaussian([1.0;;], a, b, [0.0])]), [1.0])
+    @test ψxy([0.7]) == 0                                      # d_xy vanishes on the z axis
+    @test ψxy([0.3 0.5 -0.2]) ≈ 0.3 * 0.5 * exp(-(0.09 + 0.25 + 0.04)) rtol = 1.0e-12
+
+    A = [1.0 0.2; 0.2 1.5]
+    p = [0.4 -0.1 0.3; 0.2 0.5 -0.6]
+    s = [0.1 0.0 -0.2; 0.3 -0.1 0.2]
+    r = [0.3 -0.4 0.5; -0.2 0.6 0.1]
+    ψ1s = Wavefunction(BasisSet([Rank1Gaussian(A, p, s)]), [1.0])
+    @test ψ1s(r) ≈ tr(p' * r) * exp(-tr(r' * A * r) + tr(s' * r)) rtol = 1.0e-12
+
+    # a length-N vector places every coordinate on the z axis
+    v = [0.3, -0.7]
+    for g in (
+            Rank0Gaussian(A, s), Rank1Gaussian(A, p, s),
+            Rank2Gaussian(A, p, [0.2, -0.4], s),
+        )
+        ψg = Wavefunction(BasisSet([g]), [1.0])
+        @test ψg(v) ≈ ψg([0 0 v[1]; 0 0 v[2]]) rtol = 1.0e-12
+    end
+    @test_throws "r must be a length-2 vector (z component) or a 2×3 matrix" ψ1s([0.1 0.2; 0.3 0.4])
 end
 
 @testset "convergence and radial_profile utilities" begin
@@ -73,6 +96,19 @@ end
     )
 
     @test_throws ArgumentError radial_profile(wavefunction(sol); coord = 5)
+
+    # polarized functions need a direction off their nodal plane
+    ψxy = Wavefunction(BasisSet([Rank2Gaussian([1.0;;], [1.0 0.0 0.0], [0.0 1.0 0.0], [0.0])]), [1.0])
+    _, dz = radial_profile(ψxy; rmax = 6, npoints = 300)
+    @test all(iszero, dz)
+    rd, dd = radial_profile(ψxy; direction = (1, 1, 0), rmax = 6, npoints = 300)
+    @test isapprox(sum((dd[i] + dd[i + 1]) * (rd[i + 1] - rd[i]) / 2 for i in 1:(length(rd) - 1)), 1; atol = 1.0e-8)
+    _, dd_raw = radial_profile(ψxy; direction = (1, 1, 0), rmax = 6, npoints = 300, normalize = false)
+    @test dd_raw ≈ rd .^ 2 .* (rd .^ 2 ./ 2 .* exp.(-rd .^ 2)) .^ 2 rtol = 1.0e-12
+    @test radial_profile(ψxy; direction = (2, 2, 0), normalize = false)[2] ≈
+        radial_profile(ψxy; direction = (1, 1, 0), normalize = false)[2]
+    @test_throws "direction must have 3 Cartesian components" radial_profile(ψxy; direction = (1, 0))
+    @test_throws "direction must be nonzero" radial_profile(ψxy; direction = (0, 0, 0))
 end
 
 @testset "Recipes" begin
@@ -86,4 +122,16 @@ end
     ψ = wavefunction(sol)
     wplots = RecipesBase.apply_recipe(Dict{Symbol, Any}(), ψ)
     @test !isempty(wplots)
+    wplots_dir = RecipesBase.apply_recipe(Dict{Symbol, Any}(:direction => (1, 0, 0)), ψ)
+    @test !isempty(wplots_dir)
+    # recipe keywords are consumed, not forwarded to a backend that lacks them
+    KEY_SUPPORTED[] = false
+    try
+        attrs = Dict{Symbol, Any}(:coord => 1, :direction => (1, 0, 0))
+        series = RecipesBase.apply_recipe(attrs, ψ)
+        @test only(series).args[2] ≈ radial_profile(ψ; direction = (1, 0, 0))[2]
+        @test !haskey(attrs, :coord) && !haskey(attrs, :direction)
+    finally
+        KEY_SUPPORTED[] = true
+    end
 end

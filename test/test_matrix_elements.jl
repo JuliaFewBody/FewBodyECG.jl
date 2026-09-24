@@ -130,37 +130,13 @@ end
         @test isfinite(Vval)
     end
 
-    @testset "Matrix polarizations are backward compatible with single-column vectors" begin
-        A = [1.0 0.2; 0.2 1.5]
-        B = [0.9 0.1; 0.1 1.2]
-        s = [0.0, 0.0]
-        a = [0.5, -0.4]
-        b = [-0.2, 0.7]
-        c = [0.3, 0.6]
-        d = [-0.1, -0.8]
-        K = KineticOperator([0.5 0.0; 0.0 0.6])
-        V = CoulombOperator(1.0, [1.0, 0.0])
-
-        g1v = Rank2Gaussian(A, a, b, s)
-        g2v = Rank2Gaussian(B, c, d, s)
-        g1m = Rank2Gaussian(A, reshape(a, :, 1), reshape(b, :, 1), s)
-        g2m = Rank2Gaussian(B, reshape(c, :, 1), reshape(d, :, 1), s)
-
-        @test _compute_matrix_element(g1v, g2v) ≈ _compute_matrix_element(g1m, g2m) rtol = 1.0e-12
-        @test _compute_matrix_element(g1v, g2v, K) ≈ _compute_matrix_element(g1m, g2m, K) rtol = 1.0e-12
-        @test _compute_matrix_element(g1v, g2v, V) ≈ _compute_matrix_element(g1m, g2m, V) rtol = 1.0e-12
-    end
-
-    @testset "Incompatible polarization components throw DimensionMismatch" begin
+    @testset "Polarizations must be length-N vectors or N×3 matrices" begin
         A = [1.0 0.2; 0.2 1.5]
         s = [0.0, 0.0]
-
-        g1 = Rank1Gaussian(A, [0.5 0.1; -0.4 0.3], s)
-        g2 = Rank1Gaussian(A, [0.2; 0.7], s)
-
-        @test_throws DimensionMismatch _compute_matrix_element(g1, g2)
-        @test_throws DimensionMismatch _compute_matrix_element(g1, g2, KineticOperator([0.5 0.0; 0.0 0.6]))
-        @test_throws DimensionMismatch _compute_matrix_element(g1, g2, CoulombOperator(1.0, [1.0, 0.0]))
+        @test_throws "a must be a length-2 vector (z component) or a 2×3 matrix, got size (2, 2)" Rank1Gaussian(A, [0.5 0.1; -0.4 0.3], s)
+        @test_throws "b must be a length-2 vector" Rank2Gaussian(A, [0.2, 0.7], [0.5 0.1; -0.4 0.3], s)
+        @test_throws "s must be a length-2 vector" Rank1Gaussian(A, [0.2, 0.7], [0.1, 0.2, 0.3])
+        @test_throws "got size (2, 1)" Rank2Gaussian(A, reshape([0.2, 0.7], :, 1), [0.1, 0.2], s)
     end
 
     @testset "Rank2 kinetic/coulomb agree with paper formulas for matrix polarizations" begin
@@ -593,4 +569,68 @@ end
         _compute_matrix_element(bra, ket, GaussianOperator(1.0, 0.7, w2)) rtol = 1.0e-7
 
     @test_throws DimensionMismatch _compute_matrix_element(bra, ket, NumericalPotential(identity, [1.0]))
+end
+
+@testset "Polarized Gaussians with shifts (N×3 supervectors)" begin
+    # One Jacobi coordinate, A = α: ⟨g|g⟩ factorizes into 1D Gaussian moments
+    # with β = 2α, per-axis variance σ² = 1/(2β), and mean m = s_c / β along a
+    # shifted axis c.
+    α = 0.7
+    β = 2α
+    σ² = 1 / (2β)
+    prefactor(s²) = (π / β)^(3 / 2) * exp(s² / β)
+    x̂, ẑ = [1.0 0.0 0.0], [0.0 0.0 1.0]
+
+    @testset "Rank1 overlap: polarization transverse vs parallel to the shift" begin
+        sz = 0.9
+        m = sz / β
+        s = [0.0 0.0 sz]
+        gx = Rank1Gaussian([α;;], x̂, s)
+        gz = Rank1Gaussian([α;;], ẑ, s)
+        @test _compute_matrix_element(gx, gx) ≈ prefactor(sz^2) * σ² rtol = 1.0e-12
+        @test _compute_matrix_element(gz, gz) ≈ prefactor(sz^2) * (σ² + m^2) rtol = 1.0e-12
+    end
+
+    @testset "Rank2 overlap with matrix polarizations and a shift" begin
+        sz = 0.9
+        m = sz / β
+        gxz = Rank2Gaussian([α;;], x̂, ẑ, [0.0 0.0 sz])
+        @test _compute_matrix_element(gxz, gxz) ≈ prefactor(sz^2) * σ² * (σ² + m^2) rtol = 1.0e-12
+
+        sx = 0.6
+        m = sx / β
+        gxx = Rank2Gaussian([α;;], x̂, x̂, [sx 0.0 0.0])
+        @test _compute_matrix_element(gxx, gxx) ≈
+            prefactor(sx^2) * (m^4 + 6 * m^2 * σ² + 3 * σ²^2) rtol = 1.0e-12
+    end
+
+    @testset "Length-N vectors equal the z column" begin
+        A = [1.0 0.2; 0.2 1.5]
+        B = [0.8 -0.1; -0.1 1.1]
+        p, q, c, d = [0.6, -0.1], [-0.3, 0.8], [0.3, 0.6], [-0.1, -0.8]
+        z(v) = hcat(zero(v), zero(v), v)
+        s = [0.2, -0.3]
+        s0 = [0.0, 0.0]
+        K = KineticOperator([0.5 0.1; 0.1 0.6])
+        V = CoulombOperator(-1.0, [1.0, -0.5])
+
+        @test _compute_matrix_element(Rank1Gaussian(A, p, s), Rank1Gaussian(B, q, s)) ≈
+            _compute_matrix_element(Rank1Gaussian(A, z(p), z(s)), Rank1Gaussian(B, z(q), z(s))) rtol = 1.0e-12
+        @test _compute_matrix_element(Rank2Gaussian(A, p, q, s), Rank2Gaussian(B, c, d, s)) ≈
+            _compute_matrix_element(Rank2Gaussian(A, z(p), z(q), z(s)), Rank2Gaussian(B, z(c), z(d), z(s))) rtol = 1.0e-12
+        for op in (K, V)
+            @test _compute_matrix_element(Rank1Gaussian(A, p, s0), Rank1Gaussian(B, q, s0), op) ≈
+                _compute_matrix_element(Rank1Gaussian(A, z(p), z(s0)), Rank1Gaussian(B, z(q), z(s0)), op) rtol = 1.0e-12
+            @test _compute_matrix_element(Rank2Gaussian(A, p, q, s0), Rank2Gaussian(B, c, d, s0), op) ≈
+                _compute_matrix_element(Rank2Gaussian(A, z(p), z(q), z(s0)), Rank2Gaussian(B, z(c), z(d), z(s0)), op) rtol = 1.0e-12
+        end
+    end
+
+    @testset "Mixed element types are promoted" begin
+        g = Rank1Gaussian([1;;], [1.0], [0.0])
+        @test eltype(g.A) == Float64 && eltype(g.a) == Float64 && eltype(g.s) == Float64
+        gi = Rank2Gaussian([2;;], [1], [1], [0])
+        gf = Rank2Gaussian([2.0;;], [1.0], [1.0], [0.0])
+        @test _compute_matrix_element(gi, gi) ≈ _compute_matrix_element(gf, gf) rtol = 1.0e-12
+    end
 end

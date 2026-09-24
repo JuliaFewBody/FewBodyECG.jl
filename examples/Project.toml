@@ -1,0 +1,8 @@
+[deps]
+Antique = "be6e5d0e-34a5-4c8f-af83-e1b5389203d8"
+FewBodyECG = "083b1810-24a1-4a79-9a41-145bb2bb8ceb"
+OptimKit = "77e91f04-9b3b-57a6-a776-40b61faaebe0"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+
+[sources]
+FewBodyECG = {path = ".."}

@@ -1,8 +1,3 @@
-# # Hydrogen: s-, p- and d-waves
-#
-# Exact non-relativistic hydrogen energies are -1/2, -1/8 and -1/18 Ha for
-# the lowest s, p and d states.
-
 using FewBodyECG
 import Antique
 using OptimKit: LBFGS
@@ -61,7 +56,12 @@ println("3d energy: ", E₃d, " Ha  (Antique ", exact₃, ", Δ = ", E₃d - exa
     Wavefunction(basis₁, c₁[:, 1]),
     Wavefunction(basis₂, c₂[:, 1]),
 )
-states = (("1s", 1, 0), ("2s", 2, 0), ("2p", 2, 1), ("3d", 3, 2))
+# (label, n, l, direction): the 2p basis is z-polarized; the 3d basis is xy
+# and vanishes on the z axis, so its radial profile is taken along (1, 1, 0).
+states = (
+    ("1s", 1, 0, (0, 0, 1)), ("2s", 2, 0, (0, 0, 1)),
+    ("2p", 2, 1, (0, 0, 1)), ("3d", 3, 2, (1, 1, 0)),
+)
 rs = range(0.0, 12.0, length = 400)
 
 function antique_density(n, l)
@@ -71,8 +71,8 @@ function antique_density(n, l)
 end
 
 p = plot(; xlabel = "r (Jacobi coordinate, mass-weighted)", ylabel = "normalized r²|ψ(r)|²", legend = :topright)
-for (i, (ψ, (label, n, l))) in enumerate(zip(ψs, states))
-    r, density = radial_profile(ψ; rmax = 12.0, npoints = 400)
+for (i, (ψ, (label, n, l, direction))) in enumerate(zip(ψs, states))
+    r, density = radial_profile(ψ; direction, rmax = 12.0, npoints = 400)
     plot!(p, r, density; color = i, label = "ECG $label", linewidth = 2)
     plot!(p, rs, antique_density(n, l); color = i, label = "Antique $label", linestyle = :dash)
 end

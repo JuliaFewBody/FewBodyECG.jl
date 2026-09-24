@@ -23,53 +23,34 @@ end
 
 function _compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian)
     A, B = bra.A, ket.A
-    a, b = bra.s, ket.s
     S = A + B
     R = inv(S)
     n = size(S, 1)
 
-    t = a + b
-    Rt = R * t
-    I0 = exp(0.25 * t' * R * t) * (π^n / det(S))^(3 / 2)
+    t = bra.s + ket.s
+    I0 = exp(0.25 * _superdot(t, R, t)) * (π^n / det(S))^(3 / 2)
 
+    # Gaussian mean (N×3); the mean of a·r is tr(aᵀμ) = dot(a, μ).
+    μ = 0.5 * R * t
     cov = 0.5 * _polar_contract(bra.a, R, ket.a)
-    mean_term = 0.25 * _polar_project_dot(
-        bra.a,
-        Rt,
-        ket.a,
-        Rt,
-    )
-    return (cov + mean_term) * I0
+    return (cov + dot(bra.a, μ) * dot(ket.a, μ)) * I0
 end
 
 function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian)
-    _check_polarization_compat(bra.a, bra.b)
-    _check_polarization_compat(ket.a, ket.b)
-    _check_polarization_compat(bra.a, ket.a)
-    if (any(!iszero, bra.s) || any(!iszero, ket.s)) && _pol_ncomp(bra.a) > 1
-        throw(
-            ArgumentError(
-                "Rank2 overlap with nonzero shifts currently requires single-component polarizations"
-            )
-        )
-    end
-
     A, B = bra.A, ket.A
-    a, b = bra.s, ket.s
     S = A + B
     R = inv(S)
     n = size(S, 1)
 
-    t = a + b
-    Rt = R * t
-    I0 = exp(0.25 * t' * R * t) * (π^n / det(S))^(3 / 2)
+    t = bra.s + ket.s
+    I0 = exp(0.25 * _superdot(t, R, t)) * (π^n / det(S))^(3 / 2)
 
-    μ = 0.5 * Rt
+    μ = 0.5 * R * t
 
-    Xμ = sum(_polar_projection(bra.a, μ))
-    Yμ = sum(_polar_projection(bra.b, μ))
-    Zμ = sum(_polar_projection(ket.a, μ))
-    Wμ = sum(_polar_projection(ket.b, μ))
+    Xμ = dot(bra.a, μ)
+    Yμ = dot(bra.b, μ)
+    Zμ = dot(ket.a, μ)
+    Wμ = dot(ket.b, μ)
 
     cov(v, w) = 0.5 * _polar_contract(v, R, w)
     XY = cov(bra.a, bra.b)
@@ -143,9 +124,6 @@ function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::Kin
 
     A, B = bra.A, ket.A
     a, b, c, d = bra.a, bra.b, ket.a, ket.b
-    _check_polarization_compat(a, b)
-    _check_polarization_compat(c, d)
-    _check_polarization_compat(a, c)
     K = op.K
     R = inv(A + B)
     n = size(R, 1)
@@ -289,9 +267,6 @@ function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::Cou
 
     A, B = bra.A, ket.A
     a, b, c, d = bra.a, bra.b, ket.a, ket.b
-    _check_polarization_compat(a, b)
-    _check_polarization_compat(c, d)
-    _check_polarization_compat(a, c)
     w = op.w
     R = inv(A + B)
     n = size(R, 1)

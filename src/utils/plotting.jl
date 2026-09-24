@@ -27,10 +27,11 @@ using RecipesBase: RecipesBase, @recipe, @series
     end
 end
 
-# plot(ψ; coord = 1, rmax = 10.0, npoints = 400): half-line radial density
-# r²|ψ|² along one Jacobi coordinate, delegated to `radial_profile`.
-@recipe function f(ψ::Wavefunction; coord = 1, rmax = 10.0, npoints = 400)
-    r, density = radial_profile(ψ; coord, rmax, npoints)
+# plot(ψ; coord = 1, direction = (0, 0, 1), rmax = 10.0, npoints = 400):
+# half-line radial density r²|ψ|² along one Jacobi coordinate, delegated to
+# `radial_profile`.
+@recipe function f(ψ::Wavefunction; coord = 1, direction = (0, 0, 1), rmax = 10.0, npoints = 400)
+    r, density = radial_profile(ψ; coord, direction, rmax, npoints)
     xguide --> "r (Jacobi coordinate $coord, mass-weighted)"
     yguide --> "r²|ψ(r)|²"
     label --> "|ψ|²"
