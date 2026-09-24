@@ -14,7 +14,7 @@ RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [compat]
-Antique = "0.12.0"
+Antique = "0.15"
 Aqua = "0.8.13"
 ExplicitImports = "1.15.0"
 FewBodyHamiltonians = "0.0.2"
