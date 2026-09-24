@@ -3,29 +3,34 @@
 
 Callable variational wavefunction `ψ(r) = Σᵢ cᵢ gᵢ(r)` in **Jacobi
 coordinates** (mass-weighted: the package's Jacobi transform normalises each
-relative coordinate by √μ — see `jacobi_transform`).  Obtained from
+relative coordinate by √μ — see `FewBodyECG.jacobi_transform`).  Obtained from
 [`wavefunction`](@ref); plot with `plot(ψ; coord = i)` or sample with
 [`radial_profile`](@ref).
+
+`ψ(r)` accepts either an `N × 3` matrix of Cartesian positions (row = Jacobi
+coordinate, column = `x, y, z`) or a length-`N` vector, which places every
+Jacobi coordinate on the `z` axis: `ψ(v) == ψ([0 0 v[1]; …])`.
 """
 struct Wavefunction
     basis::BasisSet
     c::AbstractVector{<:Number}
 end
 
-# `r` holds the (1D) amplitude of each Jacobi coordinate along the z axis; with
-# an isotropic A this reproduces the radial Gaussian, and only the z component
-# of the N×3 shift couples to it.
-_shift_z(g::Rank0Gaussian) = @view parent(g.s)[:, 3]
-_shift_z(g) = g.s
-_gauss(g, r) = exp(-(r' * g.A * r) + _shift_z(g)' * r)
+# `r` is an N×3 supervector of Cartesian positions; `a·r = tr(aᵀr)` = dot(a, r).
+_gauss(g, r) = exp(-_superdot(r, g.A, r) + dot(g.s, r))
 _eval(g::Rank0Gaussian, r) = _gauss(g, r)
-_eval(g::Rank1Gaussian, r) = sum(_polar_projection(g.a, r)) * _gauss(g, r)
-_eval(g::Rank2Gaussian, r) =
-    sum(_polar_projection(g.a, r)) * sum(_polar_projection(g.b, r)) * _gauss(g, r)
+_eval(g::Rank1Gaussian, r) = dot(g.a, r) * _gauss(g, r)
+_eval(g::Rank2Gaussian, r) = dot(g.a, r) * dot(g.b, r) * _gauss(g, r)
 
-function (ψ::Wavefunction)(r::AbstractVector)
+function (ψ::Wavefunction)(r::AbstractMatrix{<:Real})
     Base.require_one_based_indexing(r)
+    _check_supervector(r, size(first(ψ.basis.functions).A, 1), "r")
     return sum(ψ.c[i] * _eval(ψ.basis.functions[i], r) for i in eachindex(ψ.c))
+end
+
+function (ψ::Wavefunction)(r::AbstractVector{<:Real})
+    Base.require_one_based_indexing(r)
+    return ψ(_supervector(r))
 end
 
 """

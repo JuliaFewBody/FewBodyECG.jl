@@ -9,31 +9,44 @@ Concrete subtypes differ by the rank of the polynomial prefactor:
 abstract type GaussianBase end
 
 """
-    _shift_matrix(s::AbstractVector) -> Matrix
+    _supervector(x) -> AbstractMatrix
 
-Map a legacy length-`N` shift onto the paper's three-dimensional `N × 3`
-supervector by placing it in the `z` Cartesian component (third column).
-A matrix argument is returned unchanged.
+Map a length-`N` vector onto the `N × 3` supervector layout (row = Jacobi
+coordinate, column = Cartesian component) by placing it in the `z` component
+(third column). A matrix argument is returned unchanged; its size is checked
+by [`_check_supervector`](@ref).
 """
-function _shift_matrix(s::AbstractVector{T}) where {T <: Real}
-    result = zeros(T, length(s), 3)
-    result[:, 3] .= s
+function _supervector(x::AbstractVector{T}) where {T <: Real}
+    result = zeros(T, length(x), 3)
+    result[:, 3] .= x
     return result
 end
-_shift_matrix(s::AbstractMatrix{<:Real}) = s
+_supervector(x::AbstractMatrix{<:Real}) = x
+
+function _check_supervector(x::AbstractMatrix, n::Integer, name)
+    size(x) == (n, 3) || throw(
+        ArgumentError(
+            "$name must be a length-$n vector (z component) or a $n×3 matrix, got size $(size(x))"
+        )
+    )
+    return x
+end
 
 """
-    _gaussian_data(A, s) -> (A::Matrix, s::Matrix)
+    _gaussian_data(A, xs...) -> (A::Matrix, xs::Matrix...)
 
-Validate and normalise the exponent matrix `A` (square) and the `N × 3` shift
-`s`, promoting both to a common element type.
+Check that `A` is square and that each `N × 3` supervector in `xs` has `N =
+size(A, 1)` rows, then convert all of them to `Matrix`es of a common element
+type.
 """
-function _gaussian_data(A::AbstractMatrix{<:Real}, s::AbstractMatrix{<:Real})
+function _gaussian_data(A::AbstractMatrix{<:Real}, xs::Pair{<:AbstractString, <:AbstractMatrix{<:Real}}...)
     size(A, 1) == size(A, 2) || throw(ArgumentError("A must be square"))
-    size(s) == (size(A, 1), 3) ||
-        throw(ArgumentError("s must have size (size(A,1), 3)"))
-    T = promote_type(eltype(A), eltype(s))
-    return Matrix{T}(A), Matrix{T}(s)
+    n = size(A, 1)
+    for (name, x) in xs
+        _check_supervector(x, n, name)
+    end
+    T = promote_type(eltype(A), map(x -> eltype(last(x)), xs)...)
+    return Matrix{T}(A), map(x -> Matrix{T}(last(x)), xs)...
 end
 
 """
@@ -43,123 +56,85 @@ Basis function ``g(\\mathbf{r}) = \\exp(-\\mathbf{r}^T A\\,\\mathbf{r} + \\opera
 
 # Fields
 - `A` : symmetric positive-definite ``n_{\\text{dim}} \\times n_{\\text{dim}}`` matrix controlling the Gaussian width and correlations.
-- `s` : shift supervector of size ``n_{\\text{dim}} \\times 3``; row `i` is the Cartesian shift of Jacobi coordinate `i`. A length-`N` vector is accepted for compatibility and mapped to the `z` component.
+- `s` : shift supervector of size ``n_{\\text{dim}} \\times 3``; row `i` is the Cartesian shift of Jacobi coordinate `i`. A length-`N` vector is accepted and mapped to the `z` component.
 """
 struct Rank0Gaussian{T <: Real, M <: AbstractMatrix{T}, S <: AbstractMatrix{T}} <: GaussianBase
     A::Symmetric{T, M}
     s::S
     function Rank0Gaussian(A::AbstractMatrix{<:Real}, s::AbstractMatrix{<:Real})
-        Ad, sd = _gaussian_data(A, s)
+        Ad, sd = _gaussian_data(A, "s" => s)
         return new{eltype(Ad), typeof(Ad), typeof(sd)}(Symmetric(Ad), sd)
     end
 end
 Rank0Gaussian(A::AbstractMatrix{<:Real}, s::AbstractVector{<:Real}) =
-    Rank0Gaussian(A, _shift_matrix(s))
+    Rank0Gaussian(A, _supervector(s))
 
-const Polarization{T} = Union{AbstractVector{T}, AbstractMatrix{T}}
+# Polarizations and shifts are `N × 3` supervectors; `a·r` means
+# `tr(aᵀ r) = Σ_c a[:, c]ᵀ r[:, c]` over Cartesian components `c`.
+_polar_contract(a::AbstractMatrix, M::AbstractMatrix, b::AbstractMatrix) = tr(transpose(a) * M * b)
 
-_pol_ncomp(a::AbstractVector) = 1
-_pol_ncomp(a::AbstractMatrix) = size(a, 2)
-_pol_cols(a::AbstractVector) = reshape(a, :, 1)
-_pol_cols(a::AbstractMatrix) = a
-
-function _check_polarization_compat(
-        a::Union{AbstractVector, AbstractMatrix},
-        b::Union{AbstractVector, AbstractMatrix}
-    )
-    _pol_ncomp(a) == _pol_ncomp(b) ||
-        throw(DimensionMismatch("polarizations must have the same number of components"))
-    return nothing
-end
-
-function _polar_contract(
-        a::Union{AbstractVector, AbstractMatrix},
-        M::AbstractMatrix,
-        b::Union{AbstractVector, AbstractMatrix}
-    )
-    _check_polarization_compat(a, b)
-    A = _pol_cols(a)
-    B = _pol_cols(b)
-    return tr(transpose(A) * M * B)
-end
-
-function _polar_projection(
-        a::Union{AbstractVector, AbstractMatrix},
-        x::AbstractVector
-    )
-    A = _pol_cols(a)
-    return transpose(A) * x
-end
-
-function _polar_project_dot(
-        a::Union{AbstractVector, AbstractMatrix},
-        x::AbstractVector,
-        b::Union{AbstractVector, AbstractMatrix},
-        y::AbstractVector
-    )
-    _check_polarization_compat(a, b)
-    return dot(_polar_projection(a, x), _polar_projection(b, y))
-end
+# Cartesian vector `(a[:, c]ᵀ x)_c` for an isotropic `N`-vector `x` of Jacobi
+# weights; contracting two of these sums over Cartesian components.
+_polar_projection(a::AbstractMatrix, x::AbstractVector) = transpose(a) * x
+_polar_project_dot(a::AbstractMatrix, x::AbstractVector, b::AbstractMatrix, y::AbstractVector) =
+    dot(_polar_projection(a, x), _polar_projection(b, y))
 
 """
     Rank1Gaussian(A, a, s)
 
-Rank-1 (p-wave-like) ECG basis function with linear prefactor.
+Rank-1 (p-wave-like) ECG basis function
+``g(\\mathbf{r}) = (a \\cdot \\mathbf{r}) \\exp(-\\mathbf{r}^T A\\,\\mathbf{r} + \\operatorname{tr}(s^T \\mathbf{r}))``
+with ``a \\cdot \\mathbf{r} = \\operatorname{tr}(a^T \\mathbf{r})``.
 
-`a` can be either:
-- a vector of length `size(A,1)` (single polarization component), or
-- a matrix of size `size(A,1) × ncomp` (multi-component polarization).
+The polarization `a` and the shift `s` are `N × 3` supervectors (row =
+Jacobi coordinate, column = Cartesian component), where `N = size(A, 1)`.
+Each accepts a length-`N` vector, which is placed in the `z` component.
+`A`, `a`, and `s` are converted to a common element type.
 """
 struct Rank1Gaussian{
         T <: Real,
         M <: AbstractMatrix{T},
-        P <: Polarization{T},
-        V <: AbstractVector{T},
+        P <: AbstractMatrix{T},
+        S <: AbstractMatrix{T},
     } <: GaussianBase
     A::Symmetric{T, M}
     a::P
-    s::V
-    function Rank1Gaussian(A::AbstractMatrix{T}, a::Polarization{T}, s::AbstractVector{T}) where {T <: Real}
-        size(A, 1) == size(A, 2) || throw(ArgumentError("A must be square"))
-        size(a, 1) == size(A, 1) ||
-            throw(ArgumentError("size(a,1) (or length(a)) must equal size(A,1)"))
-        length(s) == size(A, 1) ||
-            throw(ArgumentError("length(s) must equal size(A,1)"))
-        return new{T, typeof(A), typeof(a), typeof(s)}(Symmetric(A), a, s)
+    s::S
+    function Rank1Gaussian(A::AbstractMatrix{<:Real}, a, s)
+        Ad, ad, sd = _gaussian_data(A, "a" => _supervector(a), "s" => _supervector(s))
+        return new{eltype(Ad), typeof(Ad), typeof(ad), typeof(sd)}(Symmetric(Ad), ad, sd)
     end
 end
 
 """
     Rank2Gaussian(A, a, b, s)
 
-Rank-2 (d-wave-like) ECG basis function with quadratic prefactor.
+Rank-2 (d-wave-like) ECG basis function
+``g(\\mathbf{r}) = (a \\cdot \\mathbf{r})(b \\cdot \\mathbf{r}) \\exp(-\\mathbf{r}^T A\\,\\mathbf{r} + \\operatorname{tr}(s^T \\mathbf{r}))``.
 
-`a` and `b` can each be either vectors or matrices. Their first dimension must
-match `size(A,1)`. For matrix polarizations, `a` and `b` must have the same
-number of columns (`ncomp`), enabling multi-component pure d-wave channels.
+The polarizations `a`, `b` and the shift `s` are `N × 3` supervectors, as for
+[`Rank1Gaussian`](@ref); a length-`N` vector is placed in the `z` component.
+Orthogonal Cartesian polarizations such as `a = [1 0 0]`, `b = [0 1 0]` give
+pure d-wave (`xy`) character.
 """
 struct Rank2Gaussian{
         T <: Real,
         M <: AbstractMatrix{T},
-        P <: Polarization{T},
-        Q <: Polarization{T},
-        V <: AbstractVector{T},
+        P <: AbstractMatrix{T},
+        Q <: AbstractMatrix{T},
+        S <: AbstractMatrix{T},
     } <: GaussianBase
     A::Symmetric{T, M}
     a::P
     b::Q
-    s::V
-    function Rank2Gaussian(A::AbstractMatrix{T}, a::Polarization{T}, b::Polarization{T}, s::AbstractVector{T}) where {T <: Real}
-        size(A, 1) == size(A, 2) || throw(ArgumentError("A must be square"))
-        size(a, 1) == size(A, 1) ||
-            throw(ArgumentError("size(a,1) (or length(a)) must equal size(A,1)"))
-        size(b, 1) == size(A, 1) ||
-            throw(ArgumentError("size(b,1) (or length(b)) must equal size(A,1)"))
-        _pol_ncomp(a) == _pol_ncomp(b) ||
-            throw(ArgumentError("a and b must have the same number of polarization components"))
-        length(s) == size(A, 1) ||
-            throw(ArgumentError("length(s) must equal size(A,1)"))
-        return new{T, typeof(A), typeof(a), typeof(b), typeof(s)}(Symmetric(A), a, b, s)
+    s::S
+    function Rank2Gaussian(A::AbstractMatrix{<:Real}, a, b, s)
+        Ad, ad, bd, sd = _gaussian_data(
+            A, "a" => _supervector(a), "b" => _supervector(b), "s" => _supervector(s)
+        )
+        return new{eltype(Ad), typeof(Ad), typeof(ad), typeof(bd), typeof(sd)}(
+            Symmetric(Ad), ad, bd, sd
+        )
     end
 end
 

@@ -11,7 +11,7 @@ using FewBodyHamiltonians
 
     @test isa(g, Rank0Gaussian)
     @test isa(g.A, Symmetric)
-    @test g.s == FewBodyECG._shift_matrix(s)   # N×3, legacy vector → z component
+    @test g.s == FewBodyECG._supervector(s)   # N×3, legacy vector → z component
 
     A_ns = rand(2, 3)
     @test_throws ArgumentError Rank0Gaussian(A_ns, [1.0, 2.0])
@@ -30,8 +30,8 @@ end
 
     @test isa(g1, Rank1Gaussian)
     @test isa(g1.A, Symmetric)
-    @test g1.a == a
-    @test g1.s == s
+    @test g1.a == FewBodyECG._supervector(a)
+    @test g1.s == FewBodyECG._supervector(s)
 
     @test_throws ArgumentError Rank1Gaussian(rand(2, 3), a, s)
 
@@ -48,7 +48,7 @@ end
     g1 = Rank1Gaussian(A, a_mat, s)
     @test isa(g1, Rank1Gaussian)
     @test g1.a == a_mat
-    @test g1.s == s
+    @test g1.s == FewBodyECG._supervector(s)
 
     @test_throws ArgumentError Rank1Gaussian(A, [0.1 0.3], s)
     @test_throws ArgumentError Rank1Gaussian(A, a_mat, [1.0])
@@ -62,7 +62,7 @@ end
 
     @test isa(g, Rank0Gaussian)
     @test isa(g.A, Symmetric)
-    @test g.s == FewBodyECG._shift_matrix(s)   # N×3, legacy vector → z component
+    @test g.s == FewBodyECG._supervector(s)   # N×3, legacy vector → z component
 
     A_ns = rand(2, 3)
     @test_throws ArgumentError Rank0Gaussian(A_ns, [1.0, 2.0])
@@ -81,8 +81,8 @@ end
 
     @test isa(g1, Rank1Gaussian)
     @test isa(g1.A, Symmetric)
-    @test g1.a == a
-    @test g1.s == s
+    @test g1.a == FewBodyECG._supervector(a)
+    @test g1.s == FewBodyECG._supervector(s)
 
     @test_throws ArgumentError Rank1Gaussian(rand(2, 3), a, s)
 
@@ -100,9 +100,9 @@ end
     g2 = Rank2Gaussian(A, a, b, s)
     @test isa(g2, Rank2Gaussian)
     @test isa(g2.A, Symmetric)
-    @test g2.a == a
-    @test g2.b == b
-    @test g2.s == s
+    @test g2.a == FewBodyECG._supervector(a)
+    @test g2.b == FewBodyECG._supervector(b)
+    @test g2.s == FewBodyECG._supervector(s)
 
     @test_throws ArgumentError Rank2Gaussian(rand(2, 3), a, b, s)
     @test_throws ArgumentError Rank2Gaussian(A, [1.0], b, s)
@@ -128,11 +128,11 @@ end
     @test isa(g2, Rank2Gaussian)
     @test g2.a == a_mat
     @test g2.b == b_mat
-    @test g2.s == s
+    @test g2.s == FewBodyECG._supervector(s)
 
     @test_throws ArgumentError Rank2Gaussian(A, [0.1 0.3], b_mat, s)
     @test_throws ArgumentError Rank2Gaussian(A, a_mat, [0.7 0.9], s)
-    @test_throws ArgumentError Rank2Gaussian(A, a_mat, [0.7; 0.8], s)
+    @test Rank2Gaussian(A, a_mat, [0.7; 0.8], s).b == [0.0 0.0 0.7; 0.0 0.0 0.8]
     @test_throws ArgumentError Rank2Gaussian(A, a_mat, b_mat[:, 1:2], s)
 end
 
