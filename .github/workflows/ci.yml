@@ -48,8 +48,13 @@ jobs:
       - uses: julia-actions/cache@v3
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
+      # Julia 1.11 records a zero-count line for every macro-generated method
+      # signature (e.g. each `@recipe` line), which Codecov reports as a miss
+      # even when the method is exercised; coverage is taken from the other jobs.
       - uses: julia-actions/julia-processcoverage@v1
+        if: matrix.version != 'min'
       - uses: codecov/codecov-action@v7
+        if: matrix.version != 'min'
         with:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}

@@ -3,8 +3,11 @@ using LinearAlgebra
 using RecipesBase
 using FewBodyECG
 
-# test-only: lets recipes resolve attributes without a Plots backend (mirrors RecipesBase's own test suite)
-RecipesBase.is_key_supported(::Symbol) = true
+# test-only: lets recipes resolve attributes without a Plots backend (mirrors
+# RecipesBase's own test suite); `KEY_SUPPORTED[] = false` simulates a backend
+# that supports no attributes.
+const KEY_SUPPORTED = Ref(true)
+RecipesBase.is_key_supported(::Symbol) = KEY_SUPPORTED[]
 
 ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
 sol = solve(ops, SVM(basis = 15, candidates = 15, scale = 1.0))
@@ -121,4 +124,14 @@ end
     @test !isempty(wplots)
     wplots_dir = RecipesBase.apply_recipe(Dict{Symbol, Any}(:direction => (1, 0, 0)), ψ)
     @test !isempty(wplots_dir)
+    # recipe keywords are consumed, not forwarded to a backend that lacks them
+    KEY_SUPPORTED[] = false
+    try
+        attrs = Dict{Symbol, Any}(:coord => 1, :direction => (1, 0, 0))
+        series = RecipesBase.apply_recipe(attrs, ψ)
+        @test only(series).args[2] ≈ radial_profile(ψ; direction = (1, 0, 0))[2]
+        @test !haskey(attrs, :coord) && !haskey(attrs, :direction)
+    finally
+        KEY_SUPPORTED[] = true
+    end
 end

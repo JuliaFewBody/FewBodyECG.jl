@@ -37,7 +37,7 @@ E₁, c₁ = solve_generalized_eigenproblem(
     build_overlap_matrix(basis₁),
 )
 E₂p = minimum(E₁)
-println("2p energy: ", E₂p, " Ha  (Antique ", exact₂, ", Δ = ", E₂p - exact₂, ")") 
+println("2p energy: ", E₂p, " Ha  (Antique ", exact₂, ", Δ = ", E₂p - exact₂, ")")
 
 a = reshape([1.0, 0.0, 0.0], 1, 3)
 b = reshape([0.0, 1.0, 0.0], 1, 3)
