@@ -24,13 +24,13 @@ using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generali
     ecg_energies, coeffs = solve_generalized_eigenproblem(H, S)
 
     HO = Antique.HarmonicOscillator(k = 1.0, m = 1.0, ℏ = 1.0)
-    @test ecg_energies[1:3] ≈ [Antique.E(HO; n = n) for n in (1, 3, 5)] atol = 1.0e-5
+    @test ecg_energies[1:3] ≈ [Antique.energy(HO; n = n) for n in (1, 3, 5)] atol = 1.0e-5
 
     radius = range(1.0e-4, 6, length = 800)
     ψ = Wavefunction(basis, coeffs[:, 1])
     ecg_wavefunction = [ψ([r]) for r in radius]
     u_ecg = sqrt(4π) .* radius .* ecg_wavefunction
-    u_ref = sqrt(2) .* [Antique.ψ(HO, r; n = 1) for r in radius]
+    u_ref = sqrt(2) .* [Antique.wavefunction(HO, r; n = 1) for r in radius]
     u_ecg .*= sign(dot(u_ecg, u_ref))
     @test maximum(abs.(u_ecg - u_ref)) < 1.0e-3
 end

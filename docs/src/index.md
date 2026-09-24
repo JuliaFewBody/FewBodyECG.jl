@@ -24,7 +24,7 @@ H += "Kinetic"
 H += "Coulomb"
 
 sol = solve(H, DynamicGVM(basis = 10, candidates = 20, scale = 1.0))
-exact = Antique.E(Antique.HydrogenAtom(Z = 1), n = 1)
+exact = Antique.energy(Antique.HydrogenAtom(Z = 1), n = 1)
 println("E0 = ", sol.E₀, " Ha  (Antique ", exact, ", Δ = ", sol.E₀ - exact, ")")
 sol
 ```

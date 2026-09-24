@@ -7,7 +7,7 @@ ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
 ops += "Kinetic"
 ops += "Coulomb"
 
-exact = Antique.E(Antique.HydrogenAtom(Z = 1), n = 1)
+exact = Antique.energy(Antique.HydrogenAtom(Z = 1), n = 1)
 
 function run_method(label, alg, ops, exact)
     sol = solve(ops, alg)

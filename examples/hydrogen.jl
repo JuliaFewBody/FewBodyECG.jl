@@ -14,9 +14,9 @@ ops += "Kinetic"
 ops += "Coulomb"
 
 H = Antique.HydrogenAtom(Z = 1)
-exact₁ = Antique.E(H, n = 1)
-exact₂ = Antique.E(H, n = 2)
-exact₃ = Antique.E(H, n = 3)
+exact₁ = Antique.energy(H, n = 1)
+exact₂ = Antique.energy(H, n = 2)
+exact₃ = Antique.energy(H, n = 3)
 
 sol = solve(ops, DynamicGVM(basis = 10, candidates = 20, scale = 1.0))
 println("1s energy: ", sol.E₀, " Ha  (Antique ", exact₁, ", Δ = ", sol.E₀ - exact₁, ")")
@@ -65,7 +65,7 @@ states = (("1s", 1, 0), ("2s", 2, 0), ("2p", 2, 1), ("3d", 3, 2))
 rs = range(0.0, 12.0, length = 400)
 
 function antique_density(n, l)
-    density = [r^2 * abs2(Antique.ψ(H, r, 0.0, 0.0; n = n, l = l, m = 0)) for r in rs]
+    density = [r^2 * abs2(Antique.wavefunction(H, r, 0.0, 0.0; n = n, l = l, m = 0)) for r in rs]
     area = sum((density[i] + density[i + 1]) * (rs[i + 1] - rs[i]) / 2 for i in 1:(length(rs) - 1))
     return density ./ area
 end
