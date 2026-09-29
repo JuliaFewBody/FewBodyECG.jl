@@ -2,6 +2,7 @@
 Antique = "be6e5d0e-34a5-4c8f-af83-e1b5389203d8"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterCitations = "daee34ce-89f3-4625-b898-19384cb65244"
+FewBodyDB = "db38d531-b084-4210-bfec-cee5c3c1a709"
 FewBodyECG = "083b1810-24a1-4a79-9a41-145bb2bb8ceb"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 
@@ -12,5 +13,6 @@ FewBodyECG = {path = ".."}
 Antique = "0.15"
 Documenter = "1"
 DocumenterCitations = "1"
+FewBodyDB = "0.0.5"
 Plots = "1.39.0"
 julia = "1.11"

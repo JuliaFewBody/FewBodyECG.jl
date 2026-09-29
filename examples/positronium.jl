@@ -1,4 +1,5 @@
 using FewBodyECG
+using FewBodyDB: db
 import Antique
 using Plots
 
@@ -27,3 +28,13 @@ plot!(
     label = "Antique.jl",
 )
 p
+
+# Positronium negative ion Ps⁻ = e⁺e⁻e⁻, bound below the Ps + e⁻ threshold at -0.25 Ha.
+psm_ops = Operators([1.0, 1.0, 1.0], [+1.0, -1.0, -1.0])
+psm_ops += "Kinetic"
+psm_ops += "Coulomb"
+
+psm_ref = db(:Suzuki2003Jul, "Ps⁻", :energy, "¹Sᵉ").value
+psm = solve(psm_ops, SVM(basis = 100, candidates = 25, scale = 4.0))
+println("Ps- E0 = ", psm.E₀, " Ha  (Suzuki–Varga ", psm_ref, ", Δ = ", psm.E₀ - psm_ref, ")")
+plot(psm, psm_ref)

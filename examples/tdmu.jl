@@ -1,4 +1,5 @@
 using FewBodyECG
+using FewBodyDB: db
 using Plots
 
 ops = Operators([5496.918, 3670.481, 206.7686], [+1.0, +1.0, -1.0])
@@ -13,8 +14,8 @@ sol = solve(
 )
 sol
 
-tdmu_ref = -111.36444
-println("tdmu E0 = ", sol.E₀, " Ha  (reference ", tdmu_ref, ", Δ = ", sol.E₀ - tdmu_ref, ")")
+tdmu_ref = db(:Suzuki2003Jul, "tdμ", :energy, "¹Sᵉ").value
+println("tdμ E0 = ", sol.E₀, " Ha  (Suzuki–Varga ", tdmu_ref, ", Δ = ", sol.E₀ - tdmu_ref, ")")
 plot(sol, tdmu_ref)
 
 ψ = wavefunction(sol)
