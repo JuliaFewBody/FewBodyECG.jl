@@ -1,9 +1,9 @@
 using Test
 using FewBodyECG
+using FewBodyDB: db
 
-# Muonic molecular ions: three-body Coulomb systems reproducing the Suzuki–Varga
-# Table 8.1 K = 200 benchmark energies.  A moderate basis is used here to keep
-# the suite fast (the example shows the few-mHa agreement at basis = 300).
+# Muonic molecular ions: three-body Coulomb systems against the Suzuki–Varga
+# benchmark energies in FewBodyDB.
 @testset "Muonic molecular ions vs Suzuki–Varga" begin
     mμ, md, mt = 206.7686, 3670.481, 5496.918
 
@@ -14,12 +14,13 @@ using FewBodyECG
 
     E_dt = solve_ion([md, mt, mμ])
     E_tt = solve_ion([mt, mt, mμ])
+    ref_dt = db(:Suzuki2003Jul, "tdμ", :energy, "¹Sᵉ").value
+    ref_tt = db(:Suzuki2003Jul, "ttμ", :energy, "¹Sᵉ").value
 
-    # reproduce the benchmarks from above (variational upper bound) to <40 mHa
-    @test E_dt ≈ -111.36444 atol = 0.04
-    @test E_dt > -111.36444              # variational upper bound
-    @test E_tt ≈ -112.973 atol = 0.04
-    @test E_tt > -112.973                # variational upper bound
+    @test E_dt ≈ ref_dt atol = 0.04
+    @test E_dt > ref_dt                  # variational upper bound
+    @test E_tt ≈ ref_tt atol = 0.04
+    @test E_tt > ref_tt                  # variational upper bound
 
     # heavier nuclei bind deeper: ttμ below dtμ
     @test E_tt < E_dt

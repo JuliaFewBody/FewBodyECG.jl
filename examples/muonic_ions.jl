@@ -1,23 +1,18 @@
 using FewBodyECG
+using FewBodyDB: db
 
 mμ, md, mt = 206.7686, 3670.481, 5496.918
 
+# The K = 200 SVM energies are from Suzuki & Varga, Table 8.1; the reference
+# energies are the more precise values from the same book, stored in FewBodyDB.
 systems = [
-    (
-        "dtμ",
-        [md, mt, mμ],
-        -111.36444,       # Suzuki–Varga SVM, K = 200
-        -111.364511474,   # other method, K = 1400
-    ),
-    (
-        "ttμ",
-        [mt, mt, mμ],
-        -112.973,       # Suzuki–Varga SVM, K = 200
-        -112.9730179,     # other method, K = 500
-    ),
+    ("tdμ", [md, mt, mμ], -111.36444),
+    ("ttμ", [mt, mt, mμ], -112.973),
 ]
 
-for (name, masses, svm200, best_ref) in systems
+for (name, masses, svm200) in systems
+    ref = db(:Suzuki2003Jul, name, :energy, "¹Sᵉ").value
+
     ops = Operators(masses, [+1.0, +1.0, -1.0])
     ops += "Kinetic"
     ops += "Coulomb"
@@ -32,5 +27,5 @@ for (name, masses, svm200, best_ref) in systems
     println(name)
     println("  ECG E₀              = ", sol.E₀, " Ha")
     println("  Δ vs SVM K=200      = ", sol.E₀ - svm200, " Ha")
-    println("  Δ vs high-K result  = ", sol.E₀ - best_ref, " Ha")
+    println("  Δ vs FewBodyDB      = ", sol.E₀ - ref, " Ha")
 end
