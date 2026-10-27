@@ -22,7 +22,7 @@ ops += ("Coulomb", 2, 3, 1.0)            # +1/r₁₂ electron–electron repuls
 
 exact = 2.0                              # Taut 1993, ω = 1/2
 
-sol = solve(ops, SVM(basis = 80, candidates = 40, scale = 2.0))
+sol = solve(ops, SVM(basis = 80, candidates = 40))
 println("Hooke's atom E₀ = ", sol.E₀, " Ha   (Taut exact ", exact, ", Δ = ", sol.E₀ - exact, ")")
 println("variational upper bound respected: ", sol.E₀ ≥ exact)
 sol

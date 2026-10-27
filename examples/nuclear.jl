@@ -26,7 +26,7 @@ deut += "Kinetic"
 deut += ("Gaussian", 1, 2, 200.0, 1.487)     # repulsive core
 deut += ("Gaussian", 1, 2, -178.0, 0.639)    # triplet attraction
 
-sol_d = solve(deut, SVM(basis = 40, candidates = 25, scale = 3.0))
+sol_d = solve(deut, SVM(basis = 40, candidates = 25))
 Ed_ref = -2.202
 sol_d
 println("deuteron  E = ", round(sol_d.E₀, digits = 4), " MeV   (Minnesota ", Ed_ref, ")")
@@ -40,7 +40,7 @@ trit += ("Gaussian", 1, 2, 144.86, γR); trit += ("Gaussian", 1, 2, -83.34, γA)
 trit += ("Gaussian", 1, 3, 144.86, γR); trit += ("Gaussian", 1, 3, -83.34, γA)
 trit += ("Gaussian", 2, 3, 144.86, γR); trit += ("Gaussian", 2, 3, -83.34, γA)
 
-sol_t = solve(trit, SVM(basis = 120, candidates = 30, scale = 3.5))
+sol_t = solve(trit, SVM(basis = 120, candidates = 30))
 Et_ref = -8.46
 println("triton    E = ", round(sol_t.E₀, digits = 4), " MeV   (Volkov V1 ", Et_ref, ")")
 

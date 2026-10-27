@@ -7,7 +7,7 @@ ops = Operators([mₚ, m_d, 1.0], [+1.0, +1.0, -1.0])
 ops += "Kinetic"
 ops += "Coulomb"
 
-sol = solve(ops, SVM(basis = 150, candidates = 25, scale = 1.0))
+sol = solve(ops, SVM(basis = 150, candidates = 25))
 sol
 
 state = (J = 0, v = 0)

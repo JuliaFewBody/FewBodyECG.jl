@@ -16,31 +16,26 @@ function run_method(label, alg)
 end
 
 basis = 10
-scale = 1.0
 methods = [
     "GVM + gradient descent" => GVM(
         basis;
-        scale,
         optimizer = GradientDescent(; maxiter = 100, gradtol = 1.0e-6),
     ),
     "GVM + conjugate gradient" => GVM(
         basis;
-        scale,
         optimizer = ConjugateGradient(; maxiter = 100, gradtol = 1.0e-6),
     ),
     "GVM + L-BFGS" => GVM(
         basis;
-        scale,
         optimizer = LBFGS(; maxiter = 100, gradtol = 1.0e-6),
     ),
     "DynamicGVM + conjugate gradient" => DynamicGVM(
         basis;
         candidates = 10,
-        scale,
         optimizer = ConjugateGradient(; maxiter = 50, gradtol = 1.0e-6),
     ),
     "SVM → GVM + L-BFGS" =>
-        SVM(basis; candidates = 10, scale) →
+        SVM(basis; candidates = 10) →
         GVM(optimizer = LBFGS(; maxiter = 100, gradtol = 1.0e-6)),
 ]
 solutions = [label => run_method(label, alg) for (label, alg) in methods]
