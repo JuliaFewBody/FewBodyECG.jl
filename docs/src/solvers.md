@@ -9,7 +9,8 @@
 | [`GVM`](@ref) | the most accuracy per basis function, by gradient optimization of every Gaussian; slower |
 | [`DynamicGVM`](@ref) | small, accurate bases: adds one function at a time and optimizes after each |
 
-For a new system, start with `SVM` alone and a few values of `scale` (see
+For a new system, start with `SVM` alone; its default `scale = :adaptive`
+measures the size of the system and chooses the sampling length (see
 [Choosing `scale`](@ref)). Once the energy behaves, chain the methods with `→`
 (`\to<tab>`); each stage starts from the previous stage's basis:
 
@@ -20,7 +21,7 @@ ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
 ops += "Kinetic"
 ops += "Coulomb"
 
-sol = solve(ops, SVM(20; scale = 1.0) → Refine(2; scale = 1.0) → GVM())
+sol = solve(ops, SVM(20) → Refine(2) → GVM())
 ```
 
 Single-scale stochastic sampling can level off at too high an energy for
@@ -89,7 +90,7 @@ gradient_method = GradientDescent(
     gradtol = 1e-6,
     verbosity = 1,
 )
-sol = solve(ops, GVM(30; scale = 1.0, optimizer = gradient_method))
+sol = solve(ops, GVM(30; optimizer = gradient_method))
 ```
 
 `GradientDescent`, `ConjugateGradient`, and `LBFGS` are supported. `LBFGS` is
@@ -132,7 +133,7 @@ sweep). OptimKit's own output remains controlled by the optimizer's
 Use `→` to warm-start methods left to right:
 
 ```julia
-sol = solve(ops, SVM(40; scale = 1.0) → Refine(2; scale = 1.0) → GVM())
+sol = solve(ops, SVM(40) → Refine(2) → GVM())
 ```
 
 The printed `Solution` lists every stage with its final energy, and

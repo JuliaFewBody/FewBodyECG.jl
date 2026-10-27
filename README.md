@@ -31,7 +31,7 @@ ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
 ops += "Kinetic"
 ops += "Coulomb"
 
-sol = solve(ops, SVM(basis = 25, candidates = 20, scale = 1.0))
+sol = solve(ops, SVM(basis = 25, candidates = 20))
 sol             # energy, convergence report, overlap conditioning
 
 plot(sol, -0.5) # energy after each solver step, with the exact
@@ -46,7 +46,7 @@ you want to compare with.
 
 | method | use it for |
 |---|---|
-| `SVM(basis = n, scale = s)` | the starting point: grows a basis of `n` Gaussians by stochastic selection |
+| `SVM(basis = n)` | the starting point: grows a basis of `n` Gaussians by stochastic selection |
 | `Refine(sweeps)` | improving an existing basis by replacing its functions one at a time |
 | `GVM()` | the most accuracy per basis function, by gradient optimization of every Gaussian; slower |
 | `DynamicGVM(basis = n)` | small, accurate bases: adds one function at a time and optimizes after each |
@@ -55,14 +55,14 @@ Methods chain with `→` (type `\to<tab>`), each stage starting from the
 previous stage's basis. A good default for a new system is
 
 ```julia
-sol = solve(ops, SVM(40; scale = 1.0) → Refine(2; scale = 1.0) → GVM())
+sol = solve(ops, SVM(40) → Refine(2) → GVM())
 ```
 
-`scale` is a length: roughly the typical distance between the particles, in
-the system's length unit. When it is omitted, `scale = :adaptive` measures the
-size of the system with a short pilot run and chooses it. The documentation
-explains how to choose it by hand, and how to work in units other than atomic
-units (`Operators(...; units = :nuclear)`).
+The stochastic methods sample Gaussians at a length `scale`, roughly the
+typical distance between the particles. By default (`scale = :adaptive`) it is
+measured with a short pilot run; pass a number to set it by hand. The
+documentation explains both, and how to work in units other than atomic units
+(`Operators(...; units = :nuclear)`).
 
 Code written for FewBodyECG 1.x needs changes; `CHANGELOG.md` maps each 1.x
 function to its replacement.

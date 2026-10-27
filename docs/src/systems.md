@@ -144,7 +144,7 @@ deuteron = Operators([mass(938.272), mass(939.565)]; units = :nuclear)
 deuteron += "Kinetic"
 deuteron += ("Gaussian", 1, 2, 200.0, 1.487)
 deuteron += ("Gaussian", 1, 2, -178.0, 0.639)
-sol = solve(deuteron, SVM(basis = 20, scale = 3.0))
+sol = solve(deuteron, SVM(basis = 20))
 ```
 
 The all-pairs `"Coulomb"` shorthand uses the couplings ``q_i q_j``, which is
@@ -199,9 +199,9 @@ runs went below the rounded number.
 
 The factor 0.7 is a compromise: Coulomb systems do slightly better near 0.5,
 smooth nuclear potentials near 1. For production runs, a hand-tuned `scale`
-can still gain a little; the values used in the examples are:
+can still gain a little. Values that work well:
 
-| system | typical size | `scale` used in the examples |
+| system | typical size | hand-tuned `scale` |
 |---|---|---|
 | hydrogen, helium | ≈ 1 bohr | 1.0 |
 | positronium | ≈ 2 bohr | 1.4 |
@@ -231,9 +231,9 @@ of the reference for `scale` from 1 to 8 with `widths = :wide`, but ranged from
 0.2 to 59 mHa with the default. The price is that draws are spread over four
 decades, so with a well-chosen `scale` the default converges faster (for tdμ
 with 150 functions: 4.6 mHa above the reference with the default at
-`scale = 0.01`, 15 mHa with `widths = :wide`). A practical workflow is to start
-with `widths = :wide`, read off the size of the system from the result, and
-then switch to the default with a tuned `scale`.
+`scale = 0.01`, 15 mHa with `widths = :wide`). `scale = :adaptive` uses
+`widths = :wide` only for its pilot runs and then samples the default widths
+at the measured size, which combines both.
 
 `scale = :auto` uses [`FewBodyECG.default_scale`](@ref): ``1/\sqrt{m}`` for the
 lightest particle with mass below `1e10`. It ignores the interactions, so it

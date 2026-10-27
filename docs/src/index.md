@@ -23,7 +23,7 @@ H = Operators([1.0e15, 1.0], [+1.0, -1.0])
 H += "Kinetic"
 H += "Coulomb"
 
-sol = solve(H, DynamicGVM(basis = 10, candidates = 20, scale = 1.0))
+sol = solve(H, DynamicGVM(basis = 10, candidates = 20))
 exact = Antique.energy(Antique.HydrogenAtom(Z = 1), n = 1)
 println("E0 = ", sol.E₀, " Ha  (Antique ", exact, ", Δ = ", sol.E₀ - exact, ")")
 sol
@@ -47,7 +47,7 @@ ops += "Kinetic"
 f(r) = -exp(-r^2) / (1 + r^2)
 ops += (f, numerical, 1, 2)
 
-sol = solve(ops, SVM(basis = 8, candidates = 2, scale = 1.0))
+sol = solve(ops, SVM(basis = 8, candidates = 2))
 println(sol.E₀)
 ```
 
