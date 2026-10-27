@@ -50,6 +50,7 @@ include("utils/wavefunction.jl")
 include("utils/convergence.jl")
 include("utils/observables.jl")
 include("utils/plotting.jl")
+include("utils/precompile.jl")
 
 
 end

@@ -1,6 +1,11 @@
 using OptimKit: optimize
 import ForwardDiff
 
+# ForwardDiff compiles the energy gradient once per chunk size, so a fixed
+# chunk lets every system reuse one compiled gradient.  Larger chunks are no
+# faster for ECG energies.
+const _GRADIENT_CHUNK = 12
+
 function _chol_to_params(L::AbstractMatrix)
     n = size(L, 1)
     params = Float64[]
@@ -169,7 +174,7 @@ function _solve(
         draws = init.draws
     end
 
-    chunk = min(n_per * 5, length(θ))
+    chunk = min(_GRADIENT_CHUNK, length(θ))
     grad_cfg = ForwardDiff.GradientConfig(nothing, θ, ForwardDiff.Chunk(chunk))
     bad_gradient = Ref{Union{Nothing, Vector{Float64}}}(nothing)
     fg = x -> _energy_gradient(
@@ -259,7 +264,7 @@ function _solve(
         end
 
         append!(θ, best_candidate)
-        chunk = min(n_per * 5, length(θ))
+        chunk = min(_GRADIENT_CHUNK, length(θ))
         grad_cfg = ForwardDiff.GradientConfig(nothing, θ, ForwardDiff.Chunk(chunk))
         bad_gradient = Ref{Union{Nothing, Vector{Float64}}}(nothing)
         fg = x -> _energy_gradient(

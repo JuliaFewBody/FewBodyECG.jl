@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Faster first calls
+
+A PrecompileTools workload compiles the solvers at precompile time, and the
+gradient methods use a fixed ForwardDiff chunk size, so their compiled code is
+shared by all systems. The first `GVM` solve of a new three-body system takes
+about 1 s instead of about 8 s; `using FewBodyECG` takes about 0.3 s longer.
+
 ### `scale = :adaptive` is the default
 
 `SVM`, `Refine`, `DynamicGVM` and cold-start `GVM` default to

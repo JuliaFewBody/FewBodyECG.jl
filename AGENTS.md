@@ -48,7 +48,7 @@ A matrix-level layer (`build_overlap_matrix`, `build_hamiltonian_matrix`, `solve
 - **solve.jl** — `solve` entry points and the `SVM`/`Refine`/`Pipeline` drivers
 - **gradient.jl** — `GVM`/`DynamicGVM`: log-Cholesky encoding and Hellmann–Feynman gradients via ForwardDiff
 - **solution.jl** — `Solution`, `StageResult`, `ConvergenceReport`
-- **utils/** — `Wavefunction`, `convergence`, `radial_profile`, plot recipes
+- **utils/** — `Wavefunction`, `convergence`, `radial_profile`, plot recipes, the PrecompileTools workload
 
 ### Key Design Patterns
 - **Multiple dispatch on Gaussian rank × operator type** for matrix elements.
@@ -59,7 +59,16 @@ A matrix-level layer (`build_overlap_matrix`, `build_hamiltonian_matrix`, `solve
 
 ### Parameterization for Gradient Methods
 
-`Rank0Gaussian` is encoded as `[log-diag Cholesky of A | shift s]`, so positive-definiteness holds for any unconstrained parameter vector. Gradients use the Hellmann–Feynman theorem with ForwardDiff, chunk size `min(5×n_per, length(θ))`.
+`Rank0Gaussian` is encoded as `[log-diag Cholesky of A | shift s]`, so positive-definiteness holds for any unconstrained parameter vector. Gradients use the Hellmann–Feynman theorem with ForwardDiff, at a fixed chunk size (`_GRADIENT_CHUNK = 12`) so every system reuses one compiled gradient.
+
+## Precompilation
+
+`src/utils/precompile.jl` runs a small PrecompileTools workload, which makes precompiling the package take about 20 s instead of 2 s. When editing the package without Revise, switch the workload off locally with
+```julia
+using PrecompileTools, FewBodyECG
+PrecompileTools.Preferences.set_preferences!(FewBodyECG, "precompile_workload" => false; force = true)
+```
+(this writes `LocalPreferences.toml`; delete it to turn the workload back on).
 
 ## Testing
 
