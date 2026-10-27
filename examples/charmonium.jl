@@ -1,7 +1,6 @@
 using FewBodyECG
 using OptimKit: LBFGS
 using Plots
-using FewBodyECG: Λ
 
 mass = [1.836, 1.836]
 σσ = -3

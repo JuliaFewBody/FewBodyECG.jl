@@ -4,16 +4,23 @@ function _qmc_point(i::Int, d::Int; sampler = HaltonSample())
     return QuasiMonteCarlo.sample(i + 1, d, sampler)[:, end]
 end
 
+# Pair widths b_ij for one candidate.  `widths = :linear` draws them uniformly
+# in [0.02, 5]·b1; `widths = :wide` draws them log-uniformly in [0.01, 100]·b1,
+# so every decade of that range is sampled equally often.
 function generate_bij(
         method::Symbol, i::Int, n_terms::Int, b1::Float64;
-        qmc_sampler = HaltonSample(), bmin = 0.02 * b1, bmax = 5.0 * b1
+        qmc_sampler = HaltonSample(), widths::Symbol = :linear,
+        bmin = (widths === :wide ? 0.01 : 0.02) * b1,
+        bmax = (widths === :wide ? 100.0 : 5.0) * b1
     )
+    widths in (:linear, :wide) ||
+        throw(ArgumentError("unknown widths = :$widths; use :linear or :wide"))
     bmin > 0 || throw(ArgumentError("bmin must be > 0"))
     bmax > bmin || throw(ArgumentError("bmax must be > bmin"))
     u = method === :quasirandom ? _qmc_point(i, n_terms; sampler = qmc_sampler) :
         method === :random ? rand(n_terms) :
         error("Unsupported method $method")
-    return bmin .+ (bmax - bmin) .* u  # Now properly uses the range!
+    return widths === :wide ? bmin .* (bmax / bmin) .^ u : bmin .+ (bmax - bmin) .* u
 end
 
 function generate_shift(method::Symbol, i::Int, dim::Int, scale::Real; qmc_sampler = HaltonSample())

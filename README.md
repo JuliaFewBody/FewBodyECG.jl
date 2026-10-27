@@ -59,8 +59,10 @@ sol = solve(ops, SVM(40; scale = 1.0) → Refine(2; scale = 1.0) → GVM())
 ```
 
 `scale` is a length: roughly the typical distance between the particles, in
-the system's length unit. The documentation explains how to choose it, and
-how to work in units other than atomic units (`Operators(...; units = :nuclear)`).
+the system's length unit. When it is omitted, `scale = :adaptive` measures the
+size of the system with a short pilot run and chooses it. The documentation
+explains how to choose it by hand, and how to work in units other than atomic
+units (`Operators(...; units = :nuclear)`).
 
 Code written for FewBodyECG 1.x needs changes; `CHANGELOG.md` maps each 1.x
 function to its replacement.

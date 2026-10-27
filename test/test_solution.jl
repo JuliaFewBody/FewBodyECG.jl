@@ -11,7 +11,7 @@ function _dummy_solution(; converged = true)
     st = StageResult(SVM(2), [-0.3, -0.42], rep)
     return Solution(
         [-0.42, 1.7], BasisSet([g, g]), [1.0 0.0; 0.0 1.0],
-        FewBodyECG.Operator[], 1, [st, st], rep, UnitSystem("Ha", "bohr")
+        FewBodyECG.Operator[], 1, [st, st], rep, UnitSystem("Ha", "bohr"), 0
     )
 end
 

@@ -65,15 +65,95 @@ end
 solve(terms::Vector{<:FewBodyHamiltonians.Operator}, alg::SolverMethod = SVM(); units = :atomic, kw...) =
     _solve(terms, nothing, alg; units, kw...)
 
+# `scale = :adaptive` sets the sampling length to this multiple of the largest
+# rms pair distance.  Coulomb systems do best near 0.5 and smooth nuclear
+# potentials near 1–2; 0.7 stays within a small factor of the best energy for
+# both.
+const _ADAPTIVE_FACTOR = 0.7
+const _PILOT_BASIS = 30
+const _PILOT_CANDIDATES = 20
+const _PILOT_MAX_ROUNDS = 3
+
+# Largest root-mean-square distance ⟨r_ij²⟩^½ over all particle pairs in the
+# target state of `sol`, from exact r² matrix elements.
+function _rms_pair_max(sol::Solution, masses)
+    _, U = jacobi_transform(collect(Float64, masses))
+    N = length(masses)
+    c = getfield(sol, :coefficients)[:, getfield(sol, :state)]
+    basis = getfield(sol, :basis)
+    r2 = map(((i, j) for i in 1:N for j in (i + 1):N)) do (i, j)
+        e = zeros(N)
+        e[i], e[j] = 1.0, -1.0
+        O = build_hamiltonian_matrix(basis, FewBodyHamiltonians.Operator[OscillatorOperator(1.0, U' * e)])
+        real(c' * O * c)
+    end
+    return sqrt(maximum(r2))
+end
+
+# `scale = :adaptive`: measure the system's size from `init` when there is
+# one, otherwise from pilot `SVM` runs with wide width sampling.  Each pilot is
+# re-centered on the previous size estimate, until the estimate changes by
+# less than 30%.  Short pilots are poorly converged and can overestimate the
+# size through diffuse components, so the size comes from the pilot with the
+# lowest energy, whose wavefunction is the most accurate.
+function _adaptive_scale(ctx::_SolveCtx, init)
+    ctx.masses === nothing && throw(
+        ArgumentError(
+            "scale = :adaptive requires Operators(masses[, charges]); pass a numeric scale"
+        )
+    )
+    unit = ctx.units.length
+    if init !== nothing
+        r = _rms_pair_max(init, ctx.masses)
+        s = _ADAPTIVE_FACTOR * r
+        return s, "scale = :adaptive → $(round(s; sigdigits = 3)) ($(_ADAPTIVE_FACTOR) × rms pair " *
+            "distance $(round(r; sigdigits = 3)) $unit of the initial basis)"
+    end
+    center = default_scale(collect(Float64, ctx.masses))
+    best_E, best_r = Inf, NaN
+    r_prev = NaN
+    rounds = 0
+    for round in 1:_PILOT_MAX_ROUNDS
+        pilot = _solve(
+            ctx.terms, ctx.masses,
+            SVM(; basis = _PILOT_BASIS, candidates = _PILOT_CANDIDATES, scale = center, widths = :wide);
+            state = ctx.state, tol = ctx.tol, window = ctx.window, init = nothing,
+            verbose = false, units = ctx.units
+        )
+        r = _rms_pair_max(pilot, ctx.masses)
+        isfinite(r) && r > 0 || throw(
+            ArgumentError(
+                "scale = :adaptive could not measure the system size (pilot rms pair " *
+                    "distance $r); pass a numeric scale"
+            )
+        )
+        ctx.verbose && @info "scale = :adaptive: pilot round $round" center energy = pilot.E₀ rms_pair_max = r
+        pilot.E₀ < best_E && ((best_E, best_r) = (pilot.E₀, r))
+        rounds = round
+        isfinite(r_prev) && abs(r - r_prev) ≤ 0.3 * r_prev && break
+        r_prev, center = r, r
+    end
+    s = _ADAPTIVE_FACTOR * best_r
+    return s, "scale = :adaptive → $(round(s; sigdigits = 3)) ($(_ADAPTIVE_FACTOR) × rms pair distance " *
+        "$(round(best_r; sigdigits = 3)) $unit, from the lowest-energy of $rounds pilot " *
+        "runs of $(_PILOT_BASIS) functions with widths = :wide)"
+end
+
+# Resolve `scale` once per solve: `(value, note)`, where `note` explains an
+# adaptive choice and is `nothing` otherwise.
+_solve_scale(scale, ctx::_SolveCtx, init) =
+    scale === :adaptive ? _adaptive_scale(ctx, init) : (_resolve_scale(scale, ctx.masses), nothing)
+
+_add_note!(report::ConvergenceReport, note) = (note === nothing || push!(report.notes, note); report)
+
 # One SVM growth step: draw → score all candidates → commit the best.
 # Returns false when no admissible candidate was found.
-function step!(st::BasisState, alg::SVM, ctx::_SolveCtx)
-    scale = _resolve_scale(alg.scale, ctx.masses)
+function step!(st::BasisState, alg::SVM, ctx::_SolveCtx, scale::Float64)
     bestE = Inf
     best = nothing
     bestcols = nothing
     for _ in 1:alg.candidates
-        cand = _draw_candidate!(st, scale, alg.sampler, ctx.w_list, ctx.d)
+        cand = _draw_candidate!(st, scale, alg.sampler, alg.widths, ctx.w_list, ctx.d)
         cols = _candidate_columns(cand, st.basis, ctx.terms)
         cols === nothing && continue
         E = score_candidate(
@@ -120,7 +200,7 @@ function _solution(st::BasisState, ctx::_SolveCtx, stages::Vector{StageResult})
     return Solution(
         copy(st.eig.ε), BasisSet(copy(st.basis)), coefficients(st.eig),
         ctx.terms, state,
-        stages, last(stages).report, ctx.units
+        stages, last(stages).report, ctx.units, st.draw
     )
 end
 
@@ -131,11 +211,12 @@ function _solve(
     )
     ctx = _ctx(terms, masses; state, tol, window, verbose, units, init)
     st = init === nothing ? BasisState() : _solution_basis_state(init, ctx.terms)
+    scale, scale_note = _solve_scale(alg.scale, ctx, init)
     n₀ = length(st.E_hist)
     n₀_funs = nfuns(st)
     failed = 0
     for iteration in 1:alg.basis
-        accepted = step!(st, alg, ctx)
+        accepted = step!(st, alg, ctx, scale)
         accepted || (failed += 1)
         energy = isempty(st.E_hist) ? NaN : last(st.E_hist)
         ctx.verbose && @info "SVM: iteration $iteration/$(alg.basis)" energy basis = nfuns(st) accepted
@@ -157,13 +238,12 @@ function _solve(
     else
         _stochastic_report(st, tol, window; extra_notes = notes)
     end
-    return _solution(st, ctx, [StageResult(alg, stage_hist, rep)])
+    return _solution(st, ctx, [StageResult(alg, stage_hist, _add_note!(rep, scale_note))])
 end
 
 # One refinement sweep (Suzuki–Varga r1–r4): for each basis slot, rebuild the
 # (k−1)-state from cached columns, then keep the best of {current, candidates}.
-function step!(st::BasisState, alg::Refine, ctx::_SolveCtx)
-    scale = _resolve_scale(alg.scale, ctx.masses)
+function step!(st::BasisState, alg::Refine, ctx::_SolveCtx, scale::Float64)
     improved = false
     for i in 1:nfuns(st)
         k = nfuns(st)
@@ -180,7 +260,7 @@ function step!(st::BasisState, alg::Refine, ctx::_SolveCtx)
         best, bestcols = st.basis[i], cur_cols
         replaced = false
         for _ in 1:alg.candidates
-            cand = _draw_candidate!(base, scale, alg.sampler, ctx.w_list, ctx.d)
+            cand = _draw_candidate!(base, scale, alg.sampler, alg.widths, ctx.w_list, ctx.d)
             cols = _candidate_columns(cand, base.basis, ctx.terms)
             cols === nothing && continue
             E = score_candidate(
@@ -211,9 +291,10 @@ function _solve(
     )
     ctx = _ctx(terms, masses; state, tol, window, verbose, units, init)
     st = _solution_basis_state(init, ctx.terms)
+    scale, scale_note = _solve_scale(alg.scale, ctx, init)
     sweep_hist = Float64[]
     for iteration in 1:alg.sweeps
-        st, _ = step!(st, alg, ctx)
+        st, _ = step!(st, alg, ctx, scale)
         push!(sweep_hist, last(st.E_hist))
         ctx.verbose && @info "Refine: iteration $iteration/$(alg.sweeps)" energy = last(st.E_hist)
     end
@@ -227,7 +308,7 @@ function _solve(
             "refinement: ΔE measured per sweep (window = 1 sweep)",
         ]
     )
-    return _solution(st, ctx, [StageResult(alg, sweep_hist, rep)])
+    return _solution(st, ctx, [StageResult(alg, sweep_hist, _add_note!(rep, scale_note))])
 end
 
 # Fold a Pipeline left-to-right: each stage's own `_solve` runs unmodified,
@@ -247,6 +328,6 @@ function _solve(
     end
     return Solution(
         sol.E, sol.basis, sol.coefficients, sol.operators, sol.state,
-        stages, last(stages).report, sol.units
+        stages, last(stages).report, sol.units, sol.draws
     )
 end

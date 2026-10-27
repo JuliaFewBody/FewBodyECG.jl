@@ -17,6 +17,8 @@ using FewBodyECG
     @test DynamicGVM().basis == 15
     @test DynamicGVM(6).basis == 6                 # positional convenience
     @test DynamicGVM(6; candidates = 3).candidates == 3
+    @test SVM().widths === Refine().widths === DynamicGVM().widths === :linear
+    @test GVM().widths === nothing
 
     p = SVM(120) → Refine(2) → GVM()
     @test p isa Pipeline

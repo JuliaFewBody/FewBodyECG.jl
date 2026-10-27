@@ -16,7 +16,7 @@ d = length(w_list[1])
     st = BasisState()
     @test nfuns(st) == 0
     for _ in 1:6
-        cand = _draw_candidate!(st, 1.0, FewBodyECG.HaltonSample(), w_list, d)
+        cand = _draw_candidate!(st, 1.0, FewBodyECG.HaltonSample(), :linear, w_list, d)
         cols = _candidate_columns(cand, st.basis, terms)
         cols === nothing && continue
         commit!(st, cand, cols)
@@ -47,7 +47,7 @@ end
 @testset "rebuild_without boundaries and warm start" begin
     st = BasisState()
     for _ in 1:8
-        cand = _draw_candidate!(st, 1.0, FewBodyECG.HaltonSample(), w_list, d)
+        cand = _draw_candidate!(st, 1.0, FewBodyECG.HaltonSample(), :linear, w_list, d)
         cols = _candidate_columns(cand, st.basis, terms)
         cols === nothing && continue
         commit!(st, cand, cols)
@@ -61,7 +61,7 @@ end
         @test r.H ≈ st.H[idx, idx] atol = 1.0e-12
     end
     st1 = BasisState()                    # k = 1 → empty state after removal
-    cand1 = _draw_candidate!(st1, 1.0, FewBodyECG.HaltonSample(), w_list, d)
+    cand1 = _draw_candidate!(st1, 1.0, FewBodyECG.HaltonSample(), :linear, w_list, d)
     cols1 = _candidate_columns(cand1, st1.basis, terms)
     @test cols1 !== nothing
     commit!(st1, cand1, cols1)
@@ -71,11 +71,12 @@ end
     sol = Solution(
         copy(st.eig.ε), BasisSet(copy(st.basis)), FewBodyECG.coefficients(st.eig),
         Operator[terms...], 1,
-        [StageResult(SVM(k), copy(st.E_hist), rep)], rep, UnitSystem("Ha", "bohr")
+        [StageResult(SVM(k), copy(st.E_hist), rep)], rep, UnitSystem("Ha", "bohr"), st.draw
     )
     ws = _solution_basis_state(sol, terms)
     @test nfuns(ws) == k
     @test ws.S ≈ st.S atol = 1.0e-10
     @test ws.H ≈ st.H atol = 1.0e-10
     @test minimum(ws.eig.ε) ≈ minimum(st.eig.ε) rtol = 1.0e-10
+    @test ws.draw == st.draw                     # warm start resumes the QMC stream
 end

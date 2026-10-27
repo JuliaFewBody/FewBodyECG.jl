@@ -46,7 +46,9 @@ Result of [`solve`](@ref).  Fields: `E` (eigenvalues of the final basis,
 ascending), `basis::BasisSet`, `coefficients` (generalized eigenvectors,
 `cᵀSc = I`), `operators`, `state` (target eigenstate), `stages`
 (length 1 unless a `Pipeline` ran), `convergence` (final report), `units`
-(the [`UnitSystem`](@ref) of the energies).
+(the [`UnitSystem`](@ref) of the energies), `draws` (quasi-random candidate
+points consumed so far; a warm start from this solution continues the sequence
+after them).
 `sol.E₀` is the target-state energy `E[state]`.
 """
 struct Solution
@@ -58,6 +60,7 @@ struct Solution
     stages::Vector{StageResult}
     convergence::ConvergenceReport
     units::UnitSystem
+    draws::Int
 end
 
 function Base.getproperty(sol::Solution, s::Symbol)

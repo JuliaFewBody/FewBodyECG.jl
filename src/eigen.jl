@@ -135,12 +135,37 @@ function _solve_secular_bracket(
 end
 
 """
-    smallest_arrowhead_eigval(ε, b, α; tol) -> Float64
+    _deflatable(ε, b, α, scale, tol) -> BitVector
+
+Couplings `b[i]` of the arrowhead `[diag(ε) b; bᵀ α]` that can be set to zero.
+Zeroing `b[i]` moves the eigenvalues by about `b[i]² / gapᵢ`, where `gapᵢ` is
+the distance from `ε[i]` to its nearest neighboring pole or to `α`; `b[i]` is
+deflated when that shift is below the root-bracket margin `tol · scale`, or when
+`|b[i]|` is at rounding level.  A cutoff on `|b[i]|` alone is wrong in both
+directions: ECG spectra span many orders of magnitude, so a cutoff relative to
+`scale` either discards couplings that shift the ground state or keeps roots
+that lie inside the bracket margin of their pole.
+"""
+function _deflatable(ε::AbstractVector, b::AbstractVector, α::Real, scale::Real, tol::Real)
+    k = length(ε)
+    return BitVector(
+        begin
+            gap = abs(ε[i] - α)
+            i > 1 && (gap = min(gap, ε[i] - ε[i - 1]))
+            i < k && (gap = min(gap, ε[i + 1] - ε[i]))
+            abs(b[i]) <= 8 * eps() * scale || b[i]^2 <= tol * scale * gap
+        end for i in 1:k
+    )
+end
+
+"""
+    smallest_arrowhead_eigval(ε, b, α; tol = 1e-12) -> Float64
 
 Smallest eigenvalue of the arrowhead matrix `[diag(ε) b; bᵀ α]`, used to *score*
-a candidate basis function.  Deflation (b[i] ≈ 0) is handled so the routine is
-robust when a candidate is nearly S-orthogonal to an existing eigenvector.
-`ε` must be sorted ascending.
+a candidate basis function.  Couplings selected by [`_deflatable`](@ref) are
+deflated, so the routine is robust when a candidate is nearly S-orthogonal to an
+existing eigenvector.  `tol` sets the root-bracket margin `tol · scale`, with
+`scale` the largest of 1, `|α|` and `|ε|`.  `ε` must be sorted ascending.
 """
 function smallest_arrowhead_eigval(
         ε::AbstractVector, b::AbstractVector, α::Real;
@@ -149,10 +174,11 @@ function smallest_arrowhead_eigval(
     k = length(ε)
     scale = max(1.0, maximum(abs, ε; init = 0.0), abs(α))
     # Active (coupled) indices; deflated diagonals are themselves eigenvalues.
-    active = [i for i in 1:k if b[i]^2 > tol * scale^2]
+    defl = _deflatable(ε, b, α, scale, tol)
+    active = [i for i in 1:k if !defl[i]]
     deflated_min = Inf
     @inbounds for i in 1:k
-        if b[i]^2 <= tol * scale^2
+        if defl[i]
             deflated_min = min(deflated_min, ε[i])
         end
     end
@@ -203,7 +229,7 @@ function _lowner_border(d::AbstractVector, λ::AbstractVector, b_src::AbstractVe
 end
 
 """
-    full_arrowhead_eigen(ε, b, α) -> (λ, V)
+    full_arrowhead_eigen(ε, b, α; tol = 1e-12) -> (λ, V)
 
 Full eigendecomposition of the (k+1)×(k+1) arrowhead matrix `[diag(ε) b; bᵀ α]`.
 Returns sorted eigenvalues `λ` and orthonormal eigenvectors `V` (columns).
@@ -211,7 +237,7 @@ Returns sorted eigenvalues `λ` and orthonormal eigenvectors `V` (columns).
 is bracketed by consecutive poles and found by safeguarded bisection/Newton.
 Eigenvectors use the Löwner-reconstructed border (see [`_lowner_border`](@ref))
 so they stay orthogonal even for nearly coincident eigenvalues.  Deflated
-coordinates (b[i] ≈ 0) contribute the unit eigenvector eᵢ.
+coordinates (see [`_deflatable`](@ref)) contribute the unit eigenvector eᵢ.
 """
 function full_arrowhead_eigen(
         ε::AbstractVector{Float64}, b::AbstractVector{Float64}, α::Float64;
@@ -220,8 +246,9 @@ function full_arrowhead_eigen(
     k = length(ε)
     n = k + 1
     scale = max(1.0, maximum(abs, ε; init = 0.0), abs(α))
-    deflated = [i for i in 1:k if b[i]^2 <= tol * scale^2]
-    active = [i for i in 1:k if b[i]^2 > tol * scale^2]
+    defl = _deflatable(ε, b, α, scale, tol)
+    deflated = [i for i in 1:k if defl[i]]
+    active = [i for i in 1:k if !defl[i]]
 
     λ = Vector{Float64}(undef, n)
     V = zeros(Float64, n, n)

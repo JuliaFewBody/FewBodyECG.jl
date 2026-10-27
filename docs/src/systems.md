@@ -165,14 +165,48 @@ and cold-start [`GVM`](@ref)) draw trial Gaussians
 ``\exp(-\sum_{i<j} r_{ij}^2 / b_{ij}^2)`` with each pair width ``b_{ij}``
 sampled between `0.02 * scale` and `5 * scale`. So `scale` is a length, in the
 system's length unit, and should be about the typical distance between the
-particles:
+particles.
+
+By default (`scale = :adaptive`) the package chooses it. A short pilot run
+(30 functions, `widths = :wide`) estimates the wavefunction, and `scale` is set
+to 0.7 times the largest root-mean-square pair distance
+``\langle r_{ij}^2 \rangle^{1/2}``, computed exactly from the pilot's basis. The
+pilot is re-centered on its own estimate for up to three rounds, and the size
+is taken from the pilot with the lowest energy. On a warm start (`init`, or a
+later stage of a pipeline) the size is measured on the existing basis instead,
+with no pilot. The convergence report records the value chosen, for example
+
+```
+scale = :adaptive → 1.21 (0.7 × rms pair distance 1.73 bohr, from the lowest-energy of 2 pilot runs …)
+```
+
+At equal basis size, `:adaptive` comes close to a hand-tuned `scale` (energies
+above the reference, in mHa, or keV for the nuclear systems):
+
+| system | basis | hand-tuned `scale` | `:adaptive` | `:auto` |
+|---|---|---|---|---|
+| H | 20 | 0.0046 | 0.0075 | 0.0046 |
+| He | 50 | 3.1 | 2.5 | 3.1 |
+| H⁻ | 50 | 1.7 | 1.9 | 14 |
+| Ps⁻ | 60 | 0.26 | 0.23 | 59 |
+| tdμ | 150 | 4.6 | 6.8 | 1190 |
+| Hooke's atom | 40 | 0.64 | 0.60 | 1.0 |
+| deuteron | 30 | 0.23 | 0.30 | 0.19 |
+| triton (Volkov) | 60 | −6.6 | 1.6 | −2.2 |
+
+The triton reference, −8.46 MeV, is rounded, so the negative values mean those
+runs went below the rounded number.
+
+The factor 0.7 is a compromise: Coulomb systems do slightly better near 0.5,
+smooth nuclear potentials near 1. For production runs, a hand-tuned `scale`
+can still gain a little; the values used in the examples are:
 
 | system | typical size | `scale` used in the examples |
 |---|---|---|
 | hydrogen, helium | ≈ 1 bohr | 1.0 |
 | positronium | ≈ 2 bohr | 1.4 |
 | H⁻, Ps⁻ (weakly bound, diffuse) | several bohr | 4.0 |
-| muonic molecules (tdμ, ttμ) | ≈ 0.01 bohr | 0.02–0.03 |
+| muonic molecules (tdμ, ttμ) | ≈ 0.01 bohr | 0.01–0.03 |
 | deuteron, triton | 2–4 fm | 3.0–3.5 |
 
 If `scale` is too small, no trial function reaches the outer part of the
@@ -180,7 +214,28 @@ wavefunction and the energy levels off too high. If it is too large, most
 trial functions are too wide to help and convergence is slow. When in doubt,
 run two or three values and compare the energies.
 
-`scale = :auto` (the default) uses
-[`FewBodyECG.default_scale`](@ref): ``1/\sqrt{m}`` for the lightest particle
-with mass below `1e10`. It is a rough starting point for atomic systems, not
-a substitute for choosing `scale` for the system at hand.
+### Wide width sampling
+
+For a new system where the right `scale` is unclear, pass `widths = :wide` to
+the method. The pair widths are then sampled log-uniformly between
+`0.01 * scale` and `100 * scale`, so every decade of that range is tried
+equally often:
+
+```julia
+sol = solve(ops, SVM(basis = 60, scale = 2.0, widths = :wide))
+```
+
+This makes the result much less sensitive to `scale`. In a comparison at equal
+cost, positronium negative ion (Ps⁻, 60 functions) stayed within 0.4–1.1 mHa
+of the reference for `scale` from 1 to 8 with `widths = :wide`, but ranged from
+0.2 to 59 mHa with the default. The price is that draws are spread over four
+decades, so with a well-chosen `scale` the default converges faster (for tdμ
+with 150 functions: 4.6 mHa above the reference with the default at
+`scale = 0.01`, 15 mHa with `widths = :wide`). A practical workflow is to start
+with `widths = :wide`, read off the size of the system from the result, and
+then switch to the default with a tuned `scale`.
+
+`scale = :auto` uses [`FewBodyECG.default_scale`](@ref): ``1/\sqrt{m}`` for the
+lightest particle with mass below `1e10`. It ignores the interactions, so it
+can be far off (for Ps⁻ and tdμ in the table above); `:adaptive` starts its
+pilot from it.

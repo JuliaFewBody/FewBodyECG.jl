@@ -30,10 +30,11 @@ end
     sol1 = solve(ops, SVM(basis = 15, candidates = 1, scale = 1.0))
     @test sol1.E₀ < -0.4
 
-    # default method + raw-terms entry + :auto scale
+    # default method + raw-terms entry + default (:adaptive) scale
     @test solve(ops).E₀ < -0.4
     @test solve(ops.terms, SVM(basis = 10, candidates = 5, scale = 1.0)) isa Solution
-    @test_throws ArgumentError solve(ops.terms, SVM(basis = 5))   # :auto needs masses
+    @test_throws ArgumentError solve(ops.terms, SVM(basis = 5))   # :adaptive needs masses
+    @test solve(ops, SVM(basis = 10, scale = :auto)).E₀ < -0.4
 
     # deterministic (Halton)
     @test solve(ops, SVM(basis = 15, candidates = 10, scale = 1.0)).E₀ ==

@@ -3,7 +3,7 @@
 # In a muonic molecular ion such as tdμ, a negative muon (mass ≈ 207 mₑ) binds
 # two hydrogen nuclei.  All three particles have comparable masses, so none can
 # be treated as fixed, and the system is about 200 times smaller than an
-# ordinary molecule — hence `scale = 0.02` bohr.  Masses are in electron masses
+# ordinary molecule — hence `scale = 0.01` bohr.  Masses are in electron masses
 # and energies in Hartree (atomic units).
 
 using FewBodyECG
@@ -13,6 +13,10 @@ mμ, md, mt = 206.7686, 3670.481, 5496.918
 
 # The K = 200 SVM energies are from Suzuki & Varga, Table 8.1; the reference
 # energies are the more precise values from the same book, stored in FewBodyDB.
+#
+# `SVM` grows the basis to 200 functions; `Refine` then revisits each function
+# and replaces it whenever a fresh candidate lowers the energy, keeping the
+# basis size at 200 so the comparison with the K = 200 values stays fair.
 systems = [
     ("tdμ", [md, mt, mμ], -111.36444),
     ("ttμ", [mt, mt, mμ], -112.973),
@@ -27,7 +31,8 @@ for (name, masses, svm200) in systems
 
     sol = solve(
         ops,
-        SVM(basis = 200, candidates = 40, scale = 0.02);
+        SVM(basis = 200, candidates = 40, scale = 0.01) →
+            Refine(2; candidates = 20, scale = 0.01);
         tol = 1.0e-4,
         window = 15,
     )

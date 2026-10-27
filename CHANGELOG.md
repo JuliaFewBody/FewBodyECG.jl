@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### `scale = :adaptive` is the default
+
+`SVM`, `Refine`, `DynamicGVM` and cold-start `GVM` default to
+`scale = :adaptive` instead of `scale = :auto`. It sets the sampling length to
+0.7 × the largest root-mean-square pair distance, measured from `init` on a
+warm start and otherwise from short pilot runs with `widths = :wide`; the
+convergence report notes the value chosen. Cold starts that did not pass
+`scale` give different results. `scale = :auto` (`1/√m` of the lightest
+particle) remains available. Like `:auto`, `:adaptive` requires `Operators`
+built from masses.
+
+### Wide width sampling
+
+`SVM`, `Refine`, `DynamicGVM` and cold-start `GVM` accept `widths = :wide`,
+which samples pair widths log-uniformly between `0.01 * scale` and
+`100 * scale` instead of uniformly between `0.02 * scale` and `5 * scale` (the
+default, `widths = :linear`, unchanged). The result depends much less on
+`scale`, at the cost of slower convergence when `scale` is well chosen.
+
 ### Units
 
 `Operators(...; units = :atomic | :nuclear | UnitSystem(energy, length))`
@@ -14,8 +33,28 @@ in different units throws an `ArgumentError`.
 `ops += "Coulomb"` throws an `ArgumentError` unless the units are `:atomic`,
 because its couplings `q_i q_j` assume `e²/4πε₀ = 1`.
 
-`Solution` has a new trailing field `units`; code that calls the `Solution`
-constructor directly must pass a `UnitSystem`.
+`Solution` has new trailing fields `units` and `draws`; code that calls the
+`Solution` constructor directly must pass a `UnitSystem` and a draw count.
+
+### Fixed
+
+The incremental eigensolver behind `SVM` and `Refine` dropped arrowhead
+couplings up to `10⁻⁶ × max|ε|`, a cutoff that grows with the widest part of
+the whitened spectrum. For bases spanning many length scales this discarded
+couplings that lower the ground state, so reported energies were too high
+(0.67 mHa for a 200-function tdμ basis) and `Refine` could raise the energy
+while choosing replacements from the biased scores. A coupling is now dropped
+only when its eigenvalue shift is below the root-bracket margin or it is at
+rounding level.
+
+Warm starts (`init = sol`, and every stage of a `→` pipeline after the first)
+restarted the quasi-random candidate sequence near its beginning, so `Refine`,
+a warm `SVM` and a warm `DynamicGVM` redrew candidates that the previous stage
+had already tried. `Solution` now records the points consumed in a new trailing
+field `draws`, and warm starts continue the sequence after them. Cold starts
+draw the same points as before.
+
+`examples/charmonium.jl` assigned to the imported name `Λ` and failed to run.
 
 ## v2.0.0
 

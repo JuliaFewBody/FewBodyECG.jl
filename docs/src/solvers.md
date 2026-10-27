@@ -53,7 +53,8 @@ incremental whitened eigensolver, and commits the best admissible function.
 |---|---|
 | `basis` | number of growth steps |
 | `candidates` | candidates scored per step |
-| `scale` | Gaussian length scale or `:auto` |
+| `scale` | sampling length: `:adaptive` (default), `:auto`, or a number; see [Choosing `scale`](@ref) |
+| `widths` | `:linear` (default) or `:wide`; see [Wide width sampling](@ref) |
 | `sampler` | quasi-random sampler |
 | `indep_tol` | Cholesky-residual independence cutoff |
 
@@ -69,7 +70,8 @@ initial basis, either through `init = sol` or a pipeline.
 |---|---|
 | `sweeps` | cyclic refinement passes |
 | `candidates` | replacements tried per slot |
-| `scale` | replacement length scale |
+| `scale` | replacement length scale; `:adaptive` (default) measures the existing basis |
+| `widths` | `:linear` (default) or `:wide` |
 | `indep_tol` | independence cutoff |
 
 ## GVM
@@ -103,7 +105,8 @@ sol = solve(ops, GVM(); init = seed)
 | option | meaning |
 |---|---|
 | `basis` | number of functions for a cold start; optional with `init` |
-| `scale` | cold-start length scale; omit with `init` |
+| `scale` | cold-start length scale, `:adaptive` when omitted; omit with `init` |
+| `widths` | cold-start width sampling, `:linear` or `:wide`; omit with `init` |
 | `optimizer` | OptimKit gradient algorithm and its settings |
 
 ## DynamicGVM
@@ -115,7 +118,8 @@ basis after each addition.
 |---|---|
 | `basis` | final number of functions, including a warm-start basis |
 | `candidates` | candidates per growth step |
-| `scale` | candidate length scale |
+| `scale` | candidate length scale, `:adaptive` by default |
+| `widths` | `:linear` (default) or `:wide` |
 | `optimizer` | OptimKit gradient algorithm, reused at every growth step |
 
 Pass `verbose = true` to `solve` for one FewBodyECG progress message per
