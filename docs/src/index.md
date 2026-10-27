@@ -29,6 +29,10 @@ println("E0 = ", sol.E₀, " Ha  (Antique ", exact, ", Δ = ", sol.E₀ - exact,
 sol
 ```
 
+[Building systems](systems.md) lists every term you can add, the unit
+conventions, and how to choose `scale`; [Choosing a solver](solvers.md)
+compares the solver methods.
+
 ## Custom numerical potentials
 
 Define a radial pair potential as a scalar callable. The matrix elements are

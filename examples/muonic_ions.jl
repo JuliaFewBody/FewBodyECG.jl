@@ -1,3 +1,11 @@
+# # Muonic molecular ions
+#
+# In a muonic molecular ion such as tdμ, a negative muon (mass ≈ 207 mₑ) binds
+# two hydrogen nuclei.  All three particles have comparable masses, so none can
+# be treated as fixed, and the system is about 200 times smaller than an
+# ordinary molecule — hence `scale = 0.02` bohr.  Masses are in electron masses
+# and energies in Hartree (atomic units).
+
 using FewBodyECG
 using FewBodyDB: db
 

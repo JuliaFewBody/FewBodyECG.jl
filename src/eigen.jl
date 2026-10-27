@@ -3,8 +3,8 @@
 #
 # This is the computational heart of the SVM as described in Suzuki & Varga,
 # *Stochastic Variational Approach to Quantum-Mechanical Few-Body Problems*
-# (LNP m54, 1998), Chapter 3-4.  It replaces the per-candidate LAPACK
-# generalised eigensolve with the incremental update of Theorem 3.5.
+# (LNP m54, 1998), Chapter 3-4.  Candidates are scored with the incremental
+# update of Theorem 3.5 rather than a full generalised eigensolve.
 #
 # Setup.  We solve the generalised eigenproblem H c = ε S c for a non-orthogonal
 # Gaussian basis {ψ₁,…,ψ_k}.  We maintain the eigendecomposition in factored

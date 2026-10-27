@@ -5,6 +5,7 @@
 ```@docs
 Operators
 Operator
+UnitSystem
 KineticOperator
 CoulombOperator
 GaussianOperator

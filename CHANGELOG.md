@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Units
+
+`Operators(...; units = :atomic | :nuclear | UnitSystem(energy, length))`
+records the unit convention of the masses and couplings. It converts nothing;
+`Solution` carries it (`sol.units`), and printed energies and the energy-plot
+axis use its label instead of always printing `Ha`. `solve` on a raw operator
+vector takes `units` as a keyword, and a warm start (`init`) from a `Solution`
+in different units throws an `ArgumentError`.
+
+`ops += "Coulomb"` throws an `ArgumentError` unless the units are `:atomic`,
+because its couplings `q_i q_j` assume `e²/4πε₀ = 1`.
+
+`Solution` has a new trailing field `units`; code that calls the `Solution`
+constructor directly must pass a `UnitSystem`.
+
 ## v2.0.0
 
 This is a breaking API release.

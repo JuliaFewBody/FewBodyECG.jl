@@ -42,7 +42,7 @@ function create_mock_solution(;
     method = SVM(basis = n_basis, scale = scale, sampler = sampler)
     stage = StageResult(method, step_energies, rep)
     E = sort(step_energies) # ascending; E[1] is the lowest (ground) energy
-    return Solution(E, BasisSet(basis_fns), c, operators, state, [stage], rep)
+    return Solution(E, BasisSet(basis_fns), c, operators, state, [stage], rep, UnitSystem("Ha", "bohr"))
 end
 
 @testset "Solution (mock construction)" begin
@@ -279,7 +279,7 @@ end
             true, :saturation, 0.0, 1.0e-4, 20, nothing, 1.0, [SATURATION_CAVEAT]
         )
         stage = StageResult(SVM(1), [-0.5], rep)
-        sol = Solution([-0.5], BasisSet(basis_fns), c, ops, 1, [stage], rep)
+        sol = Solution([-0.5], BasisSet(basis_fns), c, ops, 1, [stage], rep, UnitSystem("Ha", "bohr"))
 
         # All utilities should work
         @test wavefunction(sol)([0.0]) ≈ 1.0

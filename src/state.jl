@@ -19,7 +19,7 @@ BasisState() = BasisState(
 nfuns(st::BasisState) = length(st.basis)
 
 # Overlap/Hamiltonian columns of `cand` against `basis`; `nothing` if any
-# element is non-finite.  (Moved from svm_solver.jl; deleted there in Task 10.)
+# element is non-finite.
 function _candidate_columns(cand, basis, operators)
     k = length(basis)
     s_col = Vector{Float64}(undef, k)

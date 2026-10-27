@@ -1,3 +1,12 @@
+# # Hooke's atom (harmonium)
+#
+# Two electrons bound to a fixed centre by a harmonic trap and repelling each
+# other through the Coulomb interaction.  At trap frequency `ω = 1/2` the ground
+# state is known in closed form (Taut 1993): `E₀ = 2` Ha, with relative
+# wavefunction `χ(u) ∝ (1 + u/2) e^{-u²/8}`.  The fixed centre is a particle of
+# mass `1e15`; each `("Oscillator", 1, i, k)` term adds `k r²` between the centre
+# and electron `i`.
+
 using FewBodyECG
 using Plots
 using FewBodyECG: jacobi_transform

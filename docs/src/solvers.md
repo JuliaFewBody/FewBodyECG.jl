@@ -1,5 +1,35 @@
 # Choosing a solver
 
+## Which solver should I use?
+
+| method | use it for |
+|---|---|
+| [`SVM`](@ref) | the starting point: grows a basis by stochastic selection; fast and robust |
+| [`Refine`](@ref) | improving an existing basis by replacing its functions one at a time |
+| [`GVM`](@ref) | the most accuracy per basis function, by gradient optimization of every Gaussian; slower |
+| [`DynamicGVM`](@ref) | small, accurate bases: adds one function at a time and optimizes after each |
+
+For a new system, start with `SVM` alone and a few values of `scale` (see
+[Choosing `scale`](@ref)). Once the energy behaves, chain the methods with `→`
+(`\to<tab>`); each stage starts from the previous stage's basis:
+
+```@example solvers
+using FewBodyECG
+
+ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
+ops += "Kinetic"
+ops += "Coulomb"
+
+sol = solve(ops, SVM(20; scale = 1.0) → Refine(2; scale = 1.0) → GVM())
+```
+
+Single-scale stochastic sampling can level off at too high an energy for
+systems with very different length scales. The gradient methods can move
+Gaussians to widths that sampling at a fixed `scale` rarely draws, which is
+why the pipeline ends with `GVM`.
+
+## Common interface
+
 All algorithms use the same entry point:
 
 ```julia
@@ -7,7 +37,8 @@ sol = solve(ops, SVM(basis = 50))
 ```
 
 Problem-level options such as `state`, `tol`, `window`, `init`, and `verbose`
-belong to `solve`.  Algorithm options belong to the method structs.
+belong to `solve`.  Algorithm options belong to the method structs.  `tol` is
+an absolute energy in the system's units (see [Units](@ref)).
 
 Solver methods have two families: `SVM` and `Refine` are
 `StochasticMethod`s; `GVM` and `DynamicGVM` are `GradientMethod`s.  Both
@@ -97,13 +128,11 @@ sweep). OptimKit's own output remains controlled by the optimizer's
 Use `→` to warm-start methods left to right:
 
 ```julia
-sol = solve(ops, SVM(40) → Refine(2) → GVM())
+sol = solve(ops, SVM(40; scale = 1.0) → Refine(2; scale = 1.0) → GVM())
 ```
 
-Single-scale stochastic sampling can saturate at the wrong energy on
-multiscale systems.  Gradient methods move Gaussians where fixed-scale
-sampling cannot reach.  The recommended default workflow is
-`SVM → Refine → GVM`, with explicit stochastic `scale` values for hard systems.
+The printed `Solution` lists every stage with its final energy, and
+`energy_history(sol, i)` returns the history of stage `i`.
 
 ## Cost
 

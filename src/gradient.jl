@@ -122,15 +122,16 @@ function _solution_from_basis(basis::BasisSet, ctx::_SolveCtx, stages)
     state = _require_available_state(ctx.state, length(values))
     return Solution(
         values, basis, vectors, ctx.terms,
-        state, stages, last(stages).report
+        state, stages, last(stages).report, ctx.units
     )
 end
 
 function _solve(
         terms, masses, alg::GVM;
-        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false
+        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false,
+        units
     )
-    ctx = _ctx(terms, masses; state, tol, window, verbose)
+    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init)
     n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)
     n_chol = n_dim * (n_dim + 1) ÷ 2
     n_per = n_chol + 3 * n_dim
@@ -192,9 +193,10 @@ end
 
 function _solve(
         terms, masses, alg::DynamicGVM;
-        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false
+        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false,
+        units
     )
-    ctx = _ctx(terms, masses; state, tol, window, verbose)
+    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init)
     scale = _resolve_scale(alg.scale, ctx.masses)
     n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)
     n_chol = n_dim * (n_dim + 1) ÷ 2

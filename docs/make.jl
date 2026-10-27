@@ -1,6 +1,22 @@
-using Documenter, FewBodyECG, DocumenterCitations
+using Documenter, FewBodyECG, DocumenterCitations, Literate
 
 bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"); style = :numeric)
+
+# Scripts in examples/ rendered as documentation pages; their code runs on every
+# docs build. Each script's `# ` comment lines become the page's prose.
+const LITERATE_EXAMPLES = [
+    "Nuclear potentials" => "nuclear.jl",
+    "Spin-orbit splitting" => "spin_orbit.jl",
+    "Hooke's atom" => "harmonium.jl",
+    "Muonic molecular ions" => "muonic_ions.jl",
+]
+const GENERATED = joinpath(@__DIR__, "src", "generated")
+for (_, script) in LITERATE_EXAMPLES
+    Literate.markdown(
+        joinpath(@__DIR__, "..", "examples", script), GENERATED;
+        documenter = true, credit = false
+    )
+end
 
 makedocs(
     build = "build",
@@ -12,7 +28,13 @@ makedocs(
         "Theoretical background" => "theory.md",
         "Building systems" => "systems.md",
         "Choosing a solver" => "solvers.md",
-        "Examples" => "examples.md",
+        "Examples" => [
+            "Benchmarks" => "examples.md",
+            (
+                title => joinpath("generated", replace(script, ".jl" => ".md"))
+                    for (title, script) in LITERATE_EXAMPLES
+            )...,
+        ],
         "API" => "API.md",
     ],
     plugins = [bib],

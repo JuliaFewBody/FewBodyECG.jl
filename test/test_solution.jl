@@ -11,7 +11,7 @@ function _dummy_solution(; converged = true)
     st = StageResult(SVM(2), [-0.3, -0.42], rep)
     return Solution(
         [-0.42, 1.7], BasisSet([g, g]), [1.0 0.0; 0.0 1.0],
-        FewBodyECG.Operator[], 1, [st, st], rep
+        FewBodyECG.Operator[], 1, [st, st], rep, UnitSystem("Ha", "bohr")
     )
 end
 
@@ -36,6 +36,8 @@ end
     @test occursin("variational upper bound", out)
     @test occursin("saturation", out)
     @test occursin("SVM(2)", out)
+    @test occursin("-0.42 Ha", out)
+    @test occursin("ΔE = 3.2e-5 Ha", out)
 
     rout = sprint(show, MIME"text/plain"(), sol.convergence)
     @test occursin("saturated", rout) && occursin("1.0e-4", rout)

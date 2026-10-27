@@ -8,6 +8,7 @@ struct _SolveCtx
     verbose::Bool
     w_list::Vector{Vector{Float64}}
     d::Int
+    units::UnitSystem
 end
 
 _pairwise_weights(terms) = Vector{Float64}[
@@ -15,8 +16,12 @@ _pairwise_weights(terms) = Vector{Float64}[
         if op isa Union{CoulombOperator, GaussianOperator, OscillatorOperator, NumericalPotential}
 ]
 
-function _ctx(terms, masses; state, tol, window, verbose)
+function _ctx(terms, masses; state, tol, window, verbose, units, init)
     state ≥ 1 || throw(ArgumentError("state must be ≥ 1, got $state"))
+    units = _unitsystem(units)
+    init === nothing || init.units == units || throw(
+        ArgumentError("init was solved in $(init.units), but this problem uses $units")
+    )
     w_list = _pairwise_weights(terms)
     isempty(w_list) && throw(
         ArgumentError(
@@ -27,13 +32,15 @@ function _ctx(terms, masses; state, tol, window, verbose)
     )
     return _SolveCtx(
         collect(FewBodyHamiltonians.Operator, terms), masses,
-        state, float(tol), window, verbose, w_list, length(w_list[1])
+        state, float(tol), window, verbose, w_list, length(w_list[1]), units
     )
 end
 
 """
-    solve(ops, alg::SolverMethod = SVM();
+    solve(ops::Operators, alg::SolverMethod = SVM();
           state = 1, tol = 1e-4, window = 20, init = nothing, verbose = false)
+    solve(terms::Vector{<:Operator}, alg::SolverMethod = SVM();
+          units = :atomic, kw...)
 
 Solve the few-body eigenproblem defined by `ops` (an [`Operators`](@ref)
 builder or a raw `Vector{<:Operator}`) with algorithm `alg` — one of
@@ -41,15 +48,22 @@ builder or a raw `Vector{<:Operator}`) with algorithm `alg` — one of
 [`Pipeline`](@ref) composed with `→`.
 
 Problem-level keywords: `state` targets the `state`-th eigenvalue, `tol`
-(absolute, Hartree) and `window` define the stochastic saturation criterion,
-`init` warm-starts from a previous [`Solution`](@ref).
+(absolute, in the system's energy unit) and `window` define the stochastic
+saturation criterion, `init` warm-starts from a previous [`Solution`](@ref)
+solved in the same units. An `Operators` carries its own [`UnitSystem`](@ref);
+a raw operator vector takes it from the `units` keyword.
 
 Returns a [`Solution`](@ref) carrying energies, the basis, S-orthonormal
 coefficients, and an honest [`ConvergenceReport`](@ref).
 """
-solve(ops::Operators, alg::SolverMethod = SVM(); kw...) = _solve(ops.terms, ops.masses, alg; kw...)
-solve(terms::Vector{<:FewBodyHamiltonians.Operator}, alg::SolverMethod = SVM(); kw...) =
-    _solve(terms, nothing, alg; kw...)
+function solve(ops::Operators, alg::SolverMethod = SVM(); kw...)
+    haskey(kw, :units) && throw(
+        ArgumentError("units are set by Operators(...; units = ...), not by solve")
+    )
+    return _solve(ops.terms, ops.masses, alg; units = ops.units, kw...)
+end
+solve(terms::Vector{<:FewBodyHamiltonians.Operator}, alg::SolverMethod = SVM(); units = :atomic, kw...) =
+    _solve(terms, nothing, alg; units, kw...)
 
 # One SVM growth step: draw → score all candidates → commit the best.
 # Returns false when no admissible candidate was found.
@@ -106,15 +120,16 @@ function _solution(st::BasisState, ctx::_SolveCtx, stages::Vector{StageResult})
     return Solution(
         copy(st.eig.ε), BasisSet(copy(st.basis)), coefficients(st.eig),
         ctx.terms, state,
-        stages, last(stages).report
+        stages, last(stages).report, ctx.units
     )
 end
 
 function _solve(
         terms, masses, alg::SVM;
-        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false
+        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false,
+        units
     )
-    ctx = _ctx(terms, masses; state, tol, window, verbose)
+    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init)
     st = init === nothing ? BasisState() : _solution_basis_state(init, ctx.terms)
     n₀ = length(st.E_hist)
     n₀_funs = nfuns(st)
@@ -188,12 +203,13 @@ end
 
 function _solve(
         terms, masses, alg::Refine;
-        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false
+        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false,
+        units
     )
     init === nothing && throw(
         ArgumentError("Refine requires an existing basis: pass init = sol or use a pipeline")
     )
-    ctx = _ctx(terms, masses; state, tol, window, verbose)
+    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init)
     st = _solution_basis_state(init, ctx.terms)
     sweep_hist = Float64[]
     for iteration in 1:alg.sweeps
@@ -219,17 +235,18 @@ end
 # is kept, and the final Solution carries the last stage's basis/coefficients.
 function _solve(
         terms, masses, p::Pipeline;
-        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false
+        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false,
+        units
     )
     isempty(p.stages) && throw(ArgumentError("empty pipeline"))
     stages = StageResult[]
     sol = init
     for alg in p.stages
-        sol = _solve(terms, masses, alg; state, tol, window, init = sol, verbose)
+        sol = _solve(terms, masses, alg; state, tol, window, init = sol, verbose, units)
         append!(stages, sol.stages)
     end
     return Solution(
         sol.E, sol.basis, sol.coefficients, sol.operators, sol.state,
-        stages, last(stages).report
+        stages, last(stages).report, sol.units
     )
 end

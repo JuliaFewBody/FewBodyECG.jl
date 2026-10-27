@@ -71,7 +71,7 @@ end
     sol = Solution(
         copy(st.eig.ε), BasisSet(copy(st.basis)), FewBodyECG.coefficients(st.eig),
         Operator[terms...], 1,
-        [StageResult(SVM(k), copy(st.E_hist), rep)], rep
+        [StageResult(SVM(k), copy(st.E_hist), rep)], rep, UnitSystem("Ha", "bohr")
     )
     ws = _solution_basis_state(sol, terms)
     @test nfuns(ws) == k

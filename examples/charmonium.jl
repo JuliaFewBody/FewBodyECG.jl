@@ -13,7 +13,7 @@ A = 1.6553
 B = 0.2204
 r₀ = A * (2 * mass[1] * mass[2] / (mass[1] + mass[2]))^(-B)
 
-ops = Operators(mass)
+ops = Operators(mass; units = UnitSystem("GeV", "GeV⁻¹"))   # ħ = c = 1
 ops += "Kinetic"
 ops += ("Coulomb", 1, 2, -κ)
 ops += (r -> λ * r, numerical, 1, 2)

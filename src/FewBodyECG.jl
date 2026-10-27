@@ -14,7 +14,7 @@ be typed as `Operator[...]` alongside the `Operators` builder.
 const Operator = FewBodyHamiltonians.Operator
 
 # system building
-export Operators, Operator,
+export Operators, Operator, UnitSystem,
     KineticOperator, CoulombOperator, GaussianOperator,
     OscillatorOperator, ManyBodyGaussianOperator, NumericalPotential, numerical,
     GaussianTensorOperator, GaussianSpinOrbitOperator,
@@ -33,6 +33,7 @@ public build_hamiltonian_matrix, build_overlap_matrix,
     coulomb_weights, up, down
 
 include("types.jl")
+include("units.jl")
 include("coordinates.jl")
 include("matrix_elements.jl")
 include("numerical_matrix_elements.jl")

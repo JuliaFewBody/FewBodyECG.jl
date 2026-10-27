@@ -124,10 +124,6 @@ Base.show(io::IO, m::GVM) = print(io, "GVM(", something(m.basis, "warm"), ")")
 Base.show(io::IO, m::DynamicGVM) = print(io, "DynamicGVM(", m.basis, ")")
 Base.show(io::IO, p::Pipeline) = join(io, p.stages, " → ")
 
-# Forward declaration: `solve` methods live in solve.jl (Task 4).  Defining
-# the empty generic function here makes the Task-1 export well-defined.
-function solve end
-
 # Resolve `scale = :auto` against the system's masses (`nothing` when the
 # operators were built without masses — then an explicit scale is required).
 _resolve_scale(scale::Real, _) = float(scale)

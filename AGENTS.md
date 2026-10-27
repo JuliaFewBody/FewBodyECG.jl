@@ -1,10 +1,10 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+Guidance for coding agents working in this repository.
 
 ## Project Overview
 
-FewBodyECG.jl is a Julia package for quantum mechanical few-body systems using the Explicitly Correlated Gaussian (ECG) variational method. It computes ground state energies by expanding wavefunctions in Gaussian basis sets and solving generalized eigenvalue problems.
+FewBodyECG.jl solves quantum few-body bound-state problems with the explicitly correlated Gaussian (ECG) variational method. A wavefunction is expanded in a Gaussian basis, and energies come from the generalized eigenproblem Hc = εSc.
 
 ## Common Commands
 
@@ -12,54 +12,58 @@ FewBodyECG.jl is a Julia package for quantum mechanical few-body systems using t
 # Run full test suite
 julia --project=. -e 'using Pkg; Pkg.test()'
 
-# Run a single test file
-julia --project=. test/test_hamiltonian.jl
-
 # Load package in REPL
 julia --project=. -e 'using FewBodyECG'
 
 # Build documentation
 julia --project=docs docs/make.jl
+
+# Run an example (examples/ has its own environment)
+julia --project=examples examples/helium.jl
 ```
+
+The scripts listed in `LITERATE_EXAMPLES` in `docs/make.jl` are rendered into `docs/src/generated/` with Literate.jl and run on every docs build; their `# ` comment lines are the page prose.
 
 ## Architecture
 
 ### Core Flow
-1. Define a `ParticleSystem` from particle masses → computes Jacobi transform matrices (J, U)
-2. Build `Operator` list: `KineticOperator` (transformed kinetic energy) + `CoulombOperator` (charge interactions with weight vectors selecting particle pairs)
-3. Generate `BasisSet` of `GaussianBase` functions via quasirandom or random sampling
-4. Compute Hamiltonian (H) and overlap (S) matrices using analytic matrix element formulas
-5. Solve generalized eigenvalue problem Hc = λSc → ground state energy and eigenvectors
+1. Build an `Operators` from particle masses (and optionally charges). It computes the Jacobi transform internally, so terms are added by physical particle index: `ops += "Kinetic"`, `ops += "Coulomb"`, `ops += ("Gaussian", i, j, V₀, γ)`, `ops += (f, numerical, i, j)`.
+2. Call `solve(ops, method)` with an `SVM`, `Refine`, `GVM`, `DynamicGVM`, or a `Pipeline` composed with `→` (e.g. `SVM(40) → Refine(2) → GVM()`).
+3. Inspect the returned `Solution`: `energy`, `energy_history`, `convergence`, `wavefunction`, `radial_profile`, and the RecipesBase plot recipes.
+
+A matrix-level layer (`build_overlap_matrix`, `build_hamiltonian_matrix`, `solve_generalized_eigenproblem`) is `public` but not exported; it is used for hand-built bases, spin-dependent operators, and Rank-1/Rank-2 Gaussians.
 
 ### Source Files (src/)
-- **types.jl** — Type hierarchy: `ParticleSystem`, `GaussianBase` (abstract) → `Rank0Gaussian`, `Rank1Gaussian`, `Rank2Gaussian`, `BasisSet`, `KineticOperator`, `CoulombOperator`, `ECG`, `SolverResults`
-- **coordinates.jl** — Jacobi coordinate transforms, A-matrix generation from basis parameters, weight vector construction for particle pairs
-- **matrix_elements.jl** — Analytic `⟨bra|op|ket⟩` formulas dispatched on Gaussian rank × operator type combinations
-- **hamiltonian.jl** — Builds overlap/Hamiltonian matrices, solves generalized eigenproblem (`eigen(Symmetric(H), Symmetric(S))` → LAPACK dsygvd with ε·I regularisation if cond(S) > 1e12), contains `solve_ECG()` stochastic greedy solver
-- **sampling.jl** — Generates Gaussian basis parameters via QuasiMonteCarlo (Sobol, Halton) or pseudorandom sampling
-- **utils.jl** — `SolverResults`, wavefunction evaluation (`ψ₀`, `ψ`), `convergence`, `convergence_history`, `correlation_function`
-- **variational.jl** — `solve_ECG_variational` (full cold-start LBFGS optimisation) and `solve_ECG_sequential` (SVM-style sequential: sample candidates, pick best, then jointly optimise all parameters with LBFGS)
+- **types.jl** — `GaussianBase` → `Rank0Gaussian`, `Rank1Gaussian`, `Rank2Gaussian`, `SpinGaussian`; `BasisSet`; operator types (`KineticOperator`, `CoulombOperator`, `GaussianOperator`, `OscillatorOperator`, `ManyBodyGaussianOperator`, `NumericalPotential`, `GaussianTensorOperator`, `GaussianSpinOrbitOperator`); `SpinState`
+- **units.jl** — `UnitSystem` and the `:atomic`/`:nuclear` presets; labels only, nothing is converted
+- **coordinates.jl** — `jacobi_transform`, `Λ` (kinetic mass matrix)
+- **matrix_elements.jl** — analytic ⟨bra|op|ket⟩ formulas dispatched on Gaussian rank × operator type
+- **numerical_matrix_elements.jl** — `NumericalPotential` matrix elements via a 1-D radial QuadGK integral
+- **operators.jl** — the `Operators` builder and its `push!`/`+` shorthand forms
+- **linalg.jl** — overlap/Hamiltonian assembly, `solve_generalized_eigenproblem`, `default_scale`
+- **eigen.jl** — `SVMEigen`, the incremental whitened eigensolver that scores SVM candidates in O(k²)
+- **sampling.jl** — quasi-random Gaussian width and shift sampling (QuasiMonteCarlo)
+- **methods.jl** — `SolverMethod` hierarchy, method structs, `→` composition
+- **state.jl** — `BasisState`, the cached S/H/eigensolver state shared by the stochastic methods
+- **solve.jl** — `solve` entry points and the `SVM`/`Refine`/`Pipeline` drivers
+- **gradient.jl** — `GVM`/`DynamicGVM`: log-Cholesky encoding and Hellmann–Feynman gradients via ForwardDiff
+- **solution.jl** — `Solution`, `StageResult`, `ConvergenceReport`
+- **utils/** — `Wavefunction`, `convergence`, `radial_profile`, plot recipes
 
 ### Key Design Patterns
-- **Multiple dispatch on Gaussian rank**: Matrix element formulas are specialized per `(Rank0Gaussian, Rank0Gaussian, KineticOperator)` etc., making it straightforward to add higher-rank Gaussians
-- **FewBodyHamiltonians dependency**: Provides the `Operator`, `KineticTerm`, `PotentialTerm` abstract types that `KineticOperator` and `CoulombOperator` extend
-- **Jacobi coordinates**: Particle coordinates are transformed to relative (Jacobi) coordinates to factor out center-of-mass motion; both forward (J) and inverse (U) matrices are stored on `ParticleSystem`
-- **Scale-aware defaults**: `ParticleSystem` accepts `:atomic`, `:molecular`, or `:nuclear` scale, which sets appropriate default Gaussian width parameters
+- **Multiple dispatch on Gaussian rank × operator type** for matrix elements.
+- **FewBodyHamiltonians dependency** supplies the `Operator`, `KineticTerm`, and `PotentialTerm` abstract types.
+- **Shifts are N×3 supervectors** (row = Jacobi coordinate, column = Cartesian component); a length-N vector is placed in the z component.
+- **Complex Hermitian assembly**: spin-dependent operators produce complex matrices; real-valued paths stay real.
+- **Convergence reports are explicit**: stochastic saturation is reported as such, not as convergence to the exact eigenvalue.
 
-### Three Solvers
+### Parameterization for Gradient Methods
 
-All three return `SolverResults`:
-- `solve_ECG` — stochastic greedy (`:quasirandom` / `:random`): samples candidates, keeps those that lower energy
-- `solve_ECG_variational` — full cold-start variational (`:variational`): optimises all basis parameters jointly from scratch via LBFGS
-- `solve_ECG_sequential` — SVM-style sequential (`:sequential`): at each step samples `n_candidates`, picks best, appends to basis, then jointly optimises all parameters
-
-### Parameterisation for Variational Solvers
-
-`Rank0Gaussian` is encoded as `[log-diag Cholesky of A | shift s]` (layout per Gaussian: n_chol + n_dim parameters). Positive-definiteness is guaranteed for any unconstrained parameter vector. Gradients use Hellmann-Feynman theorem via ForwardDiff with chunk size `min(5×n_per, len(θ))`.
+`Rank0Gaussian` is encoded as `[log-diag Cholesky of A | shift s]`, so positive-definiteness holds for any unconstrained parameter vector. Gradients use the Hellmann–Feynman theorem with ForwardDiff, chunk size `min(5×n_per, length(θ))`.
 
 ## Testing
 
-Tests use Julia's `Test` stdlib plus `Aqua.jl` for code quality checks. Test files mirror source structure; `test_variational.jl` covers `solve_ECG_variational` and `solve_ECG_sequential`.
+Tests use Julia's `Test` stdlib plus Aqua.jl and ExplicitImports.jl. Test files are organized by topic; reference energies come from Antique.jl and FewBodyDB.jl.
 
 ## Formatting
 
