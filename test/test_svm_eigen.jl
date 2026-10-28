@@ -23,6 +23,20 @@ end
 
 @testset "SVM incremental arrowhead eigensolver" begin
 
+    @testset "small couplings beside a wide spectrum are not deflated" begin
+        # A 0.4 coupling to the ground state, with a far pole at 5e5 setting the
+        # spectrum scale.  Dropping the coupling raises the ground state by
+        # ≈ 0.4²/211 ≈ 7.6e-4.
+        ε = [-111.0, 5.0e5]
+        b = [0.4, 0.0]
+        α = 100.0
+        λ_ref = eigvals(Symmetric([Diagonal(ε) b; b' α]))
+        @test smallest_arrowhead_eigval(ε, b, α) ≈ λ_ref[1] atol = 1.0e-10
+        λ, V = full_arrowhead_eigen(ε, b, α)
+        @test λ ≈ λ_ref atol = 1.0e-10
+        @test V' * V ≈ I atol = 1.0e-12
+    end
+
     @testset "matches LAPACK on random SPD systems" begin
         rng = MersenneTwister(20260612)
         for n in (2, 5, 12, 30)

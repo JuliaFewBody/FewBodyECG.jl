@@ -20,14 +20,14 @@ end
 
 ## Without the regulator (λ = 0)
 ops₀ = build()
-sol₀ = solve(ops₀, SVM(basis = 30, candidates = 20, scale = 1.0))
+sol₀ = solve(ops₀, SVM(basis = 30, candidates = 20))
 
 ## With a repulsive many-body Gaussian regulator (λ > 0, W positive-definite)
 W = [0.6 0.1; 0.1 0.6]
 λ = 3.0
 ops₁ = build()
 ops₁ += ManyBodyGaussianOperator(λ, W)
-sol₁ = solve(ops₁, SVM(basis = 30, candidates = 20, scale = 1.0))
+sol₁ = solve(ops₁, SVM(basis = 30, candidates = 20))
 
 ΔE = sol₁.E₀ - sol₀.E₀
 println("E₀ (λ = 0)  = ", sol₀.E₀, " Ha")

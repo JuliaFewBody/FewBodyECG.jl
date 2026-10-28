@@ -626,8 +626,7 @@ end
         coulomb = CoulombOperator(-1.0, w_raw[1])
         ops = Operator[kin, coulomb]
 
-        # Unlike the legacy stochastic solver's attempt-capping, SVM always runs
-        # exactly `basis` growth steps and terminates; a strict indep_tol makes
+        # SVM always runs exactly `basis` growth steps; a strict indep_tol makes
         # most of them fail to find an admissible candidate, and the shortfall
         # is reported honestly (via convergence notes) rather than looping or
         # erroring.

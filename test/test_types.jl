@@ -11,7 +11,7 @@ using FewBodyHamiltonians
 
     @test isa(g, Rank0Gaussian)
     @test isa(g.A, Symmetric)
-    @test g.s == FewBodyECG._supervector(s)   # N×3, legacy vector → z component
+    @test g.s == FewBodyECG._supervector(s)   # N×3, length-N vector → z component
 
     A_ns = rand(2, 3)
     @test_throws ArgumentError Rank0Gaussian(A_ns, [1.0, 2.0])
@@ -62,7 +62,7 @@ end
 
     @test isa(g, Rank0Gaussian)
     @test isa(g.A, Symmetric)
-    @test g.s == FewBodyECG._supervector(s)   # N×3, legacy vector → z component
+    @test g.s == FewBodyECG._supervector(s)   # N×3, length-N vector → z component
 
     A_ns = rand(2, 3)
     @test_throws ArgumentError Rank0Gaussian(A_ns, [1.0, 2.0])

@@ -19,7 +19,7 @@ BasisState() = BasisState(
 nfuns(st::BasisState) = length(st.basis)
 
 # Overlap/Hamiltonian columns of `cand` against `basis`; `nothing` if any
-# element is non-finite.  (Moved from svm_solver.jl; deleted there in Task 10.)
+# element is non-finite.
 function _candidate_columns(cand, basis, operators)
     k = length(basis)
     s_col = Vector{Float64}(undef, k)
@@ -40,9 +40,9 @@ end
 # Gaussian for spatially symmetric (L = 0) ground states, where a nonzero shift
 # only breaks the symmetry and degrades convergence.  Shifted bases are reached
 # through the gradient methods and manual construction (both N×3-aware).
-function _draw_candidate!(st::BasisState, scale::Float64, sampler, w_list, d)
+function _draw_candidate!(st::BasisState, scale::Float64, sampler, widths, w_list, d)
     st.draw += 1
-    bij = generate_bij(:quasirandom, st.draw, length(w_list), scale; qmc_sampler = sampler)
+    bij = generate_bij(:quasirandom, st.draw, length(w_list), scale; qmc_sampler = sampler, widths)
     A = _generate_A_matrix(bij, w_list)
     return Rank0Gaussian(A, zeros(d, 3))
 end
@@ -72,7 +72,6 @@ function BasisState(basis::Vector{<:Rank0Gaussian}, operators)
         commit!(st, g, cols) === nothing &&
             error("linearly dependent basis while rebuilding state")
     end
-    st.draw = length(basis)
     return st
 end
 
@@ -92,11 +91,14 @@ function rebuild_without(st::BasisState, i::Integer)
     return r
 end
 
-# Warm start: rebuild a BasisState from a Solution's basis.
+# Warm start: rebuild a BasisState from a Solution's basis.  The draw counter
+# resumes after the points `sol` already consumed, so no candidate is redrawn.
 function _solution_basis_state(sol::Solution, operators)
     fns = getfield(sol, :basis).functions
     all(g -> g isa Rank0Gaussian, fns) || throw(
         ArgumentError("warm starts into stochastic methods require a Rank0Gaussian basis")
     )
-    return BasisState(Rank0Gaussian[g for g in fns], operators)
+    st = BasisState(Rank0Gaussian[g for g in fns], operators)
+    st.draw = getfield(sol, :draws)
+    return st
 end

@@ -13,7 +13,7 @@ exact₁ = Antique.energy(H, n = 1)
 exact₂ = Antique.energy(H, n = 2)
 exact₃ = Antique.energy(H, n = 3)
 
-sol = solve(ops, DynamicGVM(basis = 10, candidates = 20, scale = 1.0))
+sol = solve(ops, DynamicGVM(basis = 10, candidates = 20))
 println("1s energy: ", sol.E₀, " Ha  (Antique ", exact₁, ", Δ = ", sol.E₀ - exact₁, ")")
 sol
 
@@ -22,7 +22,7 @@ plot(sol, exact₁)
 sol₂s = solve(
     ops,
     DynamicGVM(
-        basis = 15, candidates = 10, scale = 1.0,
+        basis = 15, candidates = 10,
         optimizer = LBFGS(; maxiter = 40, gradtol = 1.0e-6),
     );
     state = 2,

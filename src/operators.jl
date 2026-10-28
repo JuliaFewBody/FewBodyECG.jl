@@ -8,9 +8,12 @@ with physical particle indices rather than Jacobi-frame weight vectors.
 
 # Constructors
 
-    Operators()                    # system-unaware; add pre-built operators with `+=`
-    Operators(masses)              # system-aware; enables string/index shorthand
-    Operators(masses, charges)     # fully automatic; enables `ops += "Coulomb"` shorthand
+    Operators(; units = :atomic)                    # system-unaware; add pre-built operators with `+=`
+    Operators(masses; units = :atomic)              # system-aware; enables string/index shorthand
+    Operators(masses, charges; units = :atomic)     # fully automatic; enables `ops += "Coulomb"` shorthand
+
+`units` is `:atomic`, `:nuclear`, or a [`UnitSystem`](@ref). It names the units
+of the masses and couplings you supply; it labels results and converts nothing.
 
 # Adding terms
 
@@ -59,17 +62,19 @@ mutable struct Operators
     masses::Union{Nothing, Vector{Float64}}
     charges::Union{Nothing, Vector{Float64}}
     _U::Union{Nothing, Matrix{Float64}}
+    units::UnitSystem
 end
 
-Operators() = Operators(FewBodyHamiltonians.Operator[], nothing, nothing, nothing)
+Operators(; units = :atomic) =
+    Operators(FewBodyHamiltonians.Operator[], nothing, nothing, nothing, _unitsystem(units))
 
-function Operators(masses::Vector{<:Real})
+function Operators(masses::Vector{<:Real}; units = :atomic)
     _, U = jacobi_transform(Float64.(masses))
-    return Operators(FewBodyHamiltonians.Operator[], Float64.(masses), nothing, U)
+    return Operators(FewBodyHamiltonians.Operator[], Float64.(masses), nothing, U, _unitsystem(units))
 end
 
 """
-    Operators(masses, charges)
+    Operators(masses, charges; units = :atomic)
 
 Create an `Operators` for a system with given particle `masses` and `charges`.
 Enables the fully automatic shorthand `ops += "Coulomb"`, which adds all
@@ -82,11 +87,13 @@ ops += "Kinetic"
 ops += "Coulomb"   # adds (1,2)→-1, (1,3)→-1, (2,3)→+1 automatically
 ```
 """
-function Operators(masses::Vector{<:Real}, charges::Vector{<:Real})
+function Operators(masses::Vector{<:Real}, charges::Vector{<:Real}; units = :atomic)
     length(masses) == length(charges) ||
         throw(ArgumentError("masses and charges must have the same length"))
     _, U = jacobi_transform(Float64.(masses))
-    return Operators(FewBodyHamiltonians.Operator[], Float64.(masses), Float64.(charges), U)
+    return Operators(
+        FewBodyHamiltonians.Operator[], Float64.(masses), Float64.(charges), U, _unitsystem(units)
+    )
 end
 
 function Base.push!(ops::Operators, op::FewBodyHamiltonians.Operator)
@@ -105,6 +112,15 @@ function Base.push!(ops::Operators, name::AbstractString)
             ArgumentError(
                 "\"Coulomb\" without indices requires Operators(masses, charges). " *
                     "Use ops += \"Coulomb\", i, j, coeff for explicit pairs."
+            )
+        )
+        # q_i q_j is the Coulomb coupling only where e²/4πε₀ = 1.
+        ops.units == _UNIT_PRESETS.atomic || throw(
+            ArgumentError(
+                "\"Coulomb\" uses couplings q_i q_j, which assumes atomic units " *
+                    "(e²/4πε₀ = 1); this system uses $(ops.units). Add each pair as " *
+                    "ops += (\"Coulomb\", i, j, k * q_i * q_j) with k = e²/4πε₀ in your " *
+                    "units (k ≈ 1.44 MeV fm for :nuclear)."
             )
         )
         N = length(ops.masses)
@@ -190,9 +206,9 @@ function Base.push!(
     return ops
 end
 
-# `copy` duplicates the term list only; masses, charges, and the Jacobi matrix
-# are never mutated after construction, so the copy shares them.
-Base.copy(ops::Operators) = Operators(copy(ops.terms), ops.masses, ops.charges, ops._U)
+# `copy` duplicates the term list only; masses, charges, the Jacobi matrix, and
+# the units are never mutated after construction, so the copy shares them.
+Base.copy(ops::Operators) = Operators(copy(ops.terms), ops.masses, ops.charges, ops._U, ops.units)
 
 Base.:+(ops::Operators, term) = push!(copy(ops), term)
 
@@ -211,7 +227,7 @@ function Base.show(io::IO, ops::Operators)
     else
         header = "Operators"
     end
-    println(io, "$header with $n term$(n == 1 ? "" : "s"):")
+    println(io, "$header with $n term$(n == 1 ? "" : "s") ($(ops.units.energy), $(ops.units.length)):")
     for op in ops.terms
         if op isa KineticOperator
             println(io, "  + Kinetic")
@@ -240,11 +256,17 @@ end
     FewBodyECG.coulomb_weights(ops::Operators) -> Vector{Vector{Float64}}
 
 Return the Jacobi-frame weight vectors for every `CoulombOperator` in `ops`,
-in the order they were added. Useful for manual basis construction:
+in the order they were added. Useful for manual basis construction: with pair
+widths `b`, the correlation matrix ``A = \\sum_k w_k w_k^T / b_k^2`` gives a
+`Rank0Gaussian` whose exponent is ``-\\sum_k r_k^2 / b_k^2`` in the pair
+distances ``r_k``:
 
 ```julia
-w_jac = coulomb_weights(ops)
-A = _generate_A_matrix(bij, w_jac)
+using FewBodyECG: coulomb_weights
+w = coulomb_weights(ops)
+b = [1.0, 2.0, 1.5]                       # one width per pair (three-body system)
+A = sum(w[k] * w[k]' / b[k]^2 for k in eachindex(w, b))
+g = Rank0Gaussian(A, zeros(length(w[1])))
 ```
 """
 coulomb_weights(ops::Operators) = [op.w for op in ops.terms if op isa CoulombOperator]

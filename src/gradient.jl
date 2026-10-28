@@ -1,6 +1,11 @@
 using OptimKit: optimize
 import ForwardDiff
 
+# ForwardDiff compiles the energy gradient once per chunk size, so a fixed
+# chunk lets every system reuse one compiled gradient.  Larger chunks are no
+# faster for ECG energies.
+const _GRADIENT_CHUNK = 12
+
 function _chol_to_params(L::AbstractMatrix)
     n = size(L, 1)
     params = Float64[]
@@ -115,42 +120,48 @@ function _gradient_report(gradnorm, gradtol, ΔE, cond_S)
     )
 end
 
-function _solution_from_basis(basis::BasisSet, ctx::_SolveCtx, stages)
+function _solution_from_basis(basis::BasisSet, ctx::_SolveCtx, stages, draws)
     H = build_hamiltonian_matrix(basis, ctx.terms)
     S = build_overlap_matrix(basis)
     values, vectors = solve_generalized_eigenproblem(H, S)
     state = _require_available_state(ctx.state, length(values))
     return Solution(
         values, basis, vectors, ctx.terms,
-        state, stages, last(stages).report
+        state, stages, last(stages).report, ctx.units, draws
     )
 end
 
 function _solve(
         terms, masses, alg::GVM;
-        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false
+        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false,
+        units
     )
-    ctx = _ctx(terms, masses; state, tol, window, verbose)
+    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init)
     n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)
     n_chol = n_dim * (n_dim + 1) ÷ 2
     n_per = n_chol + 3 * n_dim
 
+    scale_note = nothing
     if init === nothing
         alg.basis === nothing && throw(
             ArgumentError("cold GVM requires `basis`; use GVM(basis = n)")
         )
         n = something(alg.basis)
-        scale = _resolve_scale(alg.scale === nothing ? :auto : alg.scale, ctx.masses)
+        scale, scale_note = _solve_scale(something(alg.scale, :adaptive), ctx, nothing)
         functions = Rank0Gaussian[]
         for i in 1:n
-            bij = generate_bij(:quasirandom, i, length(ctx.w_list), scale)
+            bij = generate_bij(:quasirandom, i, length(ctx.w_list), scale; widths = something(alg.widths, :linear))
             A = _generate_A_matrix(bij, ctx.w_list)
             push!(functions, Rank0Gaussian(A, zeros(n_dim, 3)))
         end
         θ = _encode_basis(BasisSet(functions))
+        draws = n
     else
         alg.scale === nothing || throw(
             ArgumentError("warm GVM uses the basis from `init`; omit `scale`")
+        )
+        alg.widths === nothing || throw(
+            ArgumentError("warm GVM uses the basis from `init`; omit `widths`")
         )
         n = length(init.basis.functions)
         alg.basis === nothing || alg.basis == n || throw(
@@ -160,9 +171,10 @@ function _solve(
             )
         )
         θ = _encode_basis(BasisSet(Rank0Gaussian[g for g in init.basis.functions]))
+        draws = init.draws
     end
 
-    chunk = min(n_per * 5, length(θ))
+    chunk = min(_GRADIENT_CHUNK, length(θ))
     grad_cfg = ForwardDiff.GradientConfig(nothing, θ, ForwardDiff.Chunk(chunk))
     bad_gradient = Ref{Union{Nothing, Vector{Float64}}}(nothing)
     fg = x -> _energy_gradient(
@@ -186,16 +198,17 @@ function _solve(
         cond(Symmetric(build_overlap_matrix(basis)))
     )
     return _solution_from_basis(
-        basis, ctx, [StageResult(alg, energy_history, report)]
+        basis, ctx, [StageResult(alg, energy_history, _add_note!(report, scale_note))], draws
     )
 end
 
 function _solve(
         terms, masses, alg::DynamicGVM;
-        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false
+        state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false,
+        units
     )
-    ctx = _ctx(terms, masses; state, tol, window, verbose)
-    scale = _resolve_scale(alg.scale, ctx.masses)
+    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init)
+    scale, scale_note = _solve_scale(alg.scale, ctx, init)
     n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)
     n_chol = n_dim * (n_dim + 1) ÷ 2
     n_per = n_chol + 3 * n_dim
@@ -214,6 +227,7 @@ function _solve(
     end
 
     initial_size = length(θ) ÷ n_per
+    draw = init === nothing ? 0 : init.draws
     energy_history = Float64[]
     gradnorm = NaN
 
@@ -221,9 +235,9 @@ function _solve(
         best_energy = Inf
         best_candidate = Float64[]
 
-        for candidate in 1:alg.candidates
-            attempt = (step - 1) * alg.candidates + candidate
-            bij = generate_bij(:quasirandom, attempt, length(ctx.w_list), scale)
+        for _ in 1:alg.candidates
+            draw += 1
+            bij = generate_bij(:quasirandom, draw, length(ctx.w_list), scale; widths = alg.widths)
             A = _generate_A_matrix(bij, ctx.w_list)
             candidate_parameters = _encode_basis(
                 BasisSet([Rank0Gaussian(A, zeros(n_dim, 3))])
@@ -250,7 +264,7 @@ function _solve(
         end
 
         append!(θ, best_candidate)
-        chunk = min(n_per * 5, length(θ))
+        chunk = min(_GRADIENT_CHUNK, length(θ))
         grad_cfg = ForwardDiff.GradientConfig(nothing, θ, ForwardDiff.Chunk(chunk))
         bad_gradient = Ref{Union{Nothing, Vector{Float64}}}(nothing)
         fg = x -> _energy_gradient(
@@ -279,6 +293,6 @@ function _solve(
         cond(Symmetric(build_overlap_matrix(basis)))
     )
     return _solution_from_basis(
-        basis, ctx, [StageResult(alg, energy_history, report)]
+        basis, ctx, [StageResult(alg, energy_history, _add_note!(report, scale_note))], draw
     )
 end

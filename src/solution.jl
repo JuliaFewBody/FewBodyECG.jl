@@ -10,7 +10,7 @@ What a solver run can honestly certify.
 - `criterion::Symbol` — `:saturation` (stochastic: ΔE over the last `window`
   additions below `tol`), `:stationarity` (gradient tolerance met),
   `:max_steps`, or `:early_stop`
-- `ΔE::Float64` — tail energy change (Ha)
+- `ΔE::Float64` — tail energy change, in the system's energy unit
 - `tol::Float64`, `window::Int` (0 for gradient methods)
 - `gradnorm` — final gradient norm (`nothing` for stochastic methods)
 - `cond_S::Float64` — final overlap condition number
@@ -45,7 +45,10 @@ end
 Result of [`solve`](@ref).  Fields: `E` (eigenvalues of the final basis,
 ascending), `basis::BasisSet`, `coefficients` (generalized eigenvectors,
 `cᵀSc = I`), `operators`, `state` (target eigenstate), `stages`
-(length 1 unless a `Pipeline` ran), `convergence` (final report).
+(length 1 unless a `Pipeline` ran), `convergence` (final report), `units`
+(the [`UnitSystem`](@ref) of the energies), `draws` (quasi-random candidate
+points consumed so far; a warm start from this solution continues the sequence
+after them).
 `sol.E₀` is the target-state energy `E[state]`.
 """
 struct Solution
@@ -56,6 +59,8 @@ struct Solution
     state::Int
     stages::Vector{StageResult}
     convergence::ConvergenceReport
+    units::UnitSystem
+    draws::Int
 end
 
 function Base.getproperty(sol::Solution, s::Symbol)
@@ -116,10 +121,14 @@ function _fmtE(x)
     return s
 end
 
+# A ConvergenceReport does not know its units; `show(::Solution)` passes them in
+# through the `:energy_unit` IOContext key.
 function Base.show(io::IO, ::MIME"text/plain", r::ConvergenceReport)
     verdict = r.converged ? "✓" : "✗"
+    unit = get(io, :energy_unit, nothing)
+    u = unit === nothing ? "" : " " * unit
     desc = r.criterion === :saturation ?
-        "$(verdict) saturated  ΔE = $(_fmtE(r.ΔE)) Ha over last $(r.window) additions (tol $(_fmtE(r.tol)))" :
+        "$(verdict) saturated  ΔE = $(_fmtE(r.ΔE))$u over last $(r.window) additions (tol $(_fmtE(r.tol))$u)" :
         r.criterion === :stationarity ?
         "$(verdict) stationary  |∇E| = $(_fmtE(something(r.gradnorm, NaN))) (gtol $(_fmtE(r.tol)))" :
         r.criterion === :early_stop ? "✗ stopped early" : "✗ max steps reached"
@@ -140,9 +149,10 @@ function Base.show(io::IO, ::MIME"text/plain", sol::Solution)
         length(getfield(sol, :operators)), " operator terms"
     )
     println(io, "  method       ", join((s.method for s in getfield(sol, :stages)), " → "))
-    println(io, "  E₀           ", _fmtE(sol.E₀), " Ha    (variational upper bound)")
+    unit = getfield(sol, :units).energy
+    println(io, "  E₀           ", _fmtE(sol.E₀), " ", unit, "    (variational upper bound)")
     print(io, "  convergence  ")
-    show(io, MIME"text/plain"(), r)
+    show(IOContext(io, :energy_unit => unit), MIME"text/plain"(), r)
     println(io)
     if length(getfield(sol, :stages)) > 1
         chain = join(

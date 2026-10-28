@@ -20,6 +20,9 @@ Pkg.add("FewBodyECG")
 
 ## Quickstart
 
+The hydrogen atom: a fixed proton (mass `1e15`, charge `+1`) and an electron
+(mass `1`, charge `-1`), in atomic units.
+
 ```julia
 using FewBodyECG
 using Plots
@@ -28,18 +31,41 @@ ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
 ops += "Kinetic"
 ops += "Coulomb"
 
-sol = solve(ops, SVM(basis = 25, candidates = 20, scale = 1.0))
-sol
+sol = solve(ops, SVM(basis = 25, candidates = 20))
+sol             # energy, convergence report, overlap conditioning
 
-plot(sol, -0.5)
+plot(sol, -0.5) # energy after each solver step, with the exact
+                # ground-state energy -0.5 Ha drawn as a dashed reference line
 ```
 
-## v2.0
+`sol.E₀` is the ground-state energy, a variational upper bound on the exact
+value. The second argument of `plot` is optional; pass any reference energy
+you want to compare with.
 
-v2.0 is a breaking API release.  The old `solve_ECG*` entry points and
-`SolverResults` utilities are replaced by `solve(ops, method)`,
-`Solution`, `energy`, `energy_history`, `wavefunction`, and plotting recipes.  See
-`CHANGELOG.md` for the migration table.
+## Which solver?
+
+| method | use it for |
+|---|---|
+| `SVM(basis = n)` | the starting point: grows a basis of `n` Gaussians by stochastic selection |
+| `Refine(sweeps)` | improving an existing basis by replacing its functions one at a time |
+| `GVM()` | the most accuracy per basis function, by gradient optimization of every Gaussian; slower |
+| `DynamicGVM(basis = n)` | small, accurate bases: adds one function at a time and optimizes after each |
+
+Methods chain with `→` (type `\to<tab>`), each stage starting from the
+previous stage's basis. A good default for a new system is
+
+```julia
+sol = solve(ops, SVM(40) → Refine(2) → GVM())
+```
+
+The stochastic methods sample Gaussians at a length `scale`, roughly the
+typical distance between the particles. By default (`scale = :adaptive`) it is
+measured with a short pilot run; pass a number to set it by hand. The
+documentation explains both, and how to work in units other than atomic units
+(`Operators(...; units = :nuclear)`).
+
+Code written for FewBodyECG 1.x needs changes; `CHANGELOG.md` maps each 1.x
+function to its replacement.
 
 ## Features
 

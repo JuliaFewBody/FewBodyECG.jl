@@ -12,6 +12,17 @@ import FewBodyECG: _generate_A_matrix, build_rank0, generate_bij, generate_shift
         @test all(x -> x >= 0.5 && x <= 4.0, b)
     end
 
+    @testset "widths = :wide is log-uniform over [0.01, 100]·b1" begin
+        b = reduce(vcat, (generate_bij(:quasirandom, i, 3, 1.0; widths = :wide) for i in 1:2000))
+        @test all(x -> 0.01 <= x <= 100.0, b)
+        share(lo, hi) = count(x -> lo <= x < hi, b) / length(b)
+        for lo in (0.01, 0.1, 1.0, 10.0)                # each of the 4 decades gets 1/4
+            @test share(lo, 10lo) ≈ 0.25 atol = 0.01
+        end
+        @test generate_bij(:quasirandom, 7, 3, 1.0) == generate_bij(:quasirandom, 7, 3, 1.0; widths = :linear)
+        @test_throws "unknown widths = :log; use :linear or :wide" generate_bij(:quasirandom, 1, 3, 1.0; widths = :log)
+    end
+
     @testset "Similar" begin
 
         bq1 = generate_bij(:quasirandom, 2, 4, 1.0)

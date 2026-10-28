@@ -4,7 +4,7 @@ using RecipesBase: RecipesBase, @recipe, @series
 # plot(sol, E_ref): same, plus a reference-energy hline
 @recipe function f(sol::Solution, reference::Union{Nothing, Real} = nothing)
     xguide --> "step"
-    yguide --> "E (Ha)"
+    yguide --> "E ($(getfield(sol, :units).energy))"
     legend --> :topright
     offset = 0
     for st in getfield(sol, :stages)

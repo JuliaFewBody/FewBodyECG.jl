@@ -9,7 +9,7 @@ ops += "Kinetic"
 ops += "Coulomb"
 
 hps_ref = -0.7891964
-sol = solve(ops, GVM(basis = 50, scale = 1.0))
+sol = solve(ops, SVM(basis = 50))
 
 println("HPs⁺ E₀ = ", sol.E₀, " Ha")
 println("reference (SVM, K = 1200) = ", hps_ref, " Ha   Δ = ", sol.E₀ - hps_ref)

@@ -14,8 +14,8 @@ ops += "Coulomb"
 
 sol = solve(
     ops,
-    SVM(basis = 40, candidates = 25, scale = 1.0) →
-        Refine(sweeps = 2, candidates = 25, scale = 1.0),
+    SVM(basis = 40, candidates = 25) →
+        Refine(sweeps = 2, candidates = 25),
 )
 sol
 

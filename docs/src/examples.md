@@ -16,7 +16,7 @@ ps = Antique.CoulombTwoBody(
 )
 
 exact = Antique.energy(ps, n = 1)
-sol = solve(H, SVM(basis = 25, candidates = 20, scale = 1.4))
+sol = solve(H, SVM(basis = 25, candidates = 20))
 
 plot(sol, exact)
 ```
@@ -42,7 +42,7 @@ helium += "Kinetic"
 helium += "Coulomb"
 
 he_ref = db(:Suzuki2003Jul, "∞He", :energy, "¹Sᵉ").value
-sol = solve(helium, SVM(basis = 100, candidates = 25, scale = 1.0))
+sol = solve(helium, SVM(basis = 100, candidates = 25))
 (E₀ = sol.E₀, reference = he_ref, Δ = sol.E₀ - he_ref)
 ```
 
@@ -66,7 +66,7 @@ ops += "Kinetic"
 ops += "Coulomb"
 
 ref = db(:Suzuki2003Jul, "Ps⁻", :energy, "¹Sᵉ").value
-sol = solve(ops, SVM(basis = 100, candidates = 25, scale = 4.0))
+sol = solve(ops, SVM(basis = 100, candidates = 25))
 (E₀ = sol.E₀, reference = ref, Δ = sol.E₀ - ref)
 ```
 
@@ -91,7 +91,7 @@ ops += "Kinetic"
 ops += "Coulomb"
 
 ref = db(:Bubin2005Jan, "HD⁺", :energy, (J = 0, v = 0)).value
-sol = solve(ops, SVM(basis = 150, candidates = 25, scale = 1.0))
+sol = solve(ops, SVM(basis = 150, candidates = 25))
 (E₀ = sol.E₀, reference = ref, Δ = sol.E₀ - ref)
 ```
 

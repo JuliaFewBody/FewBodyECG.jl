@@ -11,7 +11,7 @@ ops += "Coulomb"
 ps2_ref = -0.516003778
 sol = solve(
     ops,
-    SVM(basis = 150, candidates = 30, scale = 1.0);
+    SVM(basis = 150, candidates = 30);
     tol = 1.0e-4,
     window = 15,
 )

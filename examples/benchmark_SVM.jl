@@ -16,43 +16,42 @@ function run_method(label, alg, ops, exact)
 end
 
 nsamples = 25
-scale = 1.0
 svm_halton = run_method(
     "SVM (Halton)",
-    SVM(basis = 25, candidates = nsamples, scale = scale, sampler = HaltonSample()),
+    SVM(basis = 25, candidates = nsamples, sampler = HaltonSample()),
     ops,
     exact,
 )
 svm_sobol = run_method(
     "SVM (Sobol)",
-    SVM(basis = 25, candidates = nsamples, scale = scale, sampler = SobolSample()),
+    SVM(basis = 25, candidates = nsamples, sampler = SobolSample()),
     ops,
     exact,
 )
 svm_golden = run_method(
     "SVM (Golden)",
-    SVM(basis = 25, candidates = nsamples, scale = scale, sampler = GoldenSample()),
+    SVM(basis = 25, candidates = nsamples, sampler = GoldenSample()),
     ops,
     exact,
 )
 
 svm_lattice = run_method(
     "SVM (Lattice)",
-    SVM(basis = 25, candidates = nsamples, scale = scale, sampler = LatticeRuleSample()),
+    SVM(basis = 25, candidates = nsamples, sampler = LatticeRuleSample()),
     ops,
     exact,
 )
 
 svm_hypercube = run_method(
     "SVM (Latin Hypercube)",
-    SVM(basis = 25, candidates = nsamples, scale = scale, sampler = LatinHypercubeSample()),
+    SVM(basis = 25, candidates = nsamples, sampler = LatinHypercubeSample()),
     ops,
     exact,
 )
 
 svm_grid = run_method(
     "SVM (Grid sampling)",
-    SVM(basis = 25, candidates = nsamples, scale = scale, sampler = GridSample()),
+    SVM(basis = 25, candidates = nsamples, sampler = GridSample()),
     ops,
     exact,
 )
