@@ -11,4 +11,5 @@ FewBodyECG = {path = ".."}
 
 [compat]
 FewBodyDB = "0.0.5"
+Plots = "1.41.7"
 QuasiMonteCarlo = "0.3.9, 0.4"
