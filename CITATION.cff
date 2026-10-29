@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - given-names: "Shuhei"
+    family-names: "Ohno"
+  - given-names: "Martin"
+    family-names: "Mikkelsen"
+title: "FewBodyECG.jl"
+version: "2.0.0"
+date-released: "2026-09-04"
+license: MIT
+repository-code: "https://github.com/JuliaFewBody/FewBodyECG.jl"
+url: "https://JuliaFewBody.github.io/FewBodyECG.jl/stable/"
