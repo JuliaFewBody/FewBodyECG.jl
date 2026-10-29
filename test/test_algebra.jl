@@ -56,6 +56,12 @@ using FewBodyECG: jacobi_transform, Λ, build_hamiltonian_matrix, coulomb_weight
         @test_throws "masses" 2 * Kinetic([1.0, 1.0])
         @test_throws "Kinetic" 2 * (Kinetic([1.0, 1.0]) + Coulomb(1, 2))
         @test_throws "real" (1 + 2im) * Coulomb(1, 2)
+        @test_throws "real" Coulomb(1, 2) * 2im
+        G = [2.0 -1 -1; -1 2 -1; -1 -1 2]
+        @test (2 * ManyBodyGaussian(G)).coefficient == 2.0
+        @test (2 * Tensor(1, 2; exponent = 1.0, traceless = false)).coefficient == 2.0
+        @test !(2 * Tensor(1, 2; exponent = 1.0, traceless = false)).traceless
+        @test (-SpinOrbit(1, 2; exponent = 0.3)).coefficient == -1.0
         q = 2 * Coulomb([2, -1, -1])
         @test all(t.n_charges == 3 for t in q)
     end
@@ -72,6 +78,10 @@ using FewBodyECG: jacobi_transform, Λ, build_hamiltonian_matrix, coulomb_weight
         G = [2.0 -1 -1; -1 2 -1; -1 -1 2]
         m = Gaussian(1, 2; exponent = a) * ManyBodyGaussian(G)
         @test m isa ManyBodyGaussian && m.G ≈ G + a * [1 -1 0; -1 1 0; 0 0 0]
+        @test (ManyBodyGaussian(G) * Gaussian(1, 2; exponent = a)).G == m.G
+        mm = (2 * ManyBodyGaussian(G)) * (3 * ManyBodyGaussian(G))
+        @test mm isa ManyBodyGaussian && mm.coefficient == 6.0 && mm.G == 2G
+        @test_throws "3 and 2 particles" ManyBodyGaussian(G) * ManyBodyGaussian([1.0 -1.0; -1.0 1.0])
         @test_throws "Custom" Coulomb(1, 2) * Gaussian(1, 2; exponent = 1.0)
         @test_throws "Custom" Oscillator(1, 2) * Oscillator(1, 3)
     end
@@ -79,12 +89,16 @@ using FewBodyECG: jacobi_transform, Λ, build_hamiltonian_matrix, coulomb_weight
     @testset "raw Jacobi-frame operators do not mix" begin
         @test_throws "Jacobi" Kinetic([1.0, 1.0]) + CoulombOperator(1.0, [1.0])
         @test_throws "Jacobi" CoulombOperator(1.0, [1.0]) + Coulomb(1, 2)
+        @test_throws "Jacobi" Coulomb(1, 2) - CoulombOperator(1.0, [1.0])
+        @test_throws "Jacobi" CoulombOperator(1.0, [1.0]) - Coulomb(1, 2)
     end
 
     @testset "show" begin
         s = sprint(show, MIME"text/plain"(), Kinetic([1.0e15, 1.0, 1.0]) + Coulomb([2, -1, -1]))
         @test occursin("Hamiltonian (3 particles; Ha, bohr)", s)
         @test occursin("- 2.0 Coulomb(1, 2)", s) && occursin("+ 1.0 Coulomb(2, 3)", s)
+        s = sprint(show, MIME"text/plain"(), Kinetic([1.0, 1.0]) + ManyBodyGaussian([1.0 -1.0; -1.0 1.0]))
+        @test occursin("+ 1.0 ManyBodyGaussian(G = [1.0 -1.0; -1.0 1.0])", s)
     end
 end
 
