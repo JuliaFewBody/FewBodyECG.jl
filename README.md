@@ -1,9 +1,14 @@
 # FewBodyECG.jl
 
+[![Julia 1.11+](https://badgen.net/static/Julia/1.11%2B/007ec6?icon=https%3A%2F%2Fraw.githubusercontent.com%2FJuliaLang%2Fjulia-logo-graphics%2Fmaster%2Fimages%2Fjulia-dots.svg)](https://julialang.org/downloads/)
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaFewBody.github.io/FewBodyECG.jl/stable/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://JuliaFewBody.github.io/FewBodyECG.jl/dev/)
-[![Build Status](https://github.com/JuliaFewBody/FewBodyECG.jl/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JuliaFewBody/FewBodyECG.jl/actions/workflows/ci.yml?query=branch%3Amain)
-[![Coverage](https://codecov.io/gh/JuliaFewBody/FewBodyECG.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JuliaFewBody/FewBodyECG.jl)
+[![Citation](https://img.shields.io/badge/citation-CFF-7A8288)](CITATION.cff)
+[![license](https://img.shields.io/github/license/JuliaFewBody/FewBodyECG.jl?label=license)](LICENSE)
+[![code style: runic](https://img.shields.io/badge/code_style-%E1%9A%B1%E1%9A%A2%E1%9A%BE%E1%9B%81%E1%9A%B2-black)](https://github.com/fredrikekre/Runic.jl)
+[![CI](https://github.com/JuliaFewBody/FewBodyECG.jl/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JuliaFewBody/FewBodyECG.jl/actions/workflows/ci.yml?query=branch%3Amain)
+[![Aqua](https://img.shields.io/github/actions/workflow/status/JuliaFewBody/FewBodyECG.jl/Aqua.yml?branch=main&event=push&label=Aqua&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA3OS4zNzUgNTguNjc0Ij48ZyBzdHJva2U9IiNmNWY1ZjUiIHN0cm9rZS13aWR0aD0iNC44ODciPjxjaXJjbGUgZmlsbD0iIzM4OTgyNiIgY3g9IjM5LjY4OCIgY3k9IjIzLjk5MiIgcj0iMjEuNTQ5Ii8%2BPGNpcmNsZSBmaWxsPSIjY2IzYzMzIiBjeD0iMTcuNDQzIiBjeT0iNDEuMjMxIiByPSIxNSIvPjxjaXJjbGUgZmlsbD0iIzk1NThiMiIgY3g9IjYxLjkzMiIgY3k9IjQxLjIzMSIgcj0iMTUiLz48L2c%2BPC9zdmc%2B)](https://github.com/JuliaFewBody/FewBodyECG.jl/actions/workflows/Aqua.yml?query=branch%3Amain)
+[![coverage](https://codecov.io/gh/JuliaFewBody/FewBodyECG.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JuliaFewBody/FewBodyECG.jl)
 
 FewBodyECG.jl solves quantum few-body bound-state problems with explicitly
 correlated Gaussian variational bases.  Build Hamiltonians with

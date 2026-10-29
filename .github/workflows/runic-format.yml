@@ -1,5 +1,6 @@
 name: Runic formatting
-# Fails when Julia files are not formatted with Runic.jl; format locally with
+# Fails when Julia files are not formatted with Runic.jl; on pull requests the
+# required changes are posted as review suggestions.  Format locally with
 # `runic --inplace .` (or Runic.format_file) before pushing.
 on:
   push:
@@ -11,12 +12,16 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
-permissions:
-  contents: read
 jobs:
   runic:
     name: Runic
     runs-on: ubuntu-latest
+    # reviewdog/action-suggester posts its suggestions as review comments
+    permissions:
+      contents: read
+      checks: write
+      issues: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
@@ -25,3 +30,11 @@ jobs:
       - uses: fredrikekre/runic-action@v1
         with:
           version: '1'
+          format_files: true
+        # On pull requests the suggester step below fails instead.
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+      - uses: reviewdog/action-suggester@v1
+        if: github.event_name == 'pull_request'
+        with:
+          tool_name: Runic
+          fail_level: warning

@@ -5,10 +5,11 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
-  # Julia [compat] bounds for the package and the docs environment.
+  # Julia [compat] bounds for the package, docs and examples environments.
   - package-ecosystem: "julia"
     directories:
       - "/"
       - "/docs"
+      - "/examples"
     schedule:
       interval: "weekly"

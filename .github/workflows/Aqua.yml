@@ -1,0 +1,36 @@
+name: Aqua
+# Runs the Aqua and ExplicitImports checks of test/Aqua.jl on their own, for
+# the README badge; the full test suite in ci.yml runs them as well.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+jobs:
+  test:
+    name: Aqua
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1'
+      # The test dependencies live in [extras]/[targets] of Project.toml;
+      # TestEnv builds that environment, honoring its [compat] bounds.
+      - name: Run Aqua
+        run: |
+          julia --startup-file=no --color=yes -e '
+            using Pkg
+            Pkg.activate(; temp = true)
+            Pkg.add("TestEnv")
+            using TestEnv
+            Pkg.activate(".")
+            TestEnv.activate()
+            using Test, FewBodyECG
+            @testset "Aqua" include("test/Aqua.jl")'
