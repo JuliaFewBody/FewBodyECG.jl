@@ -4,7 +4,7 @@ using OptimKit: LBFGS
 
 _pipeline_lbfgs(maxiter) = LBFGS(; maxiter, gradtol = 1.0e-6, verbosity = 0, ls_verbosity = 0)
 
-ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
+ops = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
 
 @testset "Pipelines" begin
     p = SVM(basis = 12, candidates = 10, scale = 1.0) →

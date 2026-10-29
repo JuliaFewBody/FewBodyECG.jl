@@ -1,7 +1,7 @@
 using Test
 using FewBodyECG
 
-ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
+ops = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
 
 @testset "Refine verbosity" begin
     seed = solve(ops, SVM(basis = 1, candidates = 1, scale = 1.0))

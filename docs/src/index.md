@@ -1,8 +1,8 @@
 # FewBodyECG.jl
 
 FewBodyECG.jl builds variational explicitly correlated Gaussian bases for
-few-body quantum systems.  You define particles and pair interactions with
-`Operators`, choose a solver method, and get back a `Solution` with energies,
+few-body quantum systems.  You write the Hamiltonian as a sum of
+particle-indexed terms, choose a solver method, and get back a `Solution` with energies,
 coefficients, convergence information, and plotting recipes.
 
 ## Installation
@@ -19,9 +19,7 @@ using FewBodyECG
 import Antique
 using Plots
 
-H = Operators([1.0e15, 1.0], [+1.0, -1.0])
-H += "Kinetic"
-H += "Coulomb"
+H = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
 
 sol = solve(H, DynamicGVM(basis = 10, candidates = 20))
 exact = Antique.energy(Antique.HydrogenAtom(Z = 1), n = 1)
@@ -36,16 +34,14 @@ compares the solver methods.
 ## Custom numerical potentials
 
 Define a radial pair potential as a scalar callable. The matrix elements are
-reduced analytically to a one-dimensional radial integral, and `QuadGK` is
-used internally by `NumericalPotential`:
+reduced analytically to a one-dimensional radial integral, which `Custom`
+evaluates with `QuadGK`:
 
 ```@example numerical-potential
 using FewBodyECG
 
-ops = Operators([1.0e15, 1.0])
-ops += "Kinetic"
 f(r) = -exp(-r^2) / (1 + r^2)
-ops += (f, numerical, 1, 2)
+ops = Kinetic([1.0e15, 1.0]) + Custom(f, 1, 2)
 
 sol = solve(ops, SVM(basis = 8, candidates = 2))
 println(sol.E₀)

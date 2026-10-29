@@ -154,7 +154,7 @@ function _resolve_scale(scale::Symbol, masses)
         throw(ArgumentError("unknown scale :$scale; use :adaptive, :auto or a number"))
     masses === nothing && throw(
         ArgumentError(
-            "scale = :auto requires Operators(masses[, charges]); pass an explicit scale"
+            "scale = :auto needs the particle masses: build the system with Kinetic(masses), or pass an explicit scale"
         )
     )
     return default_scale(collect(Float64, masses))

@@ -21,10 +21,9 @@ mp, mn = mpkg(938.272), mpkg(939.565)
 
 ## Deuteron — Minnesota triplet-even central potential
 ## V(r) = 200 e^{-1.487 r²} − 178 e^{-0.639 r²}  (MeV, r in fm)
-deut = Operators([mp, mn]; units = :nuclear)
-deut += "Kinetic"
-deut += ("Gaussian", 1, 2, 200.0, 1.487)     # repulsive core
-deut += ("Gaussian", 1, 2, -178.0, 0.639)    # triplet attraction
+deut = Kinetic([mp, mn]; units = :nuclear) +
+    200.0 * Gaussian(1, 2; exponent = 1.487) -   # repulsive core
+    178.0 * Gaussian(1, 2; exponent = 0.639)     # triplet attraction
 
 sol_d = solve(deut, SVM(basis = 40, candidates = 25))
 Ed_ref = -2.202
@@ -34,11 +33,8 @@ println("deuteron  E = ", round(sol_d.E₀, digits = 4), " MeV   (Minnesota ", E
 ## Triton — Volkov V1 central potential on all three pairs
 ## V(r) = 144.86 e^{-(r/0.82)²} − 83.34 e^{-(r/1.60)²}  (MeV, r in fm)
 γR, γA = 1 / 0.82^2, 1 / 1.6^2
-trit = Operators([mn, mn, mp]; units = :nuclear)
-trit += "Kinetic"
-trit += ("Gaussian", 1, 2, 144.86, γR); trit += ("Gaussian", 1, 2, -83.34, γA)
-trit += ("Gaussian", 1, 3, 144.86, γR); trit += ("Gaussian", 1, 3, -83.34, γA)
-trit += ("Gaussian", 2, 3, 144.86, γR); trit += ("Gaussian", 2, 3, -83.34, γA)
+volkov(i, j) = 144.86 * Gaussian(i, j; exponent = γR) - 83.34 * Gaussian(i, j; exponent = γA)
+trit = Kinetic([mn, mn, mp]; units = :nuclear) + volkov(1, 2) + volkov(1, 3) + volkov(2, 3)
 
 sol_t = solve(trit, SVM(basis = 120, candidates = 30))
 Et_ref = -8.46

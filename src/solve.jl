@@ -9,6 +9,7 @@ struct _SolveCtx
     w_list::Vector{Vector{Float64}}
     d::Int
     units::UnitSystem
+    hamiltonian::Union{Nothing, Hamiltonian}
 end
 
 _pairwise_weights(terms) = Vector{Float64}[
@@ -16,12 +17,20 @@ _pairwise_weights(terms) = Vector{Float64}[
         if op isa Union{CoulombOperator, GaussianOperator, OscillatorOperator, NumericalPotential}
 ]
 
-function _ctx(terms, masses; state, tol, window, verbose, units, init)
+function _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian = nothing)
     state ≥ 1 || throw(ArgumentError("state must be ≥ 1, got $state"))
     units = _unitsystem(units)
     init === nothing || init.units == units || throw(
         ArgumentError("init was solved in $(init.units), but this problem uses $units")
     )
+    # A basis is defined in the Jacobi coordinates of its masses, so a warm
+    # start for other masses would silently describe a different state.
+    if init !== nothing && init.hamiltonian !== nothing && hamiltonian !== nothing
+        init_masses = _kinetic(init.hamiltonian).masses
+        init_masses == masses || throw(
+            ArgumentError("init was solved for masses $init_masses, but this problem has masses $masses")
+        )
+    end
     w_list = _pairwise_weights(terms)
     isempty(w_list) && throw(
         ArgumentError(
@@ -32,35 +41,44 @@ function _ctx(terms, masses; state, tol, window, verbose, units, init)
     )
     return _SolveCtx(
         collect(FewBodyHamiltonians.Operator, terms), masses,
-        state, float(tol), window, verbose, w_list, length(w_list[1]), units
+        state, float(tol), window, verbose, w_list, length(w_list[1]), units, hamiltonian
     )
 end
 
 """
-    solve(ops::Operators, alg::SolverMethod = SVM();
+    solve(H::Hamiltonian, alg::SolverMethod = SVM();
           state = 1, tol = 1e-4, window = 20, init = nothing, verbose = false)
     solve(terms::Vector{<:Operator}, alg::SolverMethod = SVM();
           units = :atomic, kw...)
 
-Solve the few-body eigenproblem defined by `ops` (an [`Operators`](@ref)
-builder or a raw `Vector{<:Operator}`) with algorithm `alg` — one of
-[`SVM`](@ref), [`Refine`](@ref), [`GVM`](@ref), [`DynamicGVM`](@ref), or a
-[`Pipeline`](@ref) composed with `→`.
+Solve the few-body eigenproblem defined by a [`Hamiltonian`](@ref) (or a raw
+vector of Jacobi-frame operators) with algorithm `alg` — one of [`SVM`](@ref), [`Refine`](@ref), [`GVM`](@ref),
+[`DynamicGVM`](@ref), or a [`Pipeline`](@ref) composed with `→`.
 
 Problem-level keywords: `state` targets the `state`-th eigenvalue, `tol`
 (absolute, in the system's energy unit) and `window` define the stochastic
 saturation criterion, `init` warm-starts from a previous [`Solution`](@ref)
-solved in the same units. An `Operators` carries its own [`UnitSystem`](@ref);
-a raw operator vector takes it from the `units` keyword.
+solved in the same units and, for a Hamiltonian, for the same masses. A
+Hamiltonian takes its [`UnitSystem`](@ref) from its [`Kinetic`](@ref) term; a
+raw operator vector takes it from the `units` keyword. Spin-dependent terms
+([`Tensor`](@ref), [`SpinOrbit`](@ref)) need a [`SpinGaussian`](@ref) basis
+and are assembled with `FewBodyECG.build_hamiltonian_matrix` instead.
 
 Returns a [`Solution`](@ref) carrying energies, the basis, S-orthonormal
 coefficients, and an honest [`ConvergenceReport`](@ref).
 """
-function solve(ops::Operators, alg::SolverMethod = SVM(); kw...)
+function solve(H::Hamiltonian, alg::SolverMethod = SVM(); kw...)
     haskey(kw, :units) && throw(
-        ArgumentError("units are set by Operators(...; units = ...), not by solve")
+        ArgumentError("units are set by Kinetic(masses; units = ...), not by solve")
     )
-    return _solve(ops.terms, ops.masses, alg; units = ops.units, kw...)
+    any(t -> t isa Union{Tensor, SpinOrbit}, H.terms) && throw(
+        ArgumentError(
+            "spin-dependent terms need a SpinGaussian basis; assemble them with " *
+                "FewBodyECG.build_hamiltonian_matrix(basis, H)"
+        )
+    )
+    ops, masses, units = _to_jacobi(H)
+    return _solve(ops, masses, alg; units, hamiltonian = H, kw...)
 end
 solve(terms::Vector{<:FewBodyHamiltonians.Operator}, alg::SolverMethod = SVM(); units = :atomic, kw...) =
     _solve(terms, nothing, alg; units, kw...)
@@ -99,7 +117,7 @@ end
 function _adaptive_scale(ctx::_SolveCtx, init)
     ctx.masses === nothing && throw(
         ArgumentError(
-            "scale = :adaptive requires Operators(masses[, charges]); pass a numeric scale"
+            "scale = :adaptive needs the particle masses: build the system with Kinetic(masses), or pass a numeric scale"
         )
     )
     unit = ctx.units.length
@@ -200,16 +218,16 @@ function _solution(st::BasisState, ctx::_SolveCtx, stages::Vector{StageResult})
     return Solution(
         copy(st.eig.ε), BasisSet(copy(st.basis)), coefficients(st.eig),
         ctx.terms, state,
-        stages, last(stages).report, ctx.units, st.draw
+        stages, last(stages).report, ctx.units, st.draw, ctx.hamiltonian
     )
 end
 
 function _solve(
         terms, masses, alg::SVM;
         state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false,
-        units
+        units, hamiltonian = nothing
     )
-    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init)
+    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian)
     st = init === nothing ? BasisState() : _solution_basis_state(init, ctx.terms)
     scale, scale_note = _solve_scale(alg.scale, ctx, init)
     n₀ = length(st.E_hist)
@@ -284,12 +302,12 @@ end
 function _solve(
         terms, masses, alg::Refine;
         state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false,
-        units
+        units, hamiltonian = nothing
     )
     init === nothing && throw(
         ArgumentError("Refine requires an existing basis: pass init = sol or use a pipeline")
     )
-    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init)
+    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian)
     st = _solution_basis_state(init, ctx.terms)
     scale, scale_note = _solve_scale(alg.scale, ctx, init)
     sweep_hist = Float64[]
@@ -317,17 +335,17 @@ end
 function _solve(
         terms, masses, p::Pipeline;
         state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false,
-        units
+        units, hamiltonian = nothing
     )
     isempty(p.stages) && throw(ArgumentError("empty pipeline"))
     stages = StageResult[]
     sol = init
     for alg in p.stages
-        sol = _solve(terms, masses, alg; state, tol, window, init = sol, verbose, units)
+        sol = _solve(terms, masses, alg; state, tol, window, init = sol, verbose, units, hamiltonian)
         append!(stages, sol.stages)
     end
     return Solution(
         sol.E, sol.basis, sol.coefficients, sol.operators, sol.state,
-        stages, last(stages).report, sol.units, sol.draws
+        stages, last(stages).report, sol.units, sol.draws, sol.hamiltonian
     )
 end

@@ -2,7 +2,7 @@ using Test
 using LinearAlgebra
 using FewBodyECG
 import FewBodyECG: validate!
-using FewBodyHamiltonians
+import FewBodyHamiltonians
 
 @testset "Rank0Gaussian constructor and validate!" begin
     A = [2.0 0.0; 0.0 3.0]
@@ -211,7 +211,6 @@ end
 end
 
 @testset "NumericalPotential" begin
-    @test numerical isa FewBodyECG.NumericalPotentialMarker
     f = r -> exp(-r^2)
     op = NumericalPotential(f, [1.0, -1.0]; rtol = 1.0e-9, atol = 1.0e-12, maxevals = 5000)
 
@@ -238,5 +237,4 @@ end
         @test Base.ispublic(FewBodyECG, name)
         @test !Base.isexported(FewBodyECG, name)
     end
-    @test Base.isexported(FewBodyECG, :numerical)
 end

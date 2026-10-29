@@ -3,9 +3,7 @@ import Antique
 using Plots
 using QuasiMonteCarlo: GoldenSample, HaltonSample, SobolSample, LatticeRuleSample, LatinHypercubeSample, GridSample
 
-ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
-ops += "Kinetic"
-ops += "Coulomb"
+ops = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
 
 exact = Antique.energy(Antique.HydrogenAtom(Z = 1), n = 1)
 

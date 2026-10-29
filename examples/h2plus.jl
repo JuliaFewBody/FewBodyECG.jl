@@ -8,9 +8,7 @@ using FewBodyECG
 using Plots
 
 mₚ = 1836.15267343
-ops = Operators([mₚ, mₚ, 1.0], [+1.0, +1.0, -1.0])
-ops += "Kinetic"
-ops += "Coulomb"
+ops = Kinetic([mₚ, mₚ, 1.0]) + Coulomb([+1.0, +1.0, -1.0])
 
 sol = solve(
     ops,

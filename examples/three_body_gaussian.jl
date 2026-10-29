@@ -7,26 +7,22 @@
 
 using FewBodyECG
 using Plots
+using FewBodyECG: jacobi_transform
 
 masses = [1.0e15, 1.0, 1.0]
 
-build() = begin
-    o = Operators(masses)
-    o += "Kinetic"
-    o += ("Gaussian", 1, 2, -4.0, 0.5)   # centre–particle-2 attraction
-    o += ("Gaussian", 1, 3, -4.0, 0.5)   # centre–particle-3 attraction
-    o
-end
-
 ## Without the regulator (λ = 0)
-ops₀ = build()
+ops₀ = Kinetic(masses) -
+    4.0 * Gaussian(1, 2; exponent = 0.5) -   # centre–particle-2 attraction
+    4.0 * Gaussian(1, 3; exponent = 0.5)     # centre–particle-3 attraction
 sol₀ = solve(ops₀, SVM(basis = 30, candidates = 20))
 
-## With a repulsive many-body Gaussian regulator (λ > 0, W positive-definite)
+## With a repulsive many-body Gaussian regulator (λ > 0).  `W` is given in
+## Jacobi coordinates r = Jx; in particle coordinates the exponent is xᵀ(JᵀWJ)x.
 W = [0.6 0.1; 0.1 0.6]
 λ = 3.0
-ops₁ = build()
-ops₁ += ManyBodyGaussianOperator(λ, W)
+J, _ = jacobi_transform(masses)
+ops₁ = ops₀ + ManyBodyGaussian(J' * W * J; coefficient = λ)
 sol₁ = solve(ops₁, SVM(basis = 30, candidates = 20))
 
 ΔE = sol₁.E₀ - sol₀.E₀

@@ -10,6 +10,7 @@ using FewBodyECG
     include("test_methods.jl")
     include("test_solution.jl")
     include("test_units.jl")
+    include("test_algebra.jl")
     include("test_state.jl")
     include("test_solve.jl")
     include("test_refine.jl")
@@ -31,6 +32,5 @@ using FewBodyECG
     include("test_utils.jl")
     include("test_types.jl")
     include("test_variational.jl")
-    include("test_operators.jl")
 
 end

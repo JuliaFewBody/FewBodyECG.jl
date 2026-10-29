@@ -27,7 +27,7 @@ The scripts listed in `LITERATE_EXAMPLES` in `docs/make.jl` are rendered into `d
 ## Architecture
 
 ### Core Flow
-1. Build an `Operators` from particle masses (and optionally charges). It computes the Jacobi transform internally, so terms are added by physical particle index: `ops += "Kinetic"`, `ops += "Coulomb"`, `ops += ("Gaussian", i, j, V₀, γ)`, `ops += (f, numerical, i, j)`.
+1. Write a `Hamiltonian` as a sum of particle-indexed terms: `Kinetic(masses; units) + Coulomb(charges)`, `V₀ * Gaussian(i, j; exponent = γ)`, `c * Oscillator(i, j)`, `Custom(f, i, j)`; products of Gaussians give many-body Gaussians. `solve` transforms it to the Jacobi-frame operators.
 2. Call `solve(ops, method)` with an `SVM`, `Refine`, `GVM`, `DynamicGVM`, or a `Pipeline` composed with `→` (e.g. `SVM(40) → Refine(2) → GVM()`).
 3. Inspect the returned `Solution`: `energy`, `energy_history`, `convergence`, `wavefunction`, `radial_profile`, and the RecipesBase plot recipes.
 
@@ -39,7 +39,8 @@ A matrix-level layer (`build_overlap_matrix`, `build_hamiltonian_matrix`, `solve
 - **coordinates.jl** — `jacobi_transform`, `Λ` (kinetic mass matrix)
 - **matrix_elements.jl** — analytic ⟨bra|op|ket⟩ formulas dispatched on Gaussian rank × operator type
 - **numerical_matrix_elements.jl** — `NumericalPotential` matrix elements via a 1-D radial QuadGK integral
-- **operators.jl** — the `Operators` builder and its `push!`/`+` shorthand forms
+- **hamiltonian.jl** — physical terms (`Kinetic`, `Coulomb`, `Gaussian`, `ManyBodyGaussian`, `Oscillator`, `Custom`, `Tensor`, `SpinOrbit`), `Hamiltonian`, and their algebra; no Jacobi coordinates, so it can move to FewBodyHamiltonians unchanged
+- **jacobi_frame.jl** — `_to_jacobi(H)`: transform of a `Hamiltonian` to Jacobi-frame operators, masses and units
 - **linalg.jl** — overlap/Hamiltonian assembly, `solve_generalized_eigenproblem`, `default_scale`
 - **eigen.jl** — `SVMEigen`, the incremental whitened eigensolver that scores SVM candidates in O(k²)
 - **sampling.jl** — quasi-random Gaussian width and shift sampling (QuasiMonteCarlo)

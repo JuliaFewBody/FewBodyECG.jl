@@ -242,33 +242,24 @@ end
     ManyBodyGaussianOperator(coefficient, W)
 
 Many-body Gaussian interaction ``V = \\text{coefficient}\\cdot\\exp(-\\mathbf{r}^T W\\,\\mathbf{r})``
-with a symmetric positive-definite exponent matrix `W` acting on all Jacobi
+with a symmetric positive-semidefinite exponent matrix `W` acting on all Jacobi
 coordinates at once (e.g. a repulsive regulator).
 
 # Fields
 - `coefficient` : coupling constant.
-- `W`           : symmetric positive-definite exponent matrix.
+- `W`           : symmetric positive-semidefinite exponent matrix.
 """
 struct ManyBodyGaussianOperator{T <: Real} <: FewBodyHamiltonians.PotentialTerm
     coefficient::T
     W::AbstractMatrix{T}
     function ManyBodyGaussianOperator(coefficient::Real, W::AbstractMatrix{<:Real})
         issymmetric(W) || throw(ArgumentError("W must be symmetric"))
-        isposdef(W) || throw(ArgumentError("W must be positive definite"))
+        eigmin(Symmetric(W)) ≥ -1.0e-12 * max(1, opnorm(W)) ||
+            throw(ArgumentError("W must be positive semidefinite"))
         T = promote_type(typeof(coefficient), eltype(W))
         return new{T}(T(coefficient), Matrix{T}(W))
     end
 end
-
-struct NumericalPotentialMarker end
-
-"""
-    numerical
-
-Marker used by the system-aware numerical-potential shorthand:
-`ops += (f, numerical, i, j)`.
-"""
-const numerical = NumericalPotentialMarker()
 
 """
     NumericalPotential(f, w; rtol = 1e-8, atol = 0.0, maxevals = 10_000)

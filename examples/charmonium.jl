@@ -12,14 +12,12 @@ A = 1.6553
 B = 0.2204
 r₀ = A * (2 * mass[1] * mass[2] / (mass[1] + mass[2]))^(-B)
 
-ops = Operators(mass; units = UnitSystem("GeV", "GeV⁻¹"))   # ħ = c = 1
-ops += "Kinetic"
-ops += ("Coulomb", 1, 2, -κ)
-ops += (r -> λ * r, numerical, 1, 2)
 γ = 1 / r₀^2
 coefficient = 2 * π * κκ / 3 / mass[1] / mass[2] / (sqrt(π) * r₀)^3 * σσ
-ops += ("Gaussian", 1, 2, coefficient, γ)
-ops
+ops = Kinetic(mass; units = UnitSystem("GeV", "GeV⁻¹")) +   # ħ = c = 1
+    Coulomb(1, 2; coefficient = -κ) +
+    Custom(r -> λ * r, 1, 2) +
+    Gaussian(1, 2; coefficient, exponent = γ)
 
 sol = solve(ops, GVM(basis = 5, optimizer = LBFGS(; maxiter = 100)))
 

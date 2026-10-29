@@ -4,7 +4,7 @@ using OptimKit: LBFGS
 
 _adaptive_lbfgs(maxiter) = LBFGS(; maxiter, gradtol = 1.0e-6, verbosity = 0, ls_verbosity = 0)
 
-coulomb_system(masses, charges) = (o = Operators(masses, charges); o += "Kinetic"; o += "Coulomb"; o)
+coulomb_system(masses, charges) = Kinetic(masses) + Coulomb(charges)
 
 @testset "scale = :adaptive" begin
     @test SVM().scale === Refine().scale === DynamicGVM().scale === :adaptive
@@ -12,7 +12,7 @@ coulomb_system(masses, charges) = (o = Operators(masses, charges); o += "Kinetic
     H = coulomb_system([1.0e15, 1.0], [+1.0, -1.0])
     sol = solve(H, SVM(basis = 20, candidates = 20, scale = 1.0))
     # hydrogen 1s: ⟨r²⟩ = 3 bohr²
-    @test FewBodyECG._rms_pair_max(sol, H.masses) ≈ sqrt(3) rtol = 1.0e-3
+    @test FewBodyECG._rms_pair_max(sol, [1.0e15, 1.0]) ≈ sqrt(3) rtol = 1.0e-3
 
     @testset "pilot on a cold start" begin
         sol = solve(H, SVM(basis = 20, candidates = 20))
@@ -35,9 +35,10 @@ coulomb_system(masses, charges) = (o = Operators(masses, charges); o += "Kinetic
         # tdμ is ≈ 0.017 bohr across.  Re-centered pilots are less converged and
         # overestimate its size (0.023, then 0.38 bohr); only the best one is used.
         tdμ = coulomb_system([3670.481, 5496.918, 206.7686], [+1.0, +1.0, -1.0])
+        terms, masses, units = FewBodyECG._to_jacobi(tdμ)
         ctx = FewBodyECG._ctx(
-            tdμ.terms, tdμ.masses;
-            state = 1, tol = 1.0e-4, window = 20, verbose = false, units = tdμ.units, init = nothing
+            terms, masses;
+            state = 1, tol = 1.0e-4, window = 20, verbose = false, units, init = nothing
         )
         scale, note = FewBodyECG._adaptive_scale(ctx, nothing)
         @test 0.008 < scale < 0.016
@@ -51,8 +52,8 @@ coulomb_system(masses, charges) = (o = Operators(masses, charges); o += "Kinetic
         @test E(:adaptive) < E(:auto) - 1.0e-2
     end
 
-    @test_throws "scale = :adaptive requires Operators(masses[, charges]); pass a numeric scale" solve(
-        H.terms, SVM(basis = 5)
+    @test_throws "scale = :adaptive needs the particle masses: build the system with Kinetic(masses), or pass a numeric scale" solve(
+        first(FewBodyECG._to_jacobi(H)), SVM(basis = 5)
     )
     @test_throws "unknown scale :big; use :adaptive, :auto or a number" solve(H, SVM(basis = 5, scale = :big))
 end

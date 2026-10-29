@@ -7,10 +7,7 @@ using FewBodyDB: db
 # variational upper bound E₀ > E_ref.
 @testset "Three-body Coulomb systems vs FewBodyDB" begin
     function coulomb(masses, charges)
-        ops = Operators(masses, charges)
-        ops += "Kinetic"
-        ops += "Coulomb"
-        return ops
+        return Kinetic(masses) + Coulomb(charges)
     end
     mₚ, m_d = 1836.15267343, 3670.48296788
 

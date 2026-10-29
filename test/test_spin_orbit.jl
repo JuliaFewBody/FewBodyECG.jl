@@ -9,10 +9,8 @@ using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generali
 # linearly in the coupling strength.  Exercises the complex generalized
 # eigensolver end-to-end.
 @testset "Spin-orbit doublet (complex Hermitian)" begin
-    ops = Operators([1.0, 1.0])
-    ops += "Kinetic"
-    ops += ("Gaussian", 1, 2, -4.0, 0.4)
-    terms = ops.terms
+    ops = Kinetic([1.0, 1.0]) - 4.0 * Gaussian(1, 2; exponent = 0.4)
+    terms = first(FewBodyECG._to_jacobi(ops))
     w = only(op.w for op in terms if op isa GaussianOperator)
 
     shift(dir) = (v = zeros(1, 3); v[1, dir] = 0.8; v)

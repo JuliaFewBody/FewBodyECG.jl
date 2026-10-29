@@ -3,9 +3,7 @@ using FewBodyDB: db
 import Antique
 using Plots
 
-ops = Operators([1.0, 1.0], [+1.0, -1.0])
-ops += "Kinetic"
-ops += "Coulomb"
+ops = Kinetic([1.0, 1.0]) + Coulomb([+1.0, -1.0])
 
 sol = solve(ops, SVM(basis = 25, candidates = 20))
 sol
@@ -30,9 +28,7 @@ plot!(
 p
 
 # Positronium negative ion Ps⁻ = e⁺e⁻e⁻, bound below the Ps + e⁻ threshold at -0.25 Ha.
-psm_ops = Operators([1.0, 1.0, 1.0], [+1.0, -1.0, -1.0])
-psm_ops += "Kinetic"
-psm_ops += "Coulomb"
+psm_ops = Kinetic([1.0, 1.0, 1.0]) + Coulomb([+1.0, -1.0, -1.0])
 
 psm_ref = db(:Suzuki2003Jul, "Ps⁻", :energy, "¹Sᵉ").value
 psm = solve(psm_ops, SVM(basis = 100, candidates = 25))

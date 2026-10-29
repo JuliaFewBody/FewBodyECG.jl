@@ -21,9 +21,7 @@ using FewBodyECG: build_hamiltonian_matrix, solve_generalized_eigenproblem
     end
 
     @testset "Wavefunction call operator" begin
-        ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
-        ops += "Kinetic"
-        ops += "Coulomb"
+        ops = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
         sol = solve(ops, SVM(basis = 10, candidates = 5, scale = 1.0))
         ψ = wavefunction(sol)
 
@@ -35,13 +33,18 @@ using FewBodyECG: build_hamiltonian_matrix, solve_generalized_eigenproblem
     end
 
     @testset "build_hamiltonian_matrix operators axis" begin
-        ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
-        ops += "Kinetic"
-        ops += "Coulomb"
+        ops = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
         sol = solve(ops, SVM(basis = 10, candidates = 5, scale = 1.0))
 
-        Hplain = build_hamiltonian_matrix(sol.basis, ops.terms)
-        Hoff = build_hamiltonian_matrix(sol.basis, OffsetVector(collect(ops.terms), -3))
+        terms = first(FewBodyECG._to_jacobi(ops))
+        Hplain = build_hamiltonian_matrix(sol.basis, terms)
+        Hoff = build_hamiltonian_matrix(sol.basis, OffsetVector(collect(terms), -3))
         @test Hplain ≈ Hoff
+    end
+
+    @testset "Kinetic masses wrappers" begin
+        m = [1.0e15, 1.0, 1.0]
+        @test Kinetic(view(m, :)).masses == m
+        @test_throws ArgumentError Kinetic(OffsetArray(m, 0:2))
     end
 end

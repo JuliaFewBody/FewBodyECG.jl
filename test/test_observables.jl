@@ -9,7 +9,7 @@ using FewBodyECG
 const KEY_SUPPORTED = Ref(true)
 RecipesBase.is_key_supported(::Symbol) = KEY_SUPPORTED[]
 
-ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
+ops = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
 sol = solve(ops, SVM(basis = 15, candidates = 15, scale = 1.0))
 
 @testset "Wavefunction" begin

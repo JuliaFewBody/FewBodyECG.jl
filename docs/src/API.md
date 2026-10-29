@@ -3,16 +3,23 @@
 ## System building
 
 ```@docs
-Operators
-Operator
+Hamiltonian
+Kinetic
+Coulomb
+Gaussian
+ManyBodyGaussian
+Oscillator
+Custom
+Tensor
+SpinOrbit
 UnitSystem
+Operator
 KineticOperator
 CoulombOperator
 GaussianOperator
 OscillatorOperator
 ManyBodyGaussianOperator
 NumericalPotential
-numerical
 GaussianTensorOperator
 GaussianSpinOrbitOperator
 SpinProjection

@@ -7,8 +7,8 @@ using FewBodyECG: BasisState, nfuns, commit!, rebuild_without,
 using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix
 
 # hydrogen-like fixture
-ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
-terms = ops.terms
+ops = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
+terms = first(FewBodyECG._to_jacobi(ops))
 w_list = [op.w for op in terms if op isa CoulombOperator]
 d = length(w_list[1])
 
@@ -71,7 +71,7 @@ end
     sol = Solution(
         copy(st.eig.ε), BasisSet(copy(st.basis)), FewBodyECG.coefficients(st.eig),
         Operator[terms...], 1,
-        [StageResult(SVM(k), copy(st.E_hist), rep)], rep, UnitSystem("Ha", "bohr"), st.draw
+        [StageResult(SVM(k), copy(st.E_hist), rep)], rep, UnitSystem("Ha", "bohr"), st.draw, nothing
     )
     ws = _solution_basis_state(sol, terms)
     @test nfuns(ws) == k
