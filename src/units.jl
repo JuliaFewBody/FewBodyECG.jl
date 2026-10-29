@@ -4,10 +4,10 @@
 Names of the energy and length units in which a system's masses and coupling
 constants are expressed. FewBodyECG never converts between unit systems: the
 kinetic operator is ``-\\sum_i \\nabla_i^2 / 2m_i`` (``\\hbar = 1``), so the
-masses and potential parameters passed to [`Operators`](@ref) fix the units,
+masses and potential parameters of a [`Hamiltonian`](@ref) fix the units,
 and a `UnitSystem` only labels results (printed energies, plot axes).
 
-Presets, selected with `Operators(...; units = name)`:
+Presets, selected with `Kinetic(masses; units = name)`:
 
 | name | energy | length | masses |
 |---|---|---|---|

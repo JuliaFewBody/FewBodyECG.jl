@@ -7,9 +7,7 @@ using FewBodyECG
 using Plots
 import Antique
 
-H = Operators([1.0, 1.0], [+1.0, -1.0])
-H += "Kinetic"
-H += "Coulomb"
+H = Kinetic([1.0, 1.0]) + Coulomb([+1.0, -1.0])
 
 ps = Antique.CoulombTwoBody(
     z₁ = 1, z₂ = -1, m₁ = 1.0, m₂ = 1.0, mₑ = 1.0, a₀ = 1.0, Eₕ = 1.0, ħ = 1.0
@@ -37,9 +35,7 @@ using FewBodyECG
 using FewBodyDB: db
 using Plots
 
-helium = Operators([1.0e15, 1.0, 1.0], [+2.0, -1.0, -1.0])
-helium += "Kinetic"
-helium += "Coulomb"
+helium = Kinetic([1.0e15, 1.0, 1.0]) + Coulomb([+2.0, -1.0, -1.0])
 
 he_ref = db(:Suzuki2003Jul, "∞He", :energy, "¹Sᵉ").value
 sol = solve(helium, SVM(basis = 100, candidates = 25))
@@ -61,9 +57,7 @@ using FewBodyECG
 using FewBodyDB: db
 using Plots
 
-ops = Operators([1.0, 1.0, 1.0], [+1.0, -1.0, -1.0])
-ops += "Kinetic"
-ops += "Coulomb"
+ops = Kinetic([1.0, 1.0, 1.0]) + Coulomb([+1.0, -1.0, -1.0])
 
 ref = db(:Suzuki2003Jul, "Ps⁻", :energy, "¹Sᵉ").value
 sol = solve(ops, SVM(basis = 100, candidates = 25))
@@ -86,9 +80,7 @@ using FewBodyDB: db
 using Plots
 
 mₚ, m_d = 1836.15267343, 3670.48296788
-ops = Operators([mₚ, m_d, 1.0], [+1.0, +1.0, -1.0])
-ops += "Kinetic"
-ops += "Coulomb"
+ops = Kinetic([mₚ, m_d, 1.0]) + Coulomb([+1.0, +1.0, -1.0])
 
 ref = db(:Bubin2005Jan, "HD⁺", :energy, (J = 0, v = 0)).value
 sol = solve(ops, SVM(basis = 150, candidates = 25))

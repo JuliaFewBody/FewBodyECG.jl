@@ -4,9 +4,7 @@ using OptimKit: LBFGS
 using Plots
 using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem
 
-ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
-ops += "Kinetic"
-ops += "Coulomb"
+ops = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
 
 H = Antique.HydrogenAtom(Z = 1)
 exact₁ = Antique.energy(H, n = 1)

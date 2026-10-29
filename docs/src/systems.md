@@ -1,76 +1,107 @@
 # Building systems
 
-A Hamiltonian is built with [`Operators`](@ref): give it the particle masses
-(and, optionally, charges), then add terms one at a time.
+A Hamiltonian is written as a sum of terms that name the particles they act on.
+The [`Kinetic`](@ref) term takes the particle masses and so defines the system;
+every other term refers to particles by their position in that mass vector.
 
 ```@example systems
 using FewBodyECG
 
-ops = Operators([1.0e15, 1.0, 1.0], [+2.0, -1.0, -1.0])   # helium: nucleus + 2 electrons
-ops += "Kinetic"
-ops += "Coulomb"
+H = Kinetic([1.0e15, 1.0, 1.0]) + Coulomb([+2.0, -1.0, -1.0])   # helium: nucleus + 2 electrons
 ```
 
-Particles are referred to by their position in the mass vector. The
-center-of-mass motion is removed automatically: internally every term is
-written in Jacobi coordinates, so you never handle those coordinates yourself
+The center-of-mass motion is removed automatically: `solve` rewrites every
+term in Jacobi coordinates, so you never handle those coordinates yourself
 unless you build operators by hand (see [Raw operator types](@ref)).
 
 A very large mass such as `1.0e15` is the usual way to model an infinitely
 heavy particle (a fixed nucleus).
 
-## Constructors
+## Terms
 
-| call | what it enables |
+With ``r_{ij} = |\mathbf{r}_i - \mathbf{r}_j|``:
+
+| term | potential |
 |---|---|
-| `Operators(masses)` | every term form below except the all-pairs `"Coulomb"` |
-| `Operators(masses, charges)` | additionally `ops += "Coulomb"` for all pairs |
-| `Operators()` | only pre-built operator objects |
+| [`Kinetic`](@ref)`(masses; units = :atomic)` | ``\sum_i -\nabla_i^2 / 2m_i``, center of mass removed |
+| [`Coulomb`](@ref)`(i, j; coefficient = 1)` | `coefficient` ``/ r_{ij}`` |
+| [`Coulomb`](@ref)`(charges)` | ``q_i q_j / r_{ij}`` for every pair ``i < j`` (atomic units only) |
+| [`Gaussian`](@ref)`(i, j; coefficient = 1, exponent)` | `coefficient` ``\cdot e^{-\text{exponent}\, r_{ij}^2}`` |
+| [`Oscillator`](@ref)`(i, j; coefficient = 1)` | `coefficient` ``\cdot r_{ij}^2`` |
+| [`Custom`](@ref)`(f, i, j)` | ``f(r_{ij})`` for any callable `f(r)` |
+| [`ManyBodyGaussian`](@ref)`(G; coefficient = 1)` | `coefficient` ``\cdot e^{-\mathbf{r}^T G\, \mathbf{r}}`` in all particle positions |
+| [`Tensor`](@ref)`(i, j; coefficient = 1, exponent)` | Gaussian-range tensor force between the spins of `i` and `j` |
+| [`SpinOrbit`](@ref)`(i, j; coefficient = 1, exponent)` | Gaussian-range spin-orbit force |
 
-All three take a `units` keyword; see [Units](@ref).
-
-## Adding terms
-
-`ops += term` builds a new `Operators` containing the extra term and rebinds
-`ops` to it; `push!(ops, term)` adds the term to the existing object in place.
-Any earlier reference to `ops` keeps its old term list after `+=`, but sees the
-new term after `push!`.
-
-Every way of adding a term, with ``r_{ij} = |\mathbf{r}_i - \mathbf{r}_j|``:
-
-| term | adds | requires |
-|---|---|---|
-| `"Kinetic"` | ``\sum_i -\nabla_i^2 / 2m_i``, center of mass removed | masses |
-| `"Coulomb"` | ``q_i q_j / r_{ij}`` for every pair ``i < j`` | masses, charges, atomic units |
-| `("Coulomb", i, j, c)` | ``c / r_{ij}`` | masses |
-| `("Gaussian", i, j, V₀, γ)` | ``V_0\, e^{-\gamma r_{ij}^2}`` | masses |
-| `("Oscillator", i, j, k)` | ``k\, r_{ij}^2`` | masses |
-| `(f, numerical, i, j)` | ``f(r_{ij})`` for any callable `f(r)` | masses |
-| an operator object | itself | nothing |
-
-The order of the numbers in a tuple matters: `("Gaussian", i, j, V₀, γ)` takes
-the strength first and the range parameter second. A negative strength is
-attractive.
+Coupling constants and range parameters are always keywords. `coefficient`
+defaults to 1, so a coupling can also be written as a multiplier; `exponent`
+has no default. A negative coefficient is attractive.
 
 ```@example systems
-nucleon = Operators([1.0, 1.0])
-nucleon += "Kinetic"
-nucleon += ("Gaussian", 1, 2, 200.0, 1.487)    # repulsive core
-nucleon += ("Gaussian", 1, 2, -178.0, 0.639)   # attraction
-nucleon += ("Oscillator", 1, 2, 0.1)
-nucleon += (r -> -exp(-r) / r, numerical, 1, 2)  # Yukawa, by quadrature
+nucleon = Kinetic([1.0, 1.0]) +
+    200.0 * Gaussian(1, 2; exponent = 1.487) -     # repulsive core
+    178.0 * Gaussian(1, 2; exponent = 0.639) +     # attraction
+    0.1 * Oscillator(1, 2) +
+    Custom(r -> -exp(-r) / r, 1, 2)                # Yukawa, by quadrature
 ```
 
-`numerical` terms reduce the matrix element analytically to a one-dimensional
-radial integral, evaluated with adaptive quadrature (QuadGK). The callable
-receives the nonnegative pair distance. They are slower than the analytic
-terms; prefer a sum of `"Gaussian"` terms when the potential can be fit that
-way.
+`Custom` terms reduce the matrix element analytically to a one-dimensional
+radial integral, evaluated with adaptive quadrature (QuadGK); `rtol`, `atol`
+and `maxevals` keywords set its tolerances. The callable receives the
+nonnegative pair distance. They are slower than the analytic terms; prefer a
+sum of Gaussians when the potential can be fit that way.
+
+## Combining terms
+
+Terms combine with `+`, `-`, multiplication and division by a real number, and
+`sum` over a generator. The result is a [`Hamiltonian`](@ref), which keeps the
+terms in the order they were written:
+
+```@example systems
+q = [+2.0, -1.0, -1.0]
+H = Kinetic([1.0e15, 1.0, 1.0]) +
+    sum(Coulomb(i, j; coefficient = q[i] * q[j]) for i in 1:3 for j in (i + 1):3)
+```
+
+A sum without a `Kinetic` term is an ordinary value, so a potential can be
+built once and reused; a Hamiltonian passed to [`solve`](@ref) needs exactly
+one `Kinetic` term. Since a Hamiltonian is just a value, one written as a
+function of the masses serves several isotopes:
+
+```@example systems
+muonic(m₁, m₂) = Kinetic([m₁, m₂, 206.768]) + Coulomb([+1.0, +1.0, -1.0])
+H_ddμ, H_dtμ = muonic(3670.481, 3670.481), muonic(3670.481, 5496.918)
+nothing # hide
+```
+
+Scaling a sum scales every term in it. `Kinetic` takes no scalar factor;
+change the masses instead.
+
+### Products of Gaussians
+
+The product of Gaussian terms is a Gaussian in several pair distances,
+``e^{-\sum_k \gamma_k r_k^2}``, which is how many-body forces are written. A
+symmetric three-body force:
+
+```@example systems
+γ₃ = 0.5
+three_body = 2.0 * Gaussian(1, 2; exponent = γ₃) * Gaussian(1, 3; exponent = γ₃) * Gaussian(2, 3; exponent = γ₃)
+nothing # hide
+```
+
+In general such a term is a [`ManyBodyGaussian`](@ref)
+``e^{-\mathbf{r}^T G\, \mathbf{r}}``, with ``\mathbf{r}`` the particle
+positions and ``G`` a symmetric matrix whose rows sum to zero (so that only
+relative positions enter); it can also be given directly. No other product of
+terms has an analytic matrix element: multiplying, say, a `Coulomb` and a
+`Gaussian` raises an error, and such a pair potential is written as one
+`Custom` term instead.
 
 ## Raw operator types
 
-The shorthand forms above construct these operator objects, which can also be
-built directly and added with `ops += op`:
+`solve` rewrites each term as one of these Jacobi-frame operators. They can
+also be built directly, and a vector of them passed to [`solve`](@ref) or
+`FewBodyECG.build_hamiltonian_matrix`:
 
 | type | potential |
 |---|---|
@@ -86,7 +117,7 @@ built directly and added with `ops += op`:
 Here ``\mathbf{x}`` are the Jacobi coordinates, and the weight vector `w`
 picks out one pair distance: ``w^T \mathbf{x} = \mathbf{r}_i - \mathbf{r}_j``.
 [`FewBodyECG.coulomb_weights`](@ref) returns the weight vectors of the Coulomb
-terms already added; for any pair, build `w` from
+terms of a Hamiltonian; for any pair, build `w` from
 [`FewBodyECG.jacobi_transform`](@ref):
 
 ```@example systems
@@ -94,25 +125,24 @@ masses = [1.0e15, 1.0, 1.0]
 _, U = FewBodyECG.jacobi_transform(masses)
 w₂₃ = U' * [0.0, 1.0, -1.0]                  # +1 at i = 2, -1 at j = 3
 
-raw = Operators(masses)
-raw += "Kinetic"
-raw += GaussianOperator(-4.0, 0.5, w₂₃)      # same as ("Gaussian", 2, 3, -4.0, 0.5)
+raw = Operator[KineticOperator(masses), GaussianOperator(-4.0, 0.5, w₂₃)]   # -4 e^{-0.5 r₂₃²}
+nothing # hide
 ```
 
-[`ManyBodyGaussianOperator`](@ref) has no shorthand because its exponent
-matrix `W` acts on all Jacobi coordinates; the three-body example in
-`examples/three_body_gaussian.jl` uses one as a repulsive regulator.
+Raw operators and physical terms do not mix in one sum, because a raw operator
+is tied to the Jacobi coordinates of particular masses.
 
 ## Spin
 
 Spin-dependent forces act on basis functions that carry a spin state: a
 [`SpinGaussian`](@ref) pairs a [`Rank0Gaussian`](@ref) with a
 [`SpinState`](@ref), one [`SpinProjection`](@ref) (`FewBodyECG.up` or
-`FewBodyECG.down`) per particle. The tensor and spin-orbit operators then give
-complex Hermitian Hamiltonian matrices.
+`FewBodyECG.down`) per particle. The [`Tensor`](@ref) and [`SpinOrbit`](@ref)
+terms then give complex Hermitian Hamiltonian matrices.
 
-`solve` builds its bases from spinless `Rank0Gaussian`s, so spin-dependent
-problems use the matrix-level functions `FewBodyECG.build_hamiltonian_matrix`,
+`solve` builds its bases from spinless `Rank0Gaussian`s and rejects
+spin-dependent terms, so these problems use the matrix-level functions
+`FewBodyECG.build_hamiltonian_matrix(basis, H)`,
 `FewBodyECG.build_overlap_matrix` and `FewBodyECG.solve_generalized_eigenproblem`
 on a basis you construct. The [spin-orbit example](generated/spin_orbit.md)
 walks through this.
@@ -122,8 +152,8 @@ walks through this.
 FewBodyECG works with ``\hbar = 1`` and the kinetic operator
 ``-\nabla^2 / 2m``. It converts nothing: the masses and potential parameters
 you pass fix the units of the energies and lengths that come out. The `units`
-keyword of `Operators` records which convention you used, so that printed
-energies and plot axes carry the right label.
+keyword of [`Kinetic`](@ref) records which convention you used, so that
+printed energies and plot axes carry the right label.
 
 | `units` | energy | length | masses | Coulomb constant ``e^2/4\pi\varepsilon_0`` |
 |---|---|---|---|---|
@@ -140,17 +170,16 @@ then in MeV and range parameters in fm⁻²:
 ħc = 197.3269804
 mass(mc²) = mc² / ħc^2                       # MeV/c² → package mass
 
-deuteron = Operators([mass(938.272), mass(939.565)]; units = :nuclear)
-deuteron += "Kinetic"
-deuteron += ("Gaussian", 1, 2, 200.0, 1.487)
-deuteron += ("Gaussian", 1, 2, -178.0, 0.639)
+deuteron = Kinetic([mass(938.272), mass(939.565)]; units = :nuclear) +
+    200.0 * Gaussian(1, 2; exponent = 1.487) -
+    178.0 * Gaussian(1, 2; exponent = 0.639)
 sol = solve(deuteron, SVM(basis = 20))
 ```
 
-The all-pairs `"Coulomb"` shorthand uses the couplings ``q_i q_j``, which is
-only correct in atomic units, so it raises an error for any other unit system.
-Add charged pairs explicitly instead, for example
-`ops += ("Coulomb", 1, 2, 1.44 * q₁ * q₂)` in nuclear units.
+`Coulomb(charges)` uses the couplings ``q_i q_j``, which is only correct in
+atomic units, so solving it with any other unit system raises an error. Write
+charged pairs explicitly instead, for example
+`Coulomb(1, 2; coefficient = 1.44 * q₁ * q₂)` in nuclear units.
 
 For other conventions pass a [`UnitSystem`](@ref); for example, with
 ``\hbar = c = 1`` and masses in GeV, `units = UnitSystem("GeV", "GeV⁻¹")`.

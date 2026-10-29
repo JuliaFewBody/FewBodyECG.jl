@@ -4,8 +4,8 @@
 # FewBodyECG assembles and diagonalises it directly.  Here two spin-½ particles
 # share a p-wave-like spatial manifold — Gaussians shifted along `x`, `y`, `z`,
 # each dressed with the spin-triplet state `|↑↑⟩` — bound by a central Gaussian
-# attraction.  A [`GaussianSpinOrbitOperator`](@ref) couples the relative
-# orbital motion to the total spin `S₁ + S₂`.
+# attraction.  A [`SpinOrbit`](@ref) term couples the relative orbital motion to
+# the total spin `S₁ + S₂`.
 #
 # With the coupling off, the two upper orbital states are degenerate.  Turning it
 # on lifts the degeneracy: the `m_ℓ = ±1` combinations shift in opposite
@@ -18,11 +18,8 @@ using Plots
 using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem, up
 
 masses = [1.0, 1.0]
-ops = Operators(masses)
-ops += "Kinetic"
-ops += ("Gaussian", 1, 2, -4.0, 0.4)          # central binding well
-terms = ops.terms
-w = only(op.w for op in terms if op isa GaussianOperator)
+central = Kinetic(masses) - 4.0 * Gaussian(1, 2; exponent = 0.4)   # central binding well
+H(λ) = central + λ * SpinOrbit(1, 2; exponent = 0.4)                # spin-orbit strength λ
 
 ## p-wave-like manifold: unit-shifted Gaussians along x, y, z with |↑↑⟩ spin
 shift(dir) = (v = zeros(1, 3); v[1, dir] = 0.8; v)
@@ -32,17 +29,17 @@ basis = BasisSet(
     ]
 )
 
-H₀ = build_hamiltonian_matrix(basis, terms)                       # real, SO-free
-Hₛₒ = build_hamiltonian_matrix(basis, FewBodyECG.Operator[GaussianSpinOrbitOperator(1.0, 0.4, w, 1, 2)])
+H₀ = build_hamiltonian_matrix(basis, central)                     # real, SO-free
+H₁ = build_hamiltonian_matrix(basis, H(1.0))
 S = build_overlap_matrix(basis)
 
-println("H₀  eltype = ", eltype(H₀), "  (spin-orbit-free, real)")
-println("Hₛₒ eltype = ", eltype(Hₛₒ), "  Hermitian? ", isapprox(Hₛₒ, Hₛₒ'))
+println("H(λ = 0) eltype = ", eltype(H₀), "  (spin-orbit-free, real)")
+println("H(λ = 1) eltype = ", eltype(H₁), "  Hermitian? ", isapprox(H₁, H₁'))
 
 ## Sweep the spin-orbit strength λ and collect the (real) spectrum
 λs = range(0, 2, length = 21)
 levels = map(λs) do λ
-    E, _ = solve_generalized_eigenproblem(H₀ .+ λ .* Hₛₒ, S)
+    E, _ = solve_generalized_eigenproblem(build_hamiltonian_matrix(basis, H(λ)), S)
     sort(real.(E))
 end
 spectrum = reduce(hcat, levels)'          # rows = λ, columns = levels
@@ -68,14 +65,12 @@ plot(
 αs = exp10.(range(-0.8, 0.6, length = 8))     # fixed ladder ⇒ nested bases
 sg(α, d) = SpinGaussian(Rank0Gaussian([α;;], shift(d)), SpinState([up, up]))
 λ = 1.0
-so = GaussianSpinOrbitOperator(1.0, 0.4, w, 1, 2)
 
 sizes = Int[]
 ground = Float64[]
 for k in 1:length(αs)
     b = BasisSet([sg(α, d) for α in αs[1:k] for d in 1:3])
-    H = build_hamiltonian_matrix(b, terms) .+ λ .* build_hamiltonian_matrix(b, FewBodyECG.Operator[so])
-    E, _ = solve_generalized_eigenproblem(H, build_overlap_matrix(b))
+    E, _ = solve_generalized_eigenproblem(build_hamiltonian_matrix(b, H(λ)), build_overlap_matrix(b))
     push!(sizes, 3k)
     push!(ground, minimum(real.(E)))
 end

@@ -106,7 +106,7 @@ end
         # The corruption bug (incremental energy drifting below the true ground
         # state under competitive selection) is caught by requiring the reported
         # energy to equal LAPACK on the solver's own basis.
-        ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
+        ops = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
 
         sol = solve(ops, SVM(basis = 30, candidates = 25, scale = 1.0))
         basis = BasisSet(sol.basis.functions)

@@ -3,7 +3,7 @@ using LinearAlgebra
 using FewBodyECG
 using FewBodyECG: build_overlap_matrix
 
-ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
+ops = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
 
 @testset "SVM verbosity" begin
     alg = SVM(basis = 1, candidates = 1, scale = 1.0)
@@ -32,8 +32,9 @@ end
 
     # default method + raw-terms entry + default (:adaptive) scale
     @test solve(ops).E₀ < -0.4
-    @test solve(ops.terms, SVM(basis = 10, candidates = 5, scale = 1.0)) isa Solution
-    @test_throws ArgumentError solve(ops.terms, SVM(basis = 5))   # :adaptive needs masses
+    terms = first(FewBodyECG._to_jacobi(ops))
+    @test solve(terms, SVM(basis = 10, candidates = 5, scale = 1.0)) isa Solution
+    @test_throws ArgumentError solve(terms, SVM(basis = 5))   # :adaptive needs masses
     @test solve(ops, SVM(basis = 10, scale = :auto)).E₀ < -0.4
 
     # deterministic (Halton)
@@ -79,12 +80,29 @@ end
 
 @testset "SVM with NumericalPotential" begin
     masses = [1.0e15, 1.0]
-    ops = Operators(masses)
-    ops += "Kinetic"
-    ops += (r -> -exp(-r^2), numerical, 1, 2)
+    ops = Kinetic(masses) + Custom(r -> -exp(-r^2), 1, 2)
 
     sol = solve(ops, SVM(basis = 4, candidates = 1, scale = 1.0))
     @test sol isa Solution
     @test isfinite(sol.E₀)
     @test all(isfinite, sol.coefficients)
+end
+
+@testset "solve(::Hamiltonian)" begin
+    H = Kinetic([1.0e15, 1.0]) + Coulomb([1, -1])
+    sol = solve(H, SVM(basis = 10, candidates = 5))
+    @test sol.E₀ ≈ -0.5 atol = 1.0e-3
+    @test sol.hamiltonian === H
+    @test sol.units == UnitSystem("Ha", "bohr")
+    @test occursin("Hamiltonian (2 particles", sprint(show, MIME"text/plain"(), sol))
+
+    @test_throws "units are set by Kinetic" solve(H, SVM(basis = 5); units = :nuclear)
+
+    warm = solve(H, Refine(1; candidates = 5); init = sol)
+    @test warm.E₀ ≤ sol.E₀ + 1.0e-12
+    H2 = Kinetic([1.0e15, 2.0]) + Coulomb([1, -1])
+    @test_throws "masses" solve(H2, Refine(1); init = sol)
+
+    spin = Kinetic([1.0, 1.0]) + Gaussian(1, 2; coefficient = -1, exponent = 1.0) + Tensor(1, 2; exponent = 1.0)
+    @test_throws "SpinGaussian" solve(spin, SVM(basis = 5))
 end

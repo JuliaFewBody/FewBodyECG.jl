@@ -6,8 +6,8 @@
 [![Coverage](https://codecov.io/gh/JuliaFewBody/FewBodyECG.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JuliaFewBody/FewBodyECG.jl)
 
 FewBodyECG.jl solves quantum few-body bound-state problems with explicitly
-correlated Gaussian variational bases.  Build Hamiltonians with
-`Operators`, choose a solver method with `solve`, and inspect a `Solution`
+correlated Gaussian variational bases.  Write a Hamiltonian as a sum of
+particle-indexed terms, choose a solver method with `solve`, and inspect a `Solution`
 with convergence reports, stage histories, wavefunctions, and plotting
 recipes.
 
@@ -27,9 +27,7 @@ The hydrogen atom: a fixed proton (mass `1e15`, charge `+1`) and an electron
 using FewBodyECG
 using Plots
 
-ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
-ops += "Kinetic"
-ops += "Coulomb"
+ops = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
 
 sol = solve(ops, SVM(basis = 25, candidates = 20))
 sol             # energy, convergence report, overlap conditioning
@@ -62,7 +60,7 @@ The stochastic methods sample Gaussians at a length `scale`, roughly the
 typical distance between the particles. By default (`scale = :adaptive`) it is
 measured with a short pilot run; pass a number to set it by hand. The
 documentation explains both, and how to work in units other than atomic units
-(`Operators(...; units = :nuclear)`).
+(`Kinetic(masses; units = :nuclear)`).
 
 Code written for FewBodyECG 1.x needs changes; `CHANGELOG.md` maps each 1.x
 function to its replacement.

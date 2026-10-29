@@ -1,6 +1,6 @@
 using Test
 using LinearAlgebra
-using FewBodyHamiltonians
+import FewBodyHamiltonians
 using FewBodyECG
 import FewBodyECG: _compute_overlap_element, _build_operator_matrix, _compute_matrix_element, normalized_overlap, is_linearly_independent
 using QuasiMonteCarlo
@@ -204,7 +204,7 @@ end
 
 using Test
 using LinearAlgebra
-using FewBodyHamiltonians
+import FewBodyHamiltonians
 using FewBodyECG
 import FewBodyECG: _compute_overlap_element, _build_operator_matrix, _compute_matrix_element
 import FewBodyECG: normalized_overlap, is_linearly_independent, default_scale

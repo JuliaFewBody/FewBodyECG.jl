@@ -61,6 +61,7 @@ struct Solution
     convergence::ConvergenceReport
     units::UnitSystem
     draws::Int
+    hamiltonian::Union{Nothing, Hamiltonian}
 end
 
 function Base.getproperty(sol::Solution, s::Symbol)
@@ -144,9 +145,10 @@ function Base.show(io::IO, ::MIME"text/plain", sol::Solution)
     G = isempty(getfield(sol, :basis).functions) ? "Gaussian" :
         string(nameof(typeof(first(getfield(sol, :basis).functions))))
     r = getfield(sol, :convergence)
+    H = getfield(sol, :hamiltonian)
     println(
         io, "FewBodyECG solution — ", n, " × ", G, ", ",
-        length(getfield(sol, :operators)), " operator terms"
+        H === nothing ? "$(length(getfield(sol, :operators))) operator terms" : _hamiltonian_header(H)
     )
     println(io, "  method       ", join((s.method for s in getfield(sol, :stages)), " → "))
     unit = getfield(sol, :units).energy

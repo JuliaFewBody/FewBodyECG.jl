@@ -141,10 +141,8 @@ end
 end
 
 @testset "Gradient solvers initialise from pairwise geometry" begin
-    for term in (("Oscillator", 1, 2, 0.5), ("Gaussian", 1, 2, -1.0, 1.0))
-        ops = Operators([1.0e15, 1.0])
-        ops += "Kinetic"
-        ops += term
+    for term in (0.5 * Oscillator(1, 2), -1.0 * Gaussian(1, 2; exponent = 1.0))
+        ops = Kinetic([1.0e15, 1.0]) + term
 
         for alg in (
                 GVM(basis = 4, scale = 1.0, optimizer = _variational_lbfgs(10)),
@@ -287,9 +285,7 @@ end
 end
 
 @testset "GVM with NumericalPotential" begin
-    ops = Operators([1.0e15, 1.0])
-    ops += "Kinetic"
-    ops += (r -> -exp(-r^2), numerical, 1, 2)
+    ops = Kinetic([1.0e15, 1.0]) + Custom(r -> -exp(-r^2), 1, 2)
 
     sol = solve(
         ops,

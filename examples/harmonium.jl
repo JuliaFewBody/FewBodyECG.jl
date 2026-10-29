@@ -14,11 +14,10 @@ using FewBodyECG: jacobi_transform
 ω = 0.5
 masses = [1.0e15, 1.0, 1.0]
 
-ops = Operators(masses)
-ops += "Kinetic"
-ops += ("Oscillator", 1, 2, 0.5 * ω^2)   # ½ω² r₁²  (trap on electron 1)
-ops += ("Oscillator", 1, 3, 0.5 * ω^2)   # ½ω² r₂²  (trap on electron 2)
-ops += ("Coulomb", 2, 3, 1.0)            # +1/r₁₂ electron–electron repulsion
+ops = Kinetic(masses) +
+    0.5 * ω^2 * Oscillator(1, 2) +       # ½ω² r₁²  (trap on electron 1)
+    0.5 * ω^2 * Oscillator(1, 3) +       # ½ω² r₂²  (trap on electron 2)
+    Coulomb(2, 3)                        # +1/r₁₂ electron–electron repulsion
 
 exact = 2.0                              # Taut 1993, ω = 1/2
 

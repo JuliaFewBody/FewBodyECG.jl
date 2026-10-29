@@ -37,8 +37,8 @@ end
     FewBodyECG.build_hamiltonian_matrix(basis, operators)
 
 Return the Hamiltonian matrix assembled from all operator matrix elements over
-`basis`. `operators` may be an `Operators` builder or a vector of operator
-terms.
+`basis`. `operators` may be a [`Hamiltonian`](@ref) or a vector of
+Jacobi-frame operators.
 """
 function build_hamiltonian_matrix(basis::BasisSet{<:GaussianBase}, operators::AbstractVector{<:FewBodyHamiltonians.Operator})
     n = length(basis.functions)

@@ -8,7 +8,7 @@ using FewBodyDB: db
     mμ, md, mt = 206.7686, 3670.481, 5496.918
 
     solve_ion(masses) = solve(
-        (o = Operators(masses, [+1.0, +1.0, -1.0]); o += "Kinetic"; o += "Coulomb"; o),
+        Kinetic(masses) + Coulomb([+1.0, +1.0, -1.0]),
         SVM(basis = 200, candidates = 40, scale = 0.02); tol = 1.0e-4, window = 15,
     ).E₀
 

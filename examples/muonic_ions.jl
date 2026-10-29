@@ -25,9 +25,7 @@ systems = [
 for (name, masses, svm200) in systems
     ref = db(:Suzuki2003Jul, name, :energy, "¹Sᵉ").value
 
-    ops = Operators(masses, [+1.0, +1.0, -1.0])
-    ops += "Kinetic"
-    ops += "Coulomb"
+    ops = Kinetic(masses) + Coulomb([+1.0, +1.0, -1.0])
 
     sol = solve(
         ops,

@@ -4,18 +4,14 @@ using Plots
 γ = 1.0
 V₀ = 5.0
 
-ops = Operators([1.0e15, 1.0])
-ops += "Kinetic"
-ops += ("Gaussian", 1, 2, -V₀, γ)
+ops = Kinetic([1.0e15, 1.0]) - V₀ * Gaussian(1, 2; exponent = γ)
 
 sol = solve(ops, SVM(basis = 30, candidates = 20))
 println("Gaussian well E0 = ", sol.E₀, " Ha")
 
 depths = 1.0:1.0:8.0
 scan = map(depths) do depth
-    local o = Operators([1.0e15, 1.0])
-    o += "Kinetic"
-    o += ("Gaussian", 1, 2, -depth, γ)
+    o = Kinetic([1.0e15, 1.0]) - depth * Gaussian(1, 2; exponent = γ)
     solve(o, SVM(basis = 15, candidates = 10)).E₀
 end
 

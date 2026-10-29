@@ -12,11 +12,9 @@ using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generali
 # odd-state normalization to the half-line reduced-radial normalization
 # ∫₀^∞ u² dr = 1.
 @testset "Harmonic oscillator vs Antique" begin
-    ops = Operators([1.0e15, 1.0])
-    ops += "Kinetic"
-    ops += ("Oscillator", 1, 2, 0.5)
+    ops = Kinetic([1.0e15, 1.0]) + 0.5 * Oscillator(1, 2)
 
-    w = only(op.w for op in ops.terms if op isa OscillatorOperator)
+    w = only(op.w for op in first(FewBodyECG._to_jacobi(ops)) if op isa OscillatorOperator)
     αs = exp10.(range(-1.0, 1.0, length = 16))
     basis = BasisSet([Rank0Gaussian(α .* (w * transpose(w)), zeros(1, 3)) for α in αs])
     H = build_hamiltonian_matrix(basis, ops)

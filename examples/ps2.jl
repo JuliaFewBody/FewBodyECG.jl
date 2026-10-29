@@ -4,9 +4,7 @@ using Plots
 masses = [1.0, 1.0, 1.0, 1.0]
 charges = [+1.0, -1.0, +1.0, -1.0]
 
-ops = Operators(masses, charges)
-ops += "Kinetic"
-ops += "Coulomb"
+ops = Kinetic(masses) + Coulomb(charges)
 
 ps2_ref = -0.516003778
 sol = solve(

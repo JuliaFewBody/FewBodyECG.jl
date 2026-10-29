@@ -17,9 +17,7 @@ measures the size of the system and chooses the sampling length (see
 ```@example solvers
 using FewBodyECG
 
-ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
-ops += "Kinetic"
-ops += "Coulomb"
+ops = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
 
 sol = solve(ops, SVM(20) → Refine(2) → GVM())
 ```

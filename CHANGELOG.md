@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+### Hamiltonians are sums of particle-indexed terms
+
+`Operators`, its string and tuple forms, and `numerical` are removed. A
+Hamiltonian is now written as an algebraic expression of terms that name the
+particles they act on, and `solve` transforms it to Jacobi coordinates:
+
+```julia
+H = Kinetic([mp, mn]; units = :nuclear) +
+    200.0 * Gaussian(1, 2; exponent = 1.487) -
+    178.0 * Gaussian(1, 2; exponent = 0.639)
+sol = solve(H, SVM(basis = 50))
+```
+
+| before | now |
+|---|---|
+| `ops = Operators(m, q); ops += "Kinetic"; ops += "Coulomb"` | `Kinetic(m) + Coulomb(q)` |
+| `Operators(m; units = :nuclear); ops += "Kinetic"` | `Kinetic(m; units = :nuclear)` |
+| `ops += ("Coulomb", i, j, c)` | `+ Coulomb(i, j; coefficient = c)` |
+| `ops += ("Gaussian", i, j, V, γ)` | `+ V * Gaussian(i, j; exponent = γ)` |
+| `ops += ("Oscillator", i, j, c)` | `+ c * Oscillator(i, j)` |
+| `ops += (f, numerical, i, j)` | `+ Custom(f, i, j)` |
+| `Operators()` plus raw operators | `Operator[...]` passed to `solve(terms; units)` |
+| `coulomb_weights(ops)` | `coulomb_weights(H)` |
+
+New terms: `Kinetic`, `Coulomb`, `Gaussian`, `Oscillator`, `Custom`,
+`ManyBodyGaussian`, `Tensor` and `SpinOrbit`. Terms combine with `+`, `-`,
+scalar `*` and `/`, and `sum`, into a `Hamiltonian`. The product of Gaussian
+terms is a many-body Gaussian, which writes many-body forces. Coupling
+constants and range parameters are keywords; `exponent` has no default.
+Spin-dependent terms are assembled with `build_hamiltonian_matrix(basis, H)`;
+`solve` rejects them.
+
+`Solution` has a new trailing field `hamiltonian` (`nothing` for raw operator
+vectors). A warm start (`init`) from a solution for other masses throws an
+`ArgumentError`. `ManyBodyGaussianOperator` accepts a positive-semidefinite
+exponent matrix, which products of pair Gaussians can produce.
+
 ### Faster first calls
 
 A PrecompileTools workload compiles the solvers at precompile time, and the
@@ -17,8 +54,8 @@ about 1 s instead of about 8 s; `using FewBodyECG` takes about 0.3 s longer.
 warm start and otherwise from short pilot runs with `widths = :wide`; the
 convergence report notes the value chosen. Cold starts that did not pass
 `scale` give different results. `scale = :auto` (`1/√m` of the lightest
-particle) remains available. Like `:auto`, `:adaptive` requires `Operators`
-built from masses.
+particle) remains available. Like `:auto`, `:adaptive` requires the particle
+masses, so it does not work on raw operator vectors.
 
 ### Wide width sampling
 
@@ -30,15 +67,15 @@ default, `widths = :linear`, unchanged). The result depends much less on
 
 ### Units
 
-`Operators(...; units = :atomic | :nuclear | UnitSystem(energy, length))`
+`Kinetic(masses; units = :atomic | :nuclear | UnitSystem(energy, length))`
 records the unit convention of the masses and couplings. It converts nothing;
 `Solution` carries it (`sol.units`), and printed energies and the energy-plot
 axis use its label instead of always printing `Ha`. `solve` on a raw operator
 vector takes `units` as a keyword, and a warm start (`init`) from a `Solution`
 in different units throws an `ArgumentError`.
 
-`ops += "Coulomb"` throws an `ArgumentError` unless the units are `:atomic`,
-because its couplings `q_i q_j` assume `e²/4πε₀ = 1`.
+Solving `Coulomb(charges)` throws an `ArgumentError` unless the units are
+`:atomic`, because its couplings `q_i q_j` assume `e²/4πε₀ = 1`.
 
 `Solution` has new trailing fields `units` and `draws`; code that calls the
 `Solution` constructor directly must pass a `UnitSystem` and a draw count.

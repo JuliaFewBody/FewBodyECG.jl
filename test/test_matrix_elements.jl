@@ -459,20 +459,16 @@ end
         @test _compute_matrix_element(g, g, op_narrow) < _compute_matrix_element(g, g, op_wide)
     end
 
-    @testset "Operators tuple interface" begin
-        masses = [1.0e15, 1.0]
-        ops = Operators(masses)
-        ops += ("Gaussian", 1, 2, -1.0, 2.0)
-        @test length(ops) == 1
-        @test ops[1] isa GaussianOperator
-        @test ops[1].coefficient ≈ -1.0
-        @test ops[1].γ ≈ 2.0
+    @testset "Gaussian term in the Jacobi frame" begin
+        ops = first(FewBodyECG._to_jacobi(Kinetic([1.0e15, 1.0]) - Gaussian(1, 2; exponent = 2.0)))
+        @test ops[2] isa GaussianOperator
+        @test ops[2].coefficient ≈ -1.0
+        @test ops[2].γ ≈ 2.0
     end
 
-    @testset "Operators tuple: γ ≤ 0 throws" begin
-        ops = Operators([1.0e15, 1.0])
-        @test_throws ArgumentError ops += ("Gaussian", 1, 2, -1.0, 0.0)
-        @test_throws ArgumentError ops += ("Gaussian", 1, 2, -1.0, -1.0)
+    @testset "Gaussian term: exponent ≤ 0 throws" begin
+        @test_throws "exponent must be positive" Gaussian(1, 2; exponent = 0.0)
+        @test_throws "exponent must be positive" Gaussian(1, 2; exponent = -1.0)
     end
 end
 

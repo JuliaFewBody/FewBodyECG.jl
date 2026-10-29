@@ -1,22 +1,25 @@
 module FewBodyECG
 
 using LinearAlgebra: Diagonal, Hermitian, I, Symmetric, UpperTriangular,
-    cholesky, cond, cross, det, diag, dot, eigen, isposdef, issymmetric,
-    norm, pinv, tr
+    cholesky, cond, cross, det, diag, dot, eigen, eigmin, isposdef, issymmetric,
+    norm, opnorm, pinv, tr
 import FewBodyHamiltonians
 
 """
     Operator
 
-Alias for `FewBodyHamiltonians.Operator`, exported so raw operator vectors can
-be typed as `Operator[...]` alongside the `Operators` builder.
+Alias for `FewBodyHamiltonians.Operator`, the supertype of every term and
+Jacobi-frame operator, exported so raw operator vectors can be typed as
+`Operator[...]`.
 """
 const Operator = FewBodyHamiltonians.Operator
 
 # system building
-export Operators, Operator, UnitSystem,
+export Operator, UnitSystem,
+    Hamiltonian, Kinetic, Coulomb, Gaussian, ManyBodyGaussian, Oscillator, Custom,
+    Tensor, SpinOrbit,
     KineticOperator, CoulombOperator, GaussianOperator,
-    OscillatorOperator, ManyBodyGaussianOperator, NumericalPotential, numerical,
+    OscillatorOperator, ManyBodyGaussianOperator, NumericalPotential,
     GaussianTensorOperator, GaussianSpinOrbitOperator,
     SpinProjection, SpinState, SpinGaussian,
     GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet
@@ -34,10 +37,11 @@ public build_hamiltonian_matrix, build_overlap_matrix,
 
 include("types.jl")
 include("units.jl")
+include("hamiltonian.jl")
 include("coordinates.jl")
 include("matrix_elements.jl")
 include("numerical_matrix_elements.jl")
-include("operators.jl")
+include("jacobi_frame.jl")
 include("linalg.jl")
 include("eigen.jl")
 include("sampling.jl")

@@ -19,7 +19,7 @@ function _compute_matrix_element(
 end
 _compute_matrix_element(::Rank0Gaussian{Float64}, ::Rank0Gaussian{Float64}, ::NonfiniteGradientOperator) = 0.0
 
-ops = Operators([1.0e15, 1.0], [+1.0, -1.0]); ops += "Kinetic"; ops += "Coulomb"
+ops = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
 
 @testset "gradient solvers accept OptimKit algorithms" begin
     for optimizer in (
@@ -125,10 +125,7 @@ end
 end
 
 @testset "gradient solvers surface automatic-differentiation failures" begin
-    primal_only_ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
-    primal_only_ops += "Kinetic"
-    primal_only_ops += "Coulomb"
-    primal_only_ops += PrimalOnlyOperator()
+    primal_only_ops = [first(FewBodyECG._to_jacobi(ops)); PrimalOnlyOperator()]
 
     for alg in (
             GVM(basis = 2, scale = 1.0, optimizer = quiet_lbfgs(1)),
@@ -146,10 +143,7 @@ end
 end
 
 @testset "gradient solvers reject non-finite automatic derivatives" begin
-    nonfinite_ops = Operators([1.0e15, 1.0], [+1.0, -1.0])
-    nonfinite_ops += "Kinetic"
-    nonfinite_ops += "Coulomb"
-    nonfinite_ops += NonfiniteGradientOperator()
+    nonfinite_ops = [first(FewBodyECG._to_jacobi(ops)); NonfiniteGradientOperator()]
 
     for alg in (
             GVM(basis = 2, scale = 1.0, optimizer = quiet_lbfgs(1)),
