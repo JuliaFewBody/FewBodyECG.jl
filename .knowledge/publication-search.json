@@ -1,0 +1,777 @@
+{
+  "retrieved": "2026-11-04",
+  "database": "OpenAlex",
+  "counts_are": "indexed records; not manually screened or journal/preprint deduplicated papers",
+  "searches": [
+    {
+      "name": "ecg_ad_broad",
+      "url": "https://api.openalex.org/works?search=%22explicitly+correlated+gaussian%22+AND+%28%22automatic+differentiation%22+OR+%22differentiable+programming%22%29&per-page=200&group_by=publication_year&filter=to_publication_date%3A2026-11-04",
+      "parameters": {
+        "search": "\"explicitly correlated gaussian\" AND (\"automatic differentiation\" OR \"differentiable programming\")",
+        "per-page": 200,
+        "group_by": "publication_year",
+        "filter": "to_publication_date:2026-11-04"
+      },
+      "count": 6,
+      "years": [
+        {
+          "key": "2024",
+          "key_display_name": "2024",
+          "count": 1
+        },
+        {
+          "key": "2026",
+          "key_display_name": "2026",
+          "count": 5
+        }
+      ]
+    },
+    {
+      "name": "ecg_broad",
+      "url": "https://api.openalex.org/works?search=%22explicitly+correlated+gaussian%22&per-page=200&group_by=publication_year&filter=to_publication_date%3A2026-11-04",
+      "parameters": {
+        "search": "\"explicitly correlated gaussian\"",
+        "per-page": 200,
+        "group_by": "publication_year",
+        "filter": "to_publication_date:2026-11-04"
+      },
+      "count": 699,
+      "years": [
+        {
+          "key": "1978",
+          "key_display_name": "1978",
+          "count": 1
+        },
+        {
+          "key": "1979",
+          "key_display_name": "1979",
+          "count": 2
+        },
+        {
+          "key": "1982",
+          "key_display_name": "1982",
+          "count": 2
+        },
+        {
+          "key": "1983",
+          "key_display_name": "1983",
+          "count": 4
+        },
+        {
+          "key": "1984",
+          "key_display_name": "1984",
+          "count": 2
+        },
+        {
+          "key": "1986",
+          "key_display_name": "1986",
+          "count": 1
+        },
+        {
+          "key": "1987",
+          "key_display_name": "1987",
+          "count": 4
+        },
+        {
+          "key": "1988",
+          "key_display_name": "1988",
+          "count": 1
+        },
+        {
+          "key": "1990",
+          "key_display_name": "1990",
+          "count": 1
+        },
+        {
+          "key": "1991",
+          "key_display_name": "1991",
+          "count": 1
+        },
+        {
+          "key": "1992",
+          "key_display_name": "1992",
+          "count": 4
+        },
+        {
+          "key": "1993",
+          "key_display_name": "1993",
+          "count": 5
+        },
+        {
+          "key": "1994",
+          "key_display_name": "1994",
+          "count": 4
+        },
+        {
+          "key": "1995",
+          "key_display_name": "1995",
+          "count": 8
+        },
+        {
+          "key": "1996",
+          "key_display_name": "1996",
+          "count": 5
+        },
+        {
+          "key": "1997",
+          "key_display_name": "1997",
+          "count": 7
+        },
+        {
+          "key": "1998",
+          "key_display_name": "1998",
+          "count": 3
+        },
+        {
+          "key": "1999",
+          "key_display_name": "1999",
+          "count": 10
+        },
+        {
+          "key": "2000",
+          "key_display_name": "2000",
+          "count": 5
+        },
+        {
+          "key": "2001",
+          "key_display_name": "2001",
+          "count": 10
+        },
+        {
+          "key": "2002",
+          "key_display_name": "2002",
+          "count": 12
+        },
+        {
+          "key": "2003",
+          "key_display_name": "2003",
+          "count": 14
+        },
+        {
+          "key": "2004",
+          "key_display_name": "2004",
+          "count": 8
+        },
+        {
+          "key": "2005",
+          "key_display_name": "2005",
+          "count": 17
+        },
+        {
+          "key": "2006",
+          "key_display_name": "2006",
+          "count": 15
+        },
+        {
+          "key": "2007",
+          "key_display_name": "2007",
+          "count": 12
+        },
+        {
+          "key": "2008",
+          "key_display_name": "2008",
+          "count": 13
+        },
+        {
+          "key": "2009",
+          "key_display_name": "2009",
+          "count": 19
+        },
+        {
+          "key": "2010",
+          "key_display_name": "2010",
+          "count": 14
+        },
+        {
+          "key": "2011",
+          "key_display_name": "2011",
+          "count": 22
+        },
+        {
+          "key": "2012",
+          "key_display_name": "2012",
+          "count": 31
+        },
+        {
+          "key": "2013",
+          "key_display_name": "2013",
+          "count": 24
+        },
+        {
+          "key": "2014",
+          "key_display_name": "2014",
+          "count": 33
+        },
+        {
+          "key": "2015",
+          "key_display_name": "2015",
+          "count": 27
+        },
+        {
+          "key": "2016",
+          "key_display_name": "2016",
+          "count": 25
+        },
+        {
+          "key": "2017",
+          "key_display_name": "2017",
+          "count": 16
+        },
+        {
+          "key": "2018",
+          "key_display_name": "2018",
+          "count": 21
+        },
+        {
+          "key": "2019",
+          "key_display_name": "2019",
+          "count": 21
+        },
+        {
+          "key": "2020",
+          "key_display_name": "2020",
+          "count": 27
+        },
+        {
+          "key": "2021",
+          "key_display_name": "2021",
+          "count": 22
+        },
+        {
+          "key": "2022",
+          "key_display_name": "2022",
+          "count": 28
+        },
+        {
+          "key": "2023",
+          "key_display_name": "2023",
+          "count": 45
+        },
+        {
+          "key": "2024",
+          "key_display_name": "2024",
+          "count": 46
+        },
+        {
+          "key": "2025",
+          "key_display_name": "2025",
+          "count": 40
+        },
+        {
+          "key": "2026",
+          "key_display_name": "2026",
+          "count": 67
+        }
+      ]
+    },
+    {
+      "name": "ecg_title",
+      "url": "https://api.openalex.org/works?search.title=%22explicitly+correlated+gaussian%22&per-page=200&group_by=publication_year&filter=to_publication_date%3A2026-11-04",
+      "parameters": {
+        "search.title": "\"explicitly correlated gaussian\"",
+        "per-page": 200,
+        "group_by": "publication_year",
+        "filter": "to_publication_date:2026-11-04"
+      },
+      "count": 131,
+      "years": [
+        {
+          "key": "1979",
+          "key_display_name": "1979",
+          "count": 1
+        },
+        {
+          "key": "1983",
+          "key_display_name": "1983",
+          "count": 2
+        },
+        {
+          "key": "1984",
+          "key_display_name": "1984",
+          "count": 2
+        },
+        {
+          "key": "1986",
+          "key_display_name": "1986",
+          "count": 1
+        },
+        {
+          "key": "1987",
+          "key_display_name": "1987",
+          "count": 2
+        },
+        {
+          "key": "1991",
+          "key_display_name": "1991",
+          "count": 1
+        },
+        {
+          "key": "1992",
+          "key_display_name": "1992",
+          "count": 2
+        },
+        {
+          "key": "1993",
+          "key_display_name": "1993",
+          "count": 3
+        },
+        {
+          "key": "1994",
+          "key_display_name": "1994",
+          "count": 2
+        },
+        {
+          "key": "1995",
+          "key_display_name": "1995",
+          "count": 6
+        },
+        {
+          "key": "1996",
+          "key_display_name": "1996",
+          "count": 3
+        },
+        {
+          "key": "1997",
+          "key_display_name": "1997",
+          "count": 3
+        },
+        {
+          "key": "1998",
+          "key_display_name": "1998",
+          "count": 1
+        },
+        {
+          "key": "1999",
+          "key_display_name": "1999",
+          "count": 1
+        },
+        {
+          "key": "2000",
+          "key_display_name": "2000",
+          "count": 2
+        },
+        {
+          "key": "2001",
+          "key_display_name": "2001",
+          "count": 3
+        },
+        {
+          "key": "2002",
+          "key_display_name": "2002",
+          "count": 2
+        },
+        {
+          "key": "2003",
+          "key_display_name": "2003",
+          "count": 1
+        },
+        {
+          "key": "2005",
+          "key_display_name": "2005",
+          "count": 1
+        },
+        {
+          "key": "2006",
+          "key_display_name": "2006",
+          "count": 1
+        },
+        {
+          "key": "2008",
+          "key_display_name": "2008",
+          "count": 1
+        },
+        {
+          "key": "2009",
+          "key_display_name": "2009",
+          "count": 1
+        },
+        {
+          "key": "2010",
+          "key_display_name": "2010",
+          "count": 2
+        },
+        {
+          "key": "2011",
+          "key_display_name": "2011",
+          "count": 8
+        },
+        {
+          "key": "2012",
+          "key_display_name": "2012",
+          "count": 9
+        },
+        {
+          "key": "2013",
+          "key_display_name": "2013",
+          "count": 9
+        },
+        {
+          "key": "2014",
+          "key_display_name": "2014",
+          "count": 9
+        },
+        {
+          "key": "2015",
+          "key_display_name": "2015",
+          "count": 6
+        },
+        {
+          "key": "2016",
+          "key_display_name": "2016",
+          "count": 7
+        },
+        {
+          "key": "2017",
+          "key_display_name": "2017",
+          "count": 3
+        },
+        {
+          "key": "2018",
+          "key_display_name": "2018",
+          "count": 6
+        },
+        {
+          "key": "2019",
+          "key_display_name": "2019",
+          "count": 6
+        },
+        {
+          "key": "2020",
+          "key_display_name": "2020",
+          "count": 4
+        },
+        {
+          "key": "2021",
+          "key_display_name": "2021",
+          "count": 2
+        },
+        {
+          "key": "2022",
+          "key_display_name": "2022",
+          "count": 4
+        },
+        {
+          "key": "2023",
+          "key_display_name": "2023",
+          "count": 3
+        },
+        {
+          "key": "2024",
+          "key_display_name": "2024",
+          "count": 2
+        },
+        {
+          "key": "2025",
+          "key_display_name": "2025",
+          "count": 3
+        },
+        {
+          "key": "2026",
+          "key_display_name": "2026",
+          "count": 6
+        }
+      ]
+    },
+    {
+      "name": "ecg_title_abstract",
+      "url": "https://api.openalex.org/works?search.title_and_abstract=%22explicitly+correlated+gaussian%22&per-page=200&group_by=publication_year&filter=to_publication_date%3A2026-11-04",
+      "parameters": {
+        "search.title_and_abstract": "\"explicitly correlated gaussian\"",
+        "per-page": 200,
+        "group_by": "publication_year",
+        "filter": "to_publication_date:2026-11-04"
+      },
+      "count": 377,
+      "years": [
+        {
+          "key": "1978",
+          "key_display_name": "1978",
+          "count": 1
+        },
+        {
+          "key": "1979",
+          "key_display_name": "1979",
+          "count": 2
+        },
+        {
+          "key": "1982",
+          "key_display_name": "1982",
+          "count": 2
+        },
+        {
+          "key": "1983",
+          "key_display_name": "1983",
+          "count": 3
+        },
+        {
+          "key": "1984",
+          "key_display_name": "1984",
+          "count": 2
+        },
+        {
+          "key": "1986",
+          "key_display_name": "1986",
+          "count": 1
+        },
+        {
+          "key": "1987",
+          "key_display_name": "1987",
+          "count": 4
+        },
+        {
+          "key": "1988",
+          "key_display_name": "1988",
+          "count": 1
+        },
+        {
+          "key": "1990",
+          "key_display_name": "1990",
+          "count": 1
+        },
+        {
+          "key": "1991",
+          "key_display_name": "1991",
+          "count": 1
+        },
+        {
+          "key": "1992",
+          "key_display_name": "1992",
+          "count": 4
+        },
+        {
+          "key": "1993",
+          "key_display_name": "1993",
+          "count": 5
+        },
+        {
+          "key": "1994",
+          "key_display_name": "1994",
+          "count": 4
+        },
+        {
+          "key": "1995",
+          "key_display_name": "1995",
+          "count": 7
+        },
+        {
+          "key": "1996",
+          "key_display_name": "1996",
+          "count": 4
+        },
+        {
+          "key": "1997",
+          "key_display_name": "1997",
+          "count": 6
+        },
+        {
+          "key": "1998",
+          "key_display_name": "1998",
+          "count": 3
+        },
+        {
+          "key": "1999",
+          "key_display_name": "1999",
+          "count": 3
+        },
+        {
+          "key": "2000",
+          "key_display_name": "2000",
+          "count": 2
+        },
+        {
+          "key": "2001",
+          "key_display_name": "2001",
+          "count": 4
+        },
+        {
+          "key": "2002",
+          "key_display_name": "2002",
+          "count": 5
+        },
+        {
+          "key": "2003",
+          "key_display_name": "2003",
+          "count": 7
+        },
+        {
+          "key": "2004",
+          "key_display_name": "2004",
+          "count": 7
+        },
+        {
+          "key": "2005",
+          "key_display_name": "2005",
+          "count": 13
+        },
+        {
+          "key": "2006",
+          "key_display_name": "2006",
+          "count": 11
+        },
+        {
+          "key": "2007",
+          "key_display_name": "2007",
+          "count": 8
+        },
+        {
+          "key": "2008",
+          "key_display_name": "2008",
+          "count": 8
+        },
+        {
+          "key": "2009",
+          "key_display_name": "2009",
+          "count": 15
+        },
+        {
+          "key": "2010",
+          "key_display_name": "2010",
+          "count": 7
+        },
+        {
+          "key": "2011",
+          "key_display_name": "2011",
+          "count": 18
+        },
+        {
+          "key": "2012",
+          "key_display_name": "2012",
+          "count": 22
+        },
+        {
+          "key": "2013",
+          "key_display_name": "2013",
+          "count": 21
+        },
+        {
+          "key": "2014",
+          "key_display_name": "2014",
+          "count": 21
+        },
+        {
+          "key": "2015",
+          "key_display_name": "2015",
+          "count": 16
+        },
+        {
+          "key": "2016",
+          "key_display_name": "2016",
+          "count": 14
+        },
+        {
+          "key": "2017",
+          "key_display_name": "2017",
+          "count": 8
+        },
+        {
+          "key": "2018",
+          "key_display_name": "2018",
+          "count": 11
+        },
+        {
+          "key": "2019",
+          "key_display_name": "2019",
+          "count": 14
+        },
+        {
+          "key": "2020",
+          "key_display_name": "2020",
+          "count": 10
+        },
+        {
+          "key": "2021",
+          "key_display_name": "2021",
+          "count": 13
+        },
+        {
+          "key": "2022",
+          "key_display_name": "2022",
+          "count": 13
+        },
+        {
+          "key": "2023",
+          "key_display_name": "2023",
+          "count": 9
+        },
+        {
+          "key": "2024",
+          "key_display_name": "2024",
+          "count": 13
+        },
+        {
+          "key": "2025",
+          "key_display_name": "2025",
+          "count": 17
+        },
+        {
+          "key": "2026",
+          "key_display_name": "2026",
+          "count": 16
+        }
+      ]
+    },
+    {
+      "name": "shifted_floating_broad",
+      "url": "https://api.openalex.org/works?search=%22shifted+correlated+gaussian%22+OR+%22floating+explicitly+correlated+gaussian%22+OR+%22floating+correlated+gaussian%22&per-page=200&group_by=publication_year&filter=to_publication_date%3A2026-11-04",
+      "parameters": {
+        "search": "\"shifted correlated gaussian\" OR \"floating explicitly correlated gaussian\" OR \"floating correlated gaussian\"",
+        "per-page": 200,
+        "group_by": "publication_year",
+        "filter": "to_publication_date:2026-11-04"
+      },
+      "count": 21,
+      "years": [
+        {
+          "key": "2016",
+          "key_display_name": "2016",
+          "count": 1
+        },
+        {
+          "key": "2018",
+          "key_display_name": "2018",
+          "count": 3
+        },
+        {
+          "key": "2019",
+          "key_display_name": "2019",
+          "count": 1
+        },
+        {
+          "key": "2020",
+          "key_display_name": "2020",
+          "count": 1
+        },
+        {
+          "key": "2021",
+          "key_display_name": "2021",
+          "count": 3
+        },
+        {
+          "key": "2022",
+          "key_display_name": "2022",
+          "count": 1
+        },
+        {
+          "key": "2023",
+          "key_display_name": "2023",
+          "count": 2
+        },
+        {
+          "key": "2024",
+          "key_display_name": "2024",
+          "count": 3
+        },
+        {
+          "key": "2025",
+          "key_display_name": "2025",
+          "count": 2
+        },
+        {
+          "key": "2026",
+          "key_display_name": "2026",
+          "count": 4
+        }
+      ]
+    }
+  ]
+}
