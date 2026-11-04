@@ -27,12 +27,18 @@ Abstract supertype for gradient-optimization methods such as [`GVM`](@ref) and
 abstract type GradientMethod <: SolverMethod end
 
 """
-    SVM(basis; candidates = 25, scale = :adaptive, widths = :linear, sampler = HaltonSample(), indep_tol = 1e-4)
+    SVM(basis; rank = nothing, candidates = 25, scale = :adaptive, widths = :linear, sampler = HaltonSample(), indep_tol = 1e-4)
 
 Suzuki–Varga stochastic selection (Sect. 4.2.5).  At each of `basis` steps,
 `candidates` quasi-random Gaussians are drawn and scored in O(k²) by the
 incremental whitened eigensolver; the best admissible one is committed.
 `candidates = 1` is the accept-first strategy.
+
+`rank = 0` selects plain Gaussians; `rank = 1` selects unshifted Rank1
+Gaussians with a sampled global vector along the z axis (L=1, M=0).
+When omitted, the rank is inherited from `init`, or is 0 on a cold start.
+Adaptive pilot runs use the same rank. [`Refine`](@ref) preserves the rank;
+gradient methods currently support Rank0 only.
 
 `scale` is the sampling length (see [Choosing `scale`](@ref)): a number in the
 system's length unit, `:adaptive` (the default), or `:auto`. `:adaptive` sets
@@ -49,6 +55,7 @@ chosen.
 """
 Base.@kwdef struct SVM <: StochasticMethod
     basis::Int = 50
+    rank::Union{Nothing, Int} = nothing
     candidates::Int = 25
     scale::Union{Float64, Symbol} = :adaptive
     widths::Symbol = :linear
@@ -138,7 +145,7 @@ Compose two solver methods into a left-to-right `Pipeline`.
 →(a::SolverMethod, p::Pipeline) = Pipeline((a, p.stages...))
 →(p::Pipeline, q::Pipeline) = Pipeline((p.stages..., q.stages...))
 
-Base.show(io::IO, m::SVM) = print(io, "SVM(", m.basis, ")")
+Base.show(io::IO, m::SVM) = print(io, "SVM(", m.basis, m.rank === nothing ? "" : "; rank=$(m.rank)", ")")
 Base.show(io::IO, m::Refine) = print(io, "Refine(", m.sweeps, ")")
 Base.show(io::IO, m::GVM) = print(io, "GVM(", something(m.basis, "warm"), ")")
 Base.show(io::IO, m::DynamicGVM) = print(io, "DynamicGVM(", m.basis, ")")

@@ -15,7 +15,8 @@ sol = solve(ops, DynamicGVM(basis = 10, candidates = 20))
 println("1s energy: ", sol.E₀, " Ha  (Antique ", exact₁, ", Δ = ", sol.E₀ - exact₁, ")")
 sol
 
-plot(sol, exact₁)
+plot(convergence(sol); xlabel = "step", ylabel = "E (Ha)", label = "ECG")
+hline!([exact₁]; label = "reference", linestyle = :dash)
 
 sol₂s = solve(
     ops,

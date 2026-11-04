@@ -37,10 +37,11 @@ ecg_color = RGB(0.72, 0.16, 0.42)     # computed (ECG)
 ref_color = RGB(0.45, 0.47, 0.52)     # reference / exact
 
 plot(
-    sol, exact;
-    palette = [ecg_color, ref_color], linewidth = 2,
+    convergence(sol);
+    xlabel = "step", ylabel = "E (Ha)", label = "ECG", color = ecg_color, linewidth = 2,
     title = "Convergence to the exact energy", FIG...,
 )
+hline!([exact]; label = "reference", color = ref_color, linestyle = :dash)
 
 # Back to laboratory coordinates: `jacobi_transform` gives J mapping physical
 # particle positions to the (mass-weighted) Jacobi coordinates the solution uses,

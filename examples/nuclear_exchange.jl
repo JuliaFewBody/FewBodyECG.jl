@@ -1,30 +1,18 @@
 # # Why the deuteron binds: spin and isospin exchange
-#
-# The Minnesota interaction has a deeper well in the spin-triplet channel
-# than in the spin-singlet channel. For even orbital parity the Pauli principle
-# pairs S=1 with T=0 (the deuteron), and S=0 with T=1. We solve both channels
-# using the full exchange operators, then examine the energy and wavefunction
-# as the Gaussian basis grows.
-#
-# The model is from Suzuki–Varga, Table 11.1, p. 217. It contains only central
-# forces, so the deuteron here is a pure S wave, without tensor-induced S–D
-# mixing. Its binding energy is quoted as 2.202 MeV in Table 11.9, p. 237.
+# Minnesota central S-wave model: compare (S,T)=(1,0) and (0,1).
+# Suzuki–Varga, Table 11.1, p. 217; deuteron reference: Table 11.9, p. 237.
 
 using FewBodyECG
 using LinearAlgebra
 using Plots
 include(joinpath(@__DIR__, "nuclear_exchange_model.jl"))
 
-# Equal nucleon masses with ℏ²/m = 41.47 MeV fm². The weight w converts the
-# mass-scaled Jacobi coordinate to the physical proton–neutron separation.
-masses = fill(1 / 41.47, 2)
+masses = fill(1 / 41.47, 2)  # ℏ²/m = 41.47 MeV fm²
 _, U = FewBodyECG.jacobi_transform(masses)
 w = U' * [1.0, -1.0]
 Pr = PermutationOperator(masses, [2, 1])
 
 # V = Σ Vₖ exp(-γₖr²)(Wₖ + MₖPʳ + BₖPσ - HₖPτ) in a Pauli-allowed channel.
-# The shared model file supplies the tabulated coefficients and product-spin
-# basis; the spin/isospin operators are used to assemble the Hamiltonian.
 widths = exp10.(range(-4, 2, length = 24))
 orbitals = pair_orbitals(0, widths, w)
 basis = nucleon_basis(orbitals)
@@ -36,8 +24,7 @@ C_singlet = channel_map(length(orbitals), 0, 1)
 H_triplet, S_triplet = C_triplet' * H * C_triplet, C_triplet' * overlap * C_triplet
 H_singlet, S_singlet = C_singlet' * H * C_singlet, C_singlet' * overlap * C_singlet
 
-# Nested bases give a variational convergence curve. A positive eigenvalue in
-# the singlet's finite basis is a continuum approximation, not a bound level.
+# Positive singlet levels approximate the continuum.
 basis_sizes = collect(4:2:24)
 triplet_states = [channel_solution(H_triplet[1:k, 1:k], S_triplet[1:k, 1:k], orbitals[1:k]) for k in basis_sizes]
 singlet_states = [channel_solution(H_singlet[1:k, 1:k], S_singlet[1:k, 1:k], orbitals[1:k]) for k in basis_sizes]
@@ -45,31 +32,15 @@ triplet_energies = [state.energy for state in triplet_states]
 singlet_energies = [state.energy for state in singlet_states]
 deuteron = last(triplet_states)
 
-# Inspect the solution in physical units and identify its internal symmetry.
 S_orb = FewBodyECG.build_overlap_matrix(BasisSet(orbitals))
 R2 = FewBodyECG.build_operator_matrix(BasisSet(orbitals), OscillatorOperator(1.0, w))
 c = deuteron.coefficients
 rms_separation = sqrt(real(dot(c, R2 * c) / dot(c, S_orb * c)))
-full_c = C_triplet * c
-exchange_expectation(op) = real(dot(full_c, FewBodyECG.build_operator_matrix(basis, op) * full_c) / dot(full_c, overlap * full_c))
-
-println("Minnesota deuteron: L=0, S=1, T=0")
-println("  energy = ", round(deuteron.energy; digits = 6), " MeV  (book ≈ -2.202 MeV)")
-println("  binding below p+n threshold = ", round(-deuteron.energy; digits = 6), " MeV")
-println("  rms proton–neutron separation = ", round(rms_separation; digits = 3), " fm")
 println(
-    "  exchange ⟨Pσ⟩, ⟨Pτ⟩, ⟨Pʳ⟩ = ",
-    round.(
-        [
-            exchange_expectation(SpinExchangeOperator(1, 2)),
-            exchange_expectation(IsospinExchangeOperator(1, 2)), exchange_expectation(Pr),
-        ]; digits = 6
-    )
+    "Deuteron: E = ", round(deuteron.energy; digits = 6), " MeV; rms separation = ",
+    round(rms_separation; digits = 3), " fm"
 )
-println("  last basis energy change = ", abs(triplet_energies[end] - triplet_energies[end - 1]), " MeV")
-println("  lowest singlet energy in this basis = ", last(singlet_energies), " MeV (threshold = 0)")
 
-# The two radial potentials explain the channel dependence of the binding.
 triplet_potential(r) = 200exp(-1.487r^2) - 178exp(-0.639r^2)
 singlet_potential(r) = 200exp(-1.487r^2) - 91.85exp(-0.465r^2)
 r_potential = range(0, 6, length = 400)
@@ -92,27 +63,25 @@ plot!(
 hline!(potential_plot, [0.0]; color = :gray, linewidth = 1, label = "")
 
 convergence_plot = plot(
-    basis_sizes, triplet_energies;
+    convergence(triplet_energies; steps = basis_sizes);
     label = "triplet", marker = :circle, markersize = 3, color = triplet_color,
     markerstrokecolor = triplet_color, markerstrokewidth = 0.5,
     xlabel = "radial Gaussians N", ylabel = "E (MeV)", title = "(b) Basis convergence", style...
 )
 plot!(
-    convergence_plot, basis_sizes, singlet_energies;
+    convergence_plot, convergence(singlet_energies; steps = basis_sizes);
     label = "singlet", color = singlet_color, marker = :diamond, markersize = 3, linestyle = :dash,
     markerstrokecolor = singlet_color, markerstrokewidth = 0.5
 )
 hline!(convergence_plot, [0.0]; color = :gray, linewidth = 1, linestyle = :dash, label = "p+n threshold")
 hline!(convergence_plot, [-2.202]; color = :black, linewidth = 1, linestyle = :dot, label = "book (rounded)")
 
-# u(r)=√(4π)rψ(r) has ∫|u|²dr=1. The mass-scaled Jacobi-to-r conversion
-# is handled by s_wave_radial_amplitude; the horizontal axis is physical fm.
+# u(r)=√(4π)rψ(r), normalized in physical fm.
 radii = range(0, 20, length = 600)
 amplitude_plot = plot(;
     xlabel = "r (fm)", ylabel = "u(r) [1/sqrt(fm)]",
     title = "(c) Radial wavefunction", style...
 )
-# Compare radial shapes only after the finite basis supports a bound state.
 for (k, color, line) in ((12, :gray, :dot), (16, singlet_color, :dash), (24, triplet_color, :solid))
     state = triplet_states[findfirst(==(k), basis_sizes)]
     plot!(

@@ -14,7 +14,8 @@ sol
 
 tdmu_ref = db(:Suzuki2003Jul, "tdμ", :energy, "¹Sᵉ").value
 println("tdμ E0 = ", sol.E₀, " Ha  (Suzuki–Varga ", tdmu_ref, ", Δ = ", sol.E₀ - tdmu_ref, ")")
-plot(sol, tdmu_ref)
+plot(convergence(sol); xlabel = "step", ylabel = "E (Ha)", label = "ECG")
+hline!([tdmu_ref]; label = "reference", linestyle = :dash)
 
 ψ = wavefunction(sol)
 plot(ψ; coord = 1, rmax = 2, npoints = 300)

@@ -12,7 +12,8 @@ ps = Antique.CoulombTwoBody(
 )
 exact = Antique.energy(ps, n = 1)
 println("E0 = ", sol.E₀, " Ha  (Antique ", exact, ", Δ = ", sol.E₀ - exact, ")")
-plot(sol, exact)
+plot(convergence(sol); xlabel = "step", ylabel = "E (Ha)", label = "ECG")
+hline!([exact]; label = "reference", linestyle = :dash)
 
 ψ = wavefunction(sol)
 μ = inv(1 / 1.0 + 1 / 1.0)
@@ -66,5 +67,6 @@ psm_exchange_parity = dot(c_plus, (MP + MP2) * c_plus) / (2 * dot(c_plus, S_plus
 println("Ps⁻ unprojected E = ", psm.E₀, " Ha")
 println("Ps⁻ projected E = ", psm_projected_energy, " Ha  (book ", psm_ref, ")")
 println("electron-exchange expectation ⟨P₂₃⟩ = ", psm_exchange_parity)
-p_psm = plot(psm, psm_ref; title = "Ps⁻ electron-exchange projection")
+p_psm = plot(convergence(psm); xlabel = "step", ylabel = "E (Ha)", label = "ECG", title = "Ps⁻ electron-exchange projection")
+hline!(p_psm, [psm_ref]; label = "reference", linestyle = :dash)
 scatter!(p_psm, [length(basis)], [psm_projected_energy]; label = "Π₊-projected basis")

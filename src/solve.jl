@@ -114,7 +114,7 @@ end
 # less than 30%.  Short pilots are poorly converged and can overestimate the
 # size through diffuse components, so the size comes from the pilot with the
 # lowest energy, whose wavefunction is the most accurate.
-function _adaptive_scale(ctx::_SolveCtx, init)
+function _adaptive_scale(ctx::_SolveCtx, init; rank = 0)
     ctx.masses === nothing && throw(
         ArgumentError(
             "scale = :adaptive needs the particle masses: build the system with Kinetic(masses), or pass a numeric scale"
@@ -134,7 +134,7 @@ function _adaptive_scale(ctx::_SolveCtx, init)
     for round in 1:_PILOT_MAX_ROUNDS
         pilot = _solve(
             ctx.terms, ctx.masses,
-            SVM(; basis = _PILOT_BASIS, candidates = _PILOT_CANDIDATES, scale = center, widths = :wide);
+            SVM(; basis = _PILOT_BASIS, rank, candidates = _PILOT_CANDIDATES, scale = center, widths = :wide);
             state = ctx.state, tol = ctx.tol, window = ctx.window, init = nothing,
             verbose = false, units = ctx.units
         )
@@ -159,8 +159,8 @@ end
 
 # Resolve `scale` once per solve: `(value, note)`, where `note` explains an
 # adaptive choice and is `nothing` otherwise.
-_solve_scale(scale, ctx::_SolveCtx, init) =
-    scale === :adaptive ? _adaptive_scale(ctx, init) : (_resolve_scale(scale, ctx.masses), nothing)
+_solve_scale(scale, ctx::_SolveCtx, init; rank = 0) =
+    scale === :adaptive ? _adaptive_scale(ctx, init; rank) : (_resolve_scale(scale, ctx.masses), nothing)
 
 _add_note!(report::ConvergenceReport, note) = (note === nothing || push!(report.notes, note); report)
 
@@ -228,8 +228,12 @@ function _solve(
         units, hamiltonian = nothing
     )
     ctx = _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian)
-    st = init === nothing ? BasisState() : _solution_basis_state(init, ctx.terms)
-    scale, scale_note = _solve_scale(alg.scale, ctx, init)
+    init_rank = init === nothing ? 0 : _stochastic_rank(init.basis)
+    rank = something(alg.rank, init_rank)
+    rank in (0, 1) || throw(ArgumentError("SVM rank must be 0 or 1"))
+    init === nothing || rank == init_rank || throw(ArgumentError("SVM rank=$rank does not match the rank-$init_rank initial basis"))
+    st = init === nothing ? BasisState(rank == 0 ? Rank0Gaussian : Rank1Gaussian) : _solution_basis_state(init, ctx.terms)
+    scale, scale_note = _solve_scale(alg.scale, ctx, init; rank)
     n₀ = length(st.E_hist)
     n₀_funs = nfuns(st)
     failed = 0

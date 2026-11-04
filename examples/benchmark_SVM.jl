@@ -55,7 +55,7 @@ svm_grid = run_method(
 )
 
 p = plot(
-    convergence(svm_halton)...;
+    convergence(svm_halton);
     label = "SVM (Halton)",
     linewidth = 1.5,
     xlabel = "solver iteration",
@@ -70,7 +70,7 @@ for (label, sol) in [
         "SVM (Latin Hypercube)" => svm_hypercube,
         "SVM (Grid sample)" => svm_grid,
     ]
-    plot!(p, convergence(sol)...; label, linewidth = 1.5)
+    plot!(p, convergence(sol); label, linewidth = 1.5)
 end
 hline!(p, [exact]; label = "exact", color = :black, linestyle = :dash)
 p

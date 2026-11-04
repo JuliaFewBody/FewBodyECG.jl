@@ -17,6 +17,7 @@ using FewBodyECG
     include("test_gradient.jl")
     include("test_pipeline.jl")
     include("test_adaptive_scale.jl")
+    include("test_polarized_svm.jl")
     include("test_observables.jl")
     include("test_coordinates.jl")
     include("test_matrix_elements.jl")

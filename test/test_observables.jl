@@ -64,6 +64,14 @@ end
     @test steps == 1:length(history)
     @test history == energy_history(sol)
 
+    energies = [-0.4, -0.48, -0.499]
+    @test convergence(energies) == (1:3, energies)
+    @test convergence(energies; steps = [2, 4, 8]) == ([2, 4, 8], energies)
+    history_view = view(energies, 1:2)
+    @test last(convergence(history_view)) === history_view
+    @test convergence(Float64[]) == (1:0, Float64[])
+    @test_throws DimensionMismatch convergence(energies; steps = [1, 2])
+
     r, density = radial_profile(wavefunction(sol); rmax = 4, npoints = 200)
     @test first(r) ≥ 0
     @test all(≥(0), density)

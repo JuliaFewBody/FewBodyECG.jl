@@ -18,7 +18,8 @@ println("Ps₂ E₀ = ", sol.E₀, " Ha")
 println("reference (SVM, K = 800) = ", ps2_ref, " Ha   Δ = ", sol.E₀ - ps2_ref)
 println("variational upper bound respected: ", sol.E₀ ≥ ps2_ref)
 
-plot(sol, ps2_ref; title = "Dipositronium convergence")
+plot(convergence(sol); xlabel = "step", ylabel = "E (Ha)", label = "ECG", title = "Dipositronium convergence")
+hline!([ps2_ref]; label = "reference", linestyle = :dash)
 plot(wavefunction(sol))
 
 # Contact density and annihilation: Suzuki–Varga §8.3, p. 157,

@@ -14,4 +14,5 @@ for reference in (:Bubin2005Jan, :Karr2006Apr)
     println(reference, ": ", ref, " Ha   Δ = ", sol.E₀ - ref)
 end
 
-plot(sol, db(:Bubin2005Jan, "HD⁺", :energy, state).value)
+plot(convergence(sol); xlabel = "step", ylabel = "E (Ha)", label = "ECG")
+hline!([db(:Bubin2005Jan, "HD⁺", :energy, state).value]; label = "reference", linestyle = :dash)

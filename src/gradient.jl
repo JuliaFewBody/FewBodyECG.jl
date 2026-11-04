@@ -130,12 +130,19 @@ function _solution_from_basis(basis::BasisSet, ctx::_SolveCtx, stages, draws)
     )
 end
 
+function _require_gradient_basis(init)
+    init === nothing || all(g -> g isa Rank0Gaussian, init.basis) ||
+        throw(ArgumentError("gradient methods require Rank0Gaussian functions; use SVM or Refine for Rank1 bases"))
+    return nothing
+end
+
 function _solve(
         terms, masses, alg::GVM;
         state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false,
         units, hamiltonian = nothing
     )
     ctx = _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian)
+    _require_gradient_basis(init)
     n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)
     n_chol = n_dim * (n_dim + 1) ÷ 2
     n_per = n_chol + 3 * n_dim
@@ -207,6 +214,7 @@ function _solve(
         units, hamiltonian = nothing
     )
     ctx = _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian)
+    _require_gradient_basis(init)
     scale, scale_note = _solve_scale(alg.scale, ctx, init)
     n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)
     n_chol = n_dim * (n_dim + 1) ÷ 2

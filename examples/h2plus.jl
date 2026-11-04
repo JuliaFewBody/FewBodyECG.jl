@@ -21,5 +21,6 @@ h2p_ref = -0.597139
 println("H2+ E0 = ", sol.E₀, " Ha  (reference ", h2p_ref, ", Δ = ", sol.E₀ - h2p_ref, ")")
 println("bound below H + p+ threshold? ", sol.E₀ < -0.5)
 
-plot(sol, h2p_ref)
+plot(convergence(sol); xlabel = "step", ylabel = "E (Ha)", label = "ECG")
+hline!([h2p_ref]; label = "reference", linestyle = :dash)
 plot(wavefunction(sol); coord = 1, rmax = 100.0)

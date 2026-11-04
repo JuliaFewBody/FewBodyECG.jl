@@ -13,5 +13,6 @@ println("HPs⁺ E₀ = ", sol.E₀, " Ha")
 println("reference (SVM, K = 1200) = ", hps_ref, " Ha   Δ = ", sol.E₀ - hps_ref)
 println("variational upper bound respected: ", sol.E₀ ≥ hps_ref)
 
-plot(sol, hps_ref; title = "Positronium-hydride convergence")
+plot(convergence(sol); xlabel = "step", ylabel = "E (Ha)", label = "ECG", title = "Positronium-hydride convergence")
+hline!([hps_ref]; label = "reference", linestyle = :dash)
 plot(wavefunction(sol))

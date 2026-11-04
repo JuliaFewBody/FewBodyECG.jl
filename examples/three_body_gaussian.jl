@@ -31,9 +31,8 @@ println("E₀ (λ = ", λ, ") = ", sol₁.E₀, " Ha")
 println("regulator-induced shift ΔE = ", ΔE, " Ha")
 
 ## Convergence and radial profile through the utilities
-steps, history = convergence(sol₁)
-pc = plot(steps, history; xlabel = "step", ylabel = "E (Ha)", label = "with regulator")
-plot!(pc, convergence(sol₀)...; label = "no regulator")
+pc = plot(convergence(sol₁); xlabel = "step", ylabel = "E (Ha)", label = "with regulator")
+plot!(pc, convergence(sol₀); label = "no regulator")
 pc
 
 plot(wavefunction(sol₁); coord = 1, rmax = 6.0)

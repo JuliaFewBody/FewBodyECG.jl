@@ -14,5 +14,6 @@ hm_ref = db(:Suzuki2003Jul, "∞H⁻", :energy, "¹Sᵉ").value
 hm = solve(hminus, SVM(basis = 50, candidates = 20))
 println("H- E0 = ", hm.E₀, " Ha  (Suzuki–Varga ", hm_ref, ", Δ = ", hm.E₀ - hm_ref, ")")
 
-plot(he, he_ref)
+plot(convergence(he); xlabel = "step", ylabel = "E (Ha)", label = "ECG")
+hline!([he_ref]; label = "reference", linestyle = :dash)
 plot(wavefunction(hm); coord = 1, rmax = 10.0)

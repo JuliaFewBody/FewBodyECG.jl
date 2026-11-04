@@ -77,7 +77,7 @@ end
 println("converged ground-state energy: ", ground[end], " Ha")
 
 plot(
-    sizes, ground;
+    convergence(ground; steps = sizes);
     xlabel = "basis size", ylabel = "E₀ (Ha)", label = "ground state (λ = 1)",
     marker = :circle, linewidth = 2, title = "Basis-size convergence",
 )

@@ -40,7 +40,7 @@ solutions = [label => run_method(label, alg) for (label, alg) in methods]
 
 label, sol = first(solutions)
 p = plot(
-    convergence(sol)...;
+    convergence(sol);
     label,
     linewidth = 1.5,
     xlabel = "solver iteration",
@@ -49,7 +49,7 @@ p = plot(
     legend = :topright,
 )
 for (label, sol) in Iterators.drop(solutions, 1)
-    plot!(p, convergence(sol)...; label, linewidth = 1.5)
+    plot!(p, convergence(sol); label, linewidth = 1.5)
 end
 hline!(p, [exact]; label = "exact", color = :black, linestyle = :dash)
 p
