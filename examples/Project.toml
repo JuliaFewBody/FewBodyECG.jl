@@ -12,4 +12,5 @@ FewBodyECG = {path = ".."}
 [compat]
 FewBodyDB = "0.0.5"
 OptimKit = "0.5.1"
+Plots = "1.41.7"
 QuasiMonteCarlo = "0.3.9, 0.4"
