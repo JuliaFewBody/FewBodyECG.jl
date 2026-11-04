@@ -31,7 +31,7 @@ The scripts listed in `LITERATE_EXAMPLES` in `docs/make.jl` are rendered into `d
 2. Call `solve(ops, method)` with an `SVM`, `Refine`, `GVM`, `DynamicGVM`, or a `Pipeline` composed with `→` (e.g. `SVM(40) → Refine(2) → GVM()`).
 3. Inspect the returned `Solution`: `energy`, `energy_history`, `convergence`, `wavefunction`, `radial_profile`, and the RecipesBase plot recipes.
 
-A matrix-level layer (`build_overlap_matrix`, `build_hamiltonian_matrix`, `solve_generalized_eigenproblem`) is `public` but not exported; it is used for hand-built bases, spin-dependent operators, and Rank-1/Rank-2 Gaussians.
+A matrix-level layer (`build_overlap_matrix`, `build_operator_matrix`, `build_hamiltonian_matrix`, `solve_generalized_eigenproblem`) is `public` but not exported; it is used for hand-built bases, spin-dependent operators, and Rank-1/Rank-2 Gaussians. `build_operator_matrix` evaluates every entry, including non-Hermitian permutation cycles.
 
 ### Source Files (src/)
 - **types.jl** — `GaussianBase` → `Rank0Gaussian`, `Rank1Gaussian`, `Rank2Gaussian`, `SpinGaussian`; `BasisSet`; operator types (`KineticOperator`, `CoulombOperator`, `GaussianOperator`, `OscillatorOperator`, `ManyBodyGaussianOperator`, `NumericalPotential`, `GaussianTensorOperator`, `GaussianSpinOrbitOperator`); `SpinState`
@@ -39,6 +39,8 @@ A matrix-level layer (`build_overlap_matrix`, `build_hamiltonian_matrix`, `solve
 - **coordinates.jl** — `jacobi_transform`, `Λ` (kinetic mass matrix)
 - **matrix_elements.jl** — analytic ⟨bra|op|ket⟩ formulas dispatched on Gaussian rank × operator type
 - **numerical_matrix_elements.jl** — `NumericalPotential` matrix elements via a 1-D radial QuadGK integral
+- **polarized_elements.jl** — Rank1/Rank2 and cross-rank elements for any operator, as shift derivatives of the Rank0 element (nested ForwardDiff)
+- **permutation_contact.jl** — spatial `PermutationOperator`, radial-operator × permutation products, and `ContactDensityOperator` for three-dimensional pair densities
 - **hamiltonian.jl** — physical terms (`Kinetic`, `Coulomb`, `Gaussian`, `ManyBodyGaussian`, `Oscillator`, `Custom`, `Tensor`, `SpinOrbit`), `Hamiltonian`, and their algebra; no Jacobi coordinates, so it can move to FewBodyHamiltonians unchanged
 - **jacobi_frame.jl** — `_to_jacobi(H)`: transform of a `Hamiltonian` to Jacobi-frame operators, masses and units
 - **linalg.jl** — overlap/Hamiltonian assembly, `solve_generalized_eigenproblem`, `default_scale`

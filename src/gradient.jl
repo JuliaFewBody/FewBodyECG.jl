@@ -1,5 +1,4 @@
 using OptimKit: optimize
-import ForwardDiff
 
 # ForwardDiff compiles the energy gradient once per chunk size, so a fixed
 # chunk lets every system reuse one compiled gradient.  Larger chunks are no

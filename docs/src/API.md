@@ -22,6 +22,8 @@ ManyBodyGaussianOperator
 NumericalPotential
 GaussianTensorOperator
 GaussianSpinOrbitOperator
+PermutationOperator
+ContactDensityOperator
 SpinProjection
 SpinState
 SpinGaussian
@@ -75,6 +77,7 @@ using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix,
 ```@docs
 FewBodyECG.build_hamiltonian_matrix
 FewBodyECG.build_overlap_matrix
+FewBodyECG.build_operator_matrix
 FewBodyECG.solve_generalized_eigenproblem
 FewBodyECG.Λ
 FewBodyECG.jacobi_transform

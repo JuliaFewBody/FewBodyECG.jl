@@ -92,8 +92,9 @@ function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::Kin
 end
 
 function _compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::KineticOperator)
+    # The closed form below assumes zero shifts.
     if any(!iszero, bra.s) || any(!iszero, ket.s)
-        throw(ArgumentError("Rank1 kinetic matrix elements currently require zero shifts"))
+        return _polarized_element((g, h) -> _compute_matrix_element(g, h, op), bra, ket)
     end
 
     A, B = bra.A, ket.A
@@ -118,8 +119,9 @@ function _compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::Kin
 end
 
 function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::KineticOperator)
+    # The closed form below assumes zero shifts.
     if any(!iszero, bra.s) || any(!iszero, ket.s)
-        throw(ArgumentError("Rank2 kinetic matrix elements currently require zero shifts"))
+        return _polarized_element((g, h) -> _compute_matrix_element(g, h, op), bra, ket)
     end
 
     A, B = bra.A, ket.A
@@ -231,18 +233,28 @@ function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::Cou
     # by ‖·‖_∞ divides 0 by 0), which would poison the AD gradients used by
     # the variational solvers.  q² is a plain sum of squares and stays finite.
     q2 = sum(abs2, qvec)
-    # Use the limiting form 2√(β/π) when the scaled argument x = √β·q is
-    # small so that erf(x)/q = √β·erf(x)/x → 2√(β/π) accurately.
-    # Thresholding on x² = β·q² (not q alone) correctly handles all β values,
-    # and keeps the small-q branch free of any sqrt of a vanishing quantity.
-    x2 = β * q2
-    f = x2 < 1.0e-14 ? (2 * sqrt(β / π)) : (erf(sqrt(x2)) / sqrt(q2))
+    # erf(√β q)/q = √β · erf(x)/x with x² = β q².
+    f = sqrt(β) * _erf_ratio_from_square(β * q2)
     return op.coefficient * f * M
 end
 
+# Maclaurin coefficients of erf(√x)/√x in x: (2/√π)(−1)ᵏ / (k!(2k+1)), k = 0…20.
+const _ERF_RATIO_SERIES = ntuple(k -> 2 / sqrt(π) * (-1)^(k - 1) / factorial(k - 1) / (2k - 1), 21)
+
+# erf(√x2)/√x2, evaluated from x2 = x².  Below x2 = 1 the power series is used:
+# it is smooth at x2 = 0, so every derivative with respect to the shifts stays
+# exact at zero shift, where the polarized elements are evaluated as shift
+# derivatives.  The truncation error there is below 1e-21.
+function _erf_ratio_from_square(x2)
+    x2 < 1 && return evalpoly(x2, _ERF_RATIO_SERIES)
+    x = sqrt(x2)
+    return erf(x) / x
+end
+
 function _compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::CoulombOperator)
+    # The closed form below assumes zero shifts.
     if any(!iszero, bra.s) || any(!iszero, ket.s)
-        throw(ArgumentError("Rank1 Coulomb matrix elements currently require zero shifts"))
+        return _polarized_element((g, h) -> _compute_matrix_element(g, h, op), bra, ket)
     end
 
     A, B, a, b, w = bra.A, ket.A, bra.a, ket.a, op.w
@@ -261,8 +273,9 @@ function _compute_matrix_element(bra::Rank1Gaussian, ket::Rank1Gaussian, op::Cou
 end
 
 function _compute_matrix_element(bra::Rank2Gaussian, ket::Rank2Gaussian, op::CoulombOperator)
+    # The closed form below assumes zero shifts.
     if any(!iszero, bra.s) || any(!iszero, ket.s)
-        throw(ArgumentError("Rank2 Coulomb matrix elements currently require zero shifts"))
+        return _polarized_element((g, h) -> _compute_matrix_element(g, h, op), bra, ket)
     end
 
     A, B = bra.A, ket.A
@@ -354,6 +367,14 @@ function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::Osc
     return op.coefficient * moment * M
 end
 
+# Spin operators act on SpinGaussian bases; plain and polarized Gaussians carry
+# no spin.  The polarized elements reach this method through their Rank0 element.
+function _compute_matrix_element(
+        ::Rank0Gaussian, ::Rank0Gaussian, op::Union{GaussianTensorOperator, GaussianSpinOrbitOperator}
+    )
+    throw(ArgumentError("$(nameof(typeof(op))) couples to particle spins; build the basis from SpinGaussian functions"))
+end
+
 # ── Spin-½ local matrix elements ─────────────────────────────────────────────
 # ⟨br|Sᶜ|kt⟩ for a single site; c ∈ (1,2,3) = (x,y,z), in units of ℏ.
 function _spin_element(c::Int, br::SpinProjection, kt::SpinProjection)
@@ -382,19 +403,29 @@ end
 
 _spin_overlap(bra::SpinState, ket::SpinState) = _spectator(bra, ket, ())
 
+_isospin_overlap(::Nothing, ::Nothing) = 1.0
+_isospin_overlap(bra::IsospinState, ket::IsospinState) = bra.projections == ket.projections ? 1.0 : 0.0
+_isospin_overlap(::Union{Nothing, IsospinState}, ::Union{Nothing, IsospinState}) =
+    throw(ArgumentError("both SpinGaussian functions must carry isospin or both omit it"))
+
 # Non-conjugating contraction Σₖ x[k] y[k].
 _cdot(x, y) = sum(x[k] * y[k] for k in eachindex(x))
 
 # Spin overlap and central operators factor through the spin overlap.
 _compute_matrix_element(bra::SpinGaussian, ket::SpinGaussian) =
-    _compute_matrix_element(bra.orbital, ket.orbital) * _spin_overlap(bra.spin, ket.spin)
+    _compute_matrix_element(bra.orbital, ket.orbital) * _spin_overlap(bra.spin, ket.spin) *
+    _isospin_overlap(bra.isospin, ket.isospin)
 
 _compute_matrix_element(bra::SpinGaussian, ket::SpinGaussian, op::FewBodyHamiltonians.Operator) =
-    _compute_matrix_element(bra.orbital, ket.orbital, op) * _spin_overlap(bra.spin, ket.spin)
+    _compute_matrix_element(bra.orbital, ket.orbital, op) * _spin_overlap(bra.spin, ket.spin) *
+    _isospin_overlap(bra.isospin, ket.isospin)
 
 function _compute_matrix_element(bra::SpinGaussian, ket::SpinGaussian, op::GaussianTensorOperator)
+    if !(bra.orbital isa Rank0Gaussian && ket.orbital isa Rank0Gaussian)
+        return _polarized_spin_element(bra, ket, op)
+    end
     i, j, w = op.i, op.j, op.w
-    spectator = _spectator(bra.spin, ket.spin, (i, j))
+    spectator = _spectator(bra.spin, ket.spin, (i, j)) * _isospin_overlap(bra.isospin, ket.isospin)
     spectator == 0 && return 0.0 + 0.0im
     data = _updated_rank0_data(bra.orbital, ket.orbital, op.γ * (op.w * op.w'))
     R, v, M = data.R, data.v, data.M
@@ -413,16 +444,23 @@ function _compute_matrix_element(bra::SpinGaussian, ket::SpinGaussian, op::Gauss
 end
 
 function _compute_matrix_element(bra::SpinGaussian, ket::SpinGaussian, op::GaussianSpinOrbitOperator)
+    if !(bra.orbital isa Rank0Gaussian && ket.orbital isa Rank0Gaussian)
+        return _polarized_spin_element(bra, ket, op)
+    end
+    isospin = _isospin_overlap(bra.isospin, ket.isospin)
     i, j, w = op.i, op.j, op.w
     data = _updated_rank0_data(bra.orbital, ket.orbital, op.γ * (op.w * op.w'))
-    R, M = data.R, data.M
-    left = vec(w' * R * parent(bra.orbital.s))    # 3-vector from bra shift
-    right = vec(w' * R * parent(ket.orbital.s))   # 3-vector from ket shift
-    Lvec = -im .* cross(left, right) .* (M / 4)   # complex orbital 3-vector
+    R, v, M = data.R, data.v, data.M
+    u = w / norm(w)
+    mean = R * v / 2
+    coordinate = vec(u' * mean)
+    gradient = vec(u' * (ket.orbital.s - 2 * ket.orbital.A * mean))
+    # Covariances have equal Cartesian indices and vanish in the cross product.
+    Lvec = -im .* cross(coordinate, gradient) .* M
     spec_i = _spectator(bra.spin, ket.spin, (i,))
     spec_j = _spectator(bra.spin, ket.spin, (j,))
     Si = _spin_vec(bra.spin.projections[i], ket.spin.projections[i])
     Sj = _spin_vec(bra.spin.projections[j], ket.spin.projections[j])
     Sfull = spec_i .* Si .+ spec_j .* Sj          # ⟨Sᵢ + Sⱼ⟩ (3-vector)
-    return op.coefficient * _cdot(Lvec, Sfull)
+    return op.coefficient * _cdot(Lvec, Sfull) * isospin
 end

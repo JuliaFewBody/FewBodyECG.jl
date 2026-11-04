@@ -6,7 +6,7 @@ using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generali
 # Model spin-orbit doublet: two spin-½ particles in a p-wave-like manifold of
 # shifted Gaussians bound by a central well.  A GaussianSpinOrbitOperator makes
 # the Hamiltonian complex Hermitian and splits the degenerate upper doublet
-# linearly in the coupling strength.  Exercises the complex generalized
+# linearly at weak coupling. Exercises the complex generalized
 # eigensolver end-to-end.
 @testset "Spin-orbit doublet (complex Hermitian)" begin
     ops = Kinetic([1.0, 1.0]) - 4.0 * Gaussian(1, 2; exponent = 0.4)
@@ -40,10 +40,10 @@ using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generali
         Es[3] - Es[2]
     end
 
-    # degenerate at λ = 0, splits, and the gap is linear in λ
+    # The shifted basis mixes angular momenta; linear splitting is perturbative.
     @test gap(0.0) < 1.0e-8
-    g1 = gap(1.0)
-    g2 = gap(2.0)
+    g1 = gap(0.1)
+    g2 = gap(0.2)
     @test g1 > 1.0e-3
     @test g2 ≈ 2 * g1 rtol = 1.0e-3               # linear splitting
 

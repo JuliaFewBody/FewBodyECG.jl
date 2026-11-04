@@ -21,6 +21,23 @@ function build_overlap_matrix(basis::BasisSet{<:GaussianBase})
     return S
 end
 
+"""
+    FewBodyECG.build_operator_matrix(basis, op)
+
+Return the matrix of a Jacobi-frame operator over `basis`, with entries
+`⟨gᵢ|op|gⱼ⟩`. Every entry is evaluated independently, so non-Hermitian
+operators such as permutation cycles keep their full matrix. For coefficients
+`c`, the normalized expectation is `dot(c, M * c) / dot(c, S * c)` with
+`M = build_operator_matrix(basis, op)` and `S = build_overlap_matrix(basis)`.
+"""
+function build_operator_matrix(basis::BasisSet{<:GaussianBase}, op::FewBodyHamiltonians.Operator)
+    isempty(basis.functions) && throw(ArgumentError("basis must be nonempty"))
+    return [_compute_matrix_element(bra, ket, op) for bra in basis, ket in basis]
+end
+
+_build_operator_matrix(basis::BasisSet{<:GaussianBase}, op::Union{PermutationOperator, _PermutedOperator}) =
+    build_operator_matrix(basis, op)
+
 function _build_operator_matrix(basis::BasisSet{<:GaussianBase}, op::FewBodyHamiltonians.Operator)
     n = length(basis.functions)
     v11 = _compute_matrix_element(basis.functions[1], basis.functions[1], op)

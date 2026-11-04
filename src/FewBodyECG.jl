@@ -4,6 +4,7 @@ using LinearAlgebra: Diagonal, Hermitian, I, Symmetric, UpperTriangular,
     cholesky, cond, cross, det, diag, dot, eigen, eigmin, isposdef, issymmetric,
     norm, opnorm, pinv, tr
 import FewBodyHamiltonians
+import ForwardDiff
 
 """
     Operator
@@ -21,6 +22,8 @@ export Operator, UnitSystem,
     KineticOperator, CoulombOperator, GaussianOperator,
     OscillatorOperator, ManyBodyGaussianOperator, NumericalPotential,
     GaussianTensorOperator, GaussianSpinOrbitOperator,
+    PermutationOperator, ContactDensityOperator,
+    SpinExchangeOperator, IsospinExchangeOperator, IsospinProjection, IsospinState,
     SpinProjection, SpinState, SpinGaussian,
     GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet
 # solving
@@ -31,9 +34,9 @@ export Solution, ConvergenceReport, StageResult, converged, energy, energy_histo
 export wavefunction, Wavefunction, convergence, radial_profile
 # matrix-level layer and generic names: documented and supported, reached via
 # `FewBodyECG.name` or `using FewBodyECG: name`
-public build_hamiltonian_matrix, build_overlap_matrix,
+public build_hamiltonian_matrix, build_overlap_matrix, build_operator_matrix,
     solve_generalized_eigenproblem, Λ, jacobi_transform, default_scale,
-    coulomb_weights, up, down
+    coulomb_weights, up, down, proton, neutron
 
 include("types.jl")
 include("units.jl")
@@ -41,6 +44,9 @@ include("hamiltonian.jl")
 include("coordinates.jl")
 include("matrix_elements.jl")
 include("numerical_matrix_elements.jl")
+include("polarized_elements.jl")
+include("permutation_contact.jl")
+include("spin_exchange.jl")
 include("jacobi_frame.jl")
 include("linalg.jl")
 include("eigen.jl")

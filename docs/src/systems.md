@@ -132,6 +132,71 @@ nothing # hide
 Raw operators and physical terms do not mix in one sum, because a raw operator
 is tied to the Jacobi coordinates of particular masses.
 
+### Permutations and pair densities
+
+[`PermutationOperator`](@ref) and [`ContactDensityOperator`](@ref) work with
+hand-built Rank0, Rank1, Rank2 and mixed-rank bases. Only their shifted Rank0
+elements are needed: the polarized elements are their shift derivatives,
+following Suzuki and Varga, Table 7.1 and Appendix A.3, Eq. (A.44)
+[suzuki2002stochastic](@cite).
+
+A spatial permutation acts as `(Pψ)(r) = ψ(r[p, :])` in particle coordinates.
+For two identical particles, `(1 ± P)/2` project onto even and odd spatial
+states. Build the corresponding overlap matrices as follows:
+
+```@example systems
+using FewBodyECG: build_operator_matrix, build_overlap_matrix
+using LinearAlgebra: dot
+
+masses = [1.0, 1.0]
+basis = BasisSet(GaussianBase[
+    Rank0Gaussian([0.8;;], [0.0]),
+    Rank1Gaussian([0.8;;], [1.0], [0.0]),
+])
+P = PermutationOperator(masses, [2, 1])
+S = build_overlap_matrix(basis)
+MP = build_operator_matrix(basis, P)
+S_even, S_odd = (S + MP) / 2, (S - MP) / 2
+nothing # hide
+```
+
+Projection can remove basis functions entirely, so discard null directions
+before solving a projected generalized eigenproblem. These permutations act
+only on the spatial wavefunction; the required total particle symmetry also
+depends on spin and isospin. Permutations with cycles longer than two need not
+be Hermitian; `build_operator_matrix` evaluates every entry independently.
+
+To add a radial potential times spatial exchange, such as a Majorana term,
+multiply a spin-independent Jacobi-frame operator by the permutation on its right:
+
+```@example systems
+_, U = FewBodyECG.jacobi_transform(masses)
+w = U' * [1.0, -1.0]
+V = GaussianOperator(-4.0, 0.5, w)
+V_exchange = V * P
+M_exchange = build_operator_matrix(basis, V_exchange)
+nothing # hide
+```
+
+The contact operator is the three-dimensional delta
+``\delta^3(\mathbf{r}_i - \mathbf{r}_j - \mathbf{r})``. Its normalized
+expectation is a density per unit volume, which can be evaluated at contact
+or at any displacement:
+
+```@example systems
+c = [1.0, 0.0]
+D = build_operator_matrix(basis, ContactDensityOperator(w))
+contact = dot(c, D * c) / dot(c, S * c)
+
+D_r = build_operator_matrix(basis, ContactDensityOperator(w, [0.0, 0.0, 0.5]))
+pair_density = dot(c, D_r * c) / dot(c, S * c)
+```
+
+Integrating this spatial density over all displacements gives one. A radial
+pair distribution requires integrating over directions; multiplying one
+direction by ``4\pi r^2`` gives that distribution only for an isotropic state.
+Direct ECG delta expectations can converge more slowly than energies.
+
 ## Spin
 
 Spin-dependent forces act on basis functions that carry a spin state: a

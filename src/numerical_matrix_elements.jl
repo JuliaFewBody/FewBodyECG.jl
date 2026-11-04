@@ -1,25 +1,25 @@
 using QuadGK: quadgk
 
-# sinh(x) / x evaluated from x².  The squared argument avoids taking a norm of
-# the three-dimensional displacement, which is singular at zero for dual
-# numbers used by the variational gradients.
-function _sinhc_from_square(x2)
-    if x2 < 1.0e-8
-        return 1 + x2 / 6 + x2^2 / 120
-    end
-    x = sqrt(x2)
-    return sinh(x) / x
-end
+# Maclaurin coefficients of sinh(√x)/√x in x: 1/(2k+1)!, k = 0…9.
+const _SINHC_SERIES = ntuple(k -> 1 / factorial(2k - 1), 10)
 
-function _numerical_radial_density(r, β, μ2)
-    if iszero(μ2)
-        return 4 * β^(3 / 2) / sqrt(π) * r^2 * exp(-β * r^2)
-    end
-
+# exp(−β(r² + μ²)) · sinh(x)/x with x = 2βrμ, taking μ² rather than μ: the norm
+# of the three-dimensional mean displacement is singular at zero for dual
+# numbers.  Below x² = 1 the power series in x² is used; it is smooth at μ² = 0,
+# so derivatives with respect to the shifts stay exact at zero shift.  Above it
+# the product is evaluated as a difference of two Gaussians, because sinh(x)
+# overflows while exp(−β(r² + μ²)) underflows at the large r that the
+# quadrature samples.
+function _shifted_radial_kernel(r, β, μ2)
     x2 = 4 * β^2 * r^2 * μ2
-    return 4π * (β / π)^(3 / 2) * r^2 *
-        exp(-β * (r^2 + μ2)) * _sinhc_from_square(x2)
+    x2 < 1 && return exp(-β * (r^2 + μ2)) * evalpoly(x2, _SINHC_SERIES)
+    μ = sqrt(μ2)
+    return (exp(-β * (r - μ)^2) - exp(-β * (r + μ)^2)) / (4 * β * r * μ)
 end
+
+# Radial density of |wᵀr| for an isotropic 3D Gaussian with inverse variance 2β
+# per Cartesian component and squared mean μ².
+_numerical_radial_density(r, β, μ2) = 4π * (β / π)^(3 / 2) * r^2 * _shifted_radial_kernel(r, β, μ2)
 
 function _compute_matrix_element(
         bra::Rank0Gaussian,
