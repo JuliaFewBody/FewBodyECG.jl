@@ -23,6 +23,7 @@ export Operator, UnitSystem,
     OscillatorOperator, ManyBodyGaussianOperator, NumericalPotential,
     GaussianTensorOperator, GaussianSpinOrbitOperator,
     PermutationOperator, ContactDensityOperator,
+    DipoleOperator, QuadrupoleOperator,
     SpinExchangeOperator, IsospinExchangeOperator, IsospinProjection, IsospinState,
     SpinProjection, SpinState, SpinGaussian,
     GaussianBase, Rank0Gaussian, Rank1Gaussian, Rank2Gaussian, BasisSet
@@ -47,6 +48,7 @@ include("numerical_matrix_elements.jl")
 include("polarized_elements.jl")
 include("permutation_contact.jl")
 include("spin_exchange.jl")
+include("multipoles.jl")
 include("jacobi_frame.jl")
 include("linalg.jl")
 include("eigen.jl")

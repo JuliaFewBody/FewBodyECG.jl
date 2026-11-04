@@ -23,6 +23,7 @@ using FewBodyECG
     include("test_polarized_elements.jl")
     include("test_permutation_contact.jl")
     include("test_spin_isospin.jl")
+    include("test_multipoles.jl")
     include("test_hamiltonian.jl")
     include("test_svm_eigen.jl")
     include("test_hydrogen.jl")

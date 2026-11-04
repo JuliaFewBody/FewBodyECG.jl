@@ -19,6 +19,9 @@ _polarizations(g::Rank2Gaussian) = (g.a, g.b)
 # operators and rank pairs.  A higher tag nests outside a lower one.
 struct _ShiftTag{K} end
 ForwardDiff.:≺(::Type{_ShiftTag{I}}, ::Type{_ShiftTag{J}}) where {I, J} = I < J
+# Shift differentiation is inside any user derivative of widths or shifts.
+ForwardDiff.:≺(::Type{<:ForwardDiff.Tag}, ::Type{<:_ShiftTag}) = true
+ForwardDiff.:≺(::Type{<:_ShiftTag}, ::Type{<:ForwardDiff.Tag}) = false
 
 # ∂ⁿf/∂ε₁⋯∂εₙ at ε = x0 for f taking an n-tuple of scalars: seed
 # εₖ = x0 + 1·dεₖ and read off the coefficient of dε₁⋯dεₙ.  The tag-aware
