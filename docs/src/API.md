@@ -23,7 +23,18 @@ NumericalPotential
 GaussianTensorOperator
 GaussianSpinOrbitOperator
 PermutationOperator
+PermutationSymmetry
+ProjectedGaussian
 ContactDensityOperator
+DipoleOperator
+QuadrupoleOperator
+MomentumFourthOperator
+MassVelocityOperator
+OrbitOrbitOperator
+SpinExchangeOperator
+IsospinExchangeOperator
+IsospinProjection
+IsospinState
 SpinProjection
 SpinState
 SpinGaussian
@@ -85,4 +96,6 @@ FewBodyECG.default_scale
 FewBodyECG.coulomb_weights
 FewBodyECG.up
 FewBodyECG.down
+FewBodyECG.proton
+FewBodyECG.neutron
 ```
