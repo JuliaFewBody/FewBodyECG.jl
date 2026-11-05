@@ -239,7 +239,7 @@ function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::Cou
 end
 
 # Maclaurin coefficients of erf(√x)/√x in x: (2/√π)(−1)ᵏ / (k!(2k+1)), k = 0…20.
-const _ERF_RATIO_SERIES = ntuple(k -> 2 / sqrt(π) * (-1)^(k - 1) / factorial(k - 1) / (2k - 1), 21)
+const _ERF_RATIO_SERIES = ntuple(k -> 2 / sqrt(π) * (-1)^(k - 1) / factorial(k - 1) / (2k - 1), 21) # COV_EXCL_LINE: precomputed during precompilation
 
 # erf(√x2)/√x2, evaluated from x2 = x².  Below x2 = 1 the power series is used:
 # it is smooth at x2 = 0, so every derivative with respect to the shifts stays
@@ -403,7 +403,7 @@ end
 
 _spin_overlap(bra::SpinState, ket::SpinState) = _spectator(bra, ket, ())
 
-_isospin_overlap(::Nothing, ::Nothing) = 1.0
+_isospin_overlap(::Nothing, ::Nothing) = 1.0 # COV_EXCL_LINE: constant-folded
 _isospin_overlap(bra::IsospinState, ket::IsospinState) = bra.projections == ket.projections ? 1.0 : 0.0
 _isospin_overlap(::Union{Nothing, IsospinState}, ::Union{Nothing, IsospinState}) =
     throw(ArgumentError("both SpinGaussian functions must carry isospin or both omit it"))

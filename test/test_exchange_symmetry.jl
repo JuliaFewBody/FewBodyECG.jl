@@ -56,7 +56,13 @@ import FewBodyECG: _compute_matrix_element
         P = PermutationOperator(masses, [1, 3, 2])
         transformed(g::Rank0Gaussian) = Rank0Gaussian(P.T' * g.A * P.T, P.T' * g.s)
         transformed(g::Rank1Gaussian) = Rank1Gaussian(P.T' * g.A * P.T, P.T' * g.a, P.T' * g.s)
+        overlap = (_compute_matrix_element(g, h) + _compute_matrix_element(transformed(g), h)) / 2
+        @test _compute_matrix_element(Pg, h) ≈ overlap
+        @test _compute_matrix_element(h, Pg) ≈ overlap
         for op in (DipoleOperator([0.7, -0.4]), ContactDensityOperator([0.3, 1.0]), GaussianOperator(1.2, 0.6, [1.0, 0.2]))
+            single = (_compute_matrix_element(g, h, op) + _compute_matrix_element(transformed(g), h, op)) / 2
+            @test build_operator_matrix(BasisSet([Pg]), BasisSet([h]), op)[1, 1] ≈ single
+            @test build_operator_matrix(BasisSet([h]), BasisSet([Pg]), op)[1, 1] ≈ single
             reference = sum(sign * _compute_matrix_element(a, b, op) for a in (g, transformed(g)) for (b, sign) in ((h, 1), (transformed(h), -1))) / 4
             @test _compute_matrix_element(Pg, Ph, op) ≈ reference atol = 1.0e-12
             @test build_operator_matrix(BasisSet([Pg]), BasisSet([Ph]), op)[1, 1] ≈ reference atol = 1.0e-12
@@ -65,9 +71,15 @@ import FewBodyECG: _compute_matrix_element
         noninvariant = Operator[KineticOperator(masses), GaussianOperator(-0.7, 0.4, [1.0, 0.2])]
         @test !FewBodyECG._hamiltonian_invariant(noninvariant, even)
         @test build_hamiltonian_matrix(basis, noninvariant) ≈ sum(build_operator_matrix(basis, op) for op in noninvariant)
+        cached = FewBodyECG.BasisState(copy(basis.functions), noninvariant)
+        @test cached.H ≈ build_hamiltonian_matrix(basis, noninvariant)
         H = Kinetic(masses) + Coulomb([1.0, -1.0, -1.0])
         ops = first(FewBodyECG._to_jacobi(H))
         @test FewBodyECG._hamiltonian_invariant(ops, even)
+        @test FewBodyECG._hamiltonian_invariant(ops[[2, 1, 3, 4]], even)
+        @test !FewBodyECG._hamiltonian_invariant(ops[[2, 1, 4]], even)
+        @test !FewBodyECG._hamiltonian_invariant(Operator[], even)
+        @test !FewBodyECG._hamiltonian_invariant(ops, nothing)
         @test build_hamiltonian_matrix(basis, H) ≈ sum(build_operator_matrix(basis, op) for op in ops) rtol = 1.0e-12
     end
 

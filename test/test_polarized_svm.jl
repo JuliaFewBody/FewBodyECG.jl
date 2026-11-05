@@ -53,6 +53,8 @@ using FewBodyECG: BasisState, _draw_candidate!, _candidate_columns, commit!,
         @test_throws ArgumentError solve(H, SVM(1; rank = 0); init = grown)
         @test_throws ArgumentError solve(H, SVM(1; rank = 1); init = solve(H, SVM(2; scale = 1.0)))
         @test_throws ArgumentError solve(H, SVM(2; rank = 2))
+        mixed = BasisSet(GaussianBase[Rank0Gaussian([1.0;;], zeros(1)), Rank1Gaussian([1.0;;], [1.0], zeros(1))])
+        @test_throws ArgumentError FewBodyECG.BasisState(mixed.functions, first(FewBodyECG._to_jacobi(H)))
         @test_throws ArgumentError solve(H, GVM(); init = grown)
         @test_throws ArgumentError solve(H, DynamicGVM(12); init = grown)
     end

@@ -139,7 +139,7 @@ _conjugated_operator(op::CoulombOperator{Float64}, T) = CoulombOperator(op.coeff
 _conjugated_operator(op::GaussianOperator{Float64}, T) = GaussianOperator(op.coefficient, op.γ, T' * op.w)
 _conjugated_operator(op::OscillatorOperator{Float64}, T) = OscillatorOperator(op.coefficient, T' * op.w)
 
-_same_operator(::Any, ::Any) = false
+_same_operator(::Any, ::Any) = false # COV_EXCL_LINE: constant-folded
 _same_operator(a::KineticOperator, b::KineticOperator) = _symmetry_close(a.K, b.K)
 _same_operator(a::CoulombOperator, b::CoulombOperator) =
     _symmetry_close(a.coefficient, b.coefficient) && _symmetry_close(a.w * a.w', b.w * b.w')
@@ -148,7 +148,7 @@ _same_operator(a::GaussianOperator, b::GaussianOperator) =
 _same_operator(a::OscillatorOperator, b::OscillatorOperator) =
     _symmetry_close(a.coefficient * a.w * a.w', b.coefficient * b.w * b.w')
 
-_hamiltonian_invariant(operators, ::Nothing) = false
+_hamiltonian_invariant(operators, ::Nothing) = false # COV_EXCL_LINE: constant-folded
 function _hamiltonian_invariant(operators, symmetry::PermutationSymmetry)
     ops = collect(operators)
     isempty(ops) && return false

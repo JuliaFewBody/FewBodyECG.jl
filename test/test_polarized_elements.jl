@@ -139,6 +139,15 @@ end
     @test _compute_matrix_element(hi, gi) ≈ _compute_matrix_element(hf, gf) rtol = 1.0e-12
 end
 
+@testset "Operator derivatives compose with polarized shift derivatives" begin
+    bra = Rank2Gaussian([0.7;;], [1.0 0 0], [0.0 1 0], [0.0])
+    ket = Rank1Gaussian([0.8;;], [1.0], [0.2])
+    r = [0.3, -0.4, 0.5]
+    contact(c) = _compute_matrix_element(bra, ket, ContactDensityOperator([1.0], r; coefficient = c))
+    expected = prod(r) * exp(-1.5 * sum(abs2, r) + 0.2r[3])
+    @test ForwardDiff.derivative(contact, 0.0) ≈ expected rtol = 1.0e-12
+end
+
 @testset "Generic operators reproduce the closed-form Rank1/Rank2 kinetic and Coulomb elements" begin
     rng = Xoshiro(RNG_SEED + 2)
     for n in (1, 2, 3), rank in (1, 2), _ in 1:3

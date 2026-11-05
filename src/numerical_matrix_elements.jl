@@ -1,7 +1,7 @@
 using QuadGK: quadgk
 
 # Maclaurin coefficients of sinh(√x)/√x in x: 1/(2k+1)!, k = 0…9.
-const _SINHC_SERIES = ntuple(k -> 1 / factorial(2k - 1), 10)
+const _SINHC_SERIES = ntuple(k -> 1 / factorial(2k - 1), 10) # COV_EXCL_LINE: precomputed during precompilation
 
 # exp(−β(r² + μ²)) · sinh(x)/x with x = 2βrμ, taking μ² rather than μ: the norm
 # of the three-dimensional mean displacement is singular at zero for dual

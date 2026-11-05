@@ -20,8 +20,8 @@ _polarizations(g::Rank2Gaussian) = (g.a, g.b)
 struct _ShiftTag{K} end
 ForwardDiff.:≺(::Type{_ShiftTag{I}}, ::Type{_ShiftTag{J}}) where {I, J} = I < J
 # Shift differentiation is inside any user derivative of widths or shifts.
-ForwardDiff.:≺(::Type{<:ForwardDiff.Tag}, ::Type{<:_ShiftTag}) = true
-ForwardDiff.:≺(::Type{<:_ShiftTag}, ::Type{<:ForwardDiff.Tag}) = false
+ForwardDiff.:≺(::Type{<:ForwardDiff.Tag}, ::Type{<:_ShiftTag}) = true # COV_EXCL_LINE: constant-folded
+ForwardDiff.:≺(::Type{<:_ShiftTag}, ::Type{<:ForwardDiff.Tag}) = false # COV_EXCL_LINE: constant-folded
 
 # ∂ⁿf/∂ε₁⋯∂εₙ at ε = x0 for f taking an n-tuple of scalars: seed
 # εₖ = x0 + 1·dεₖ and read off the coefficient of dε₁⋯dεₙ.  The tag-aware

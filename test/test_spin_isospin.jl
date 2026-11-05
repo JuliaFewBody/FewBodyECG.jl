@@ -192,6 +192,7 @@ using FewBodyECG: up, down, build_overlap_matrix, build_operator_matrix, build_h
 
     @testset "Validation and backward compatibility" begin
         p, n = FewBodyECG.proton, FewBodyECG.neutron
+        @test_throws ArgumentError IsospinProjection(0)
         g = Rank0Gaussian([1.0;;], [0.0])
         s = SpinState([up, down])
         old = SpinGaussian(g, s)

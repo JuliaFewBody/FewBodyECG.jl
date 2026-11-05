@@ -122,11 +122,13 @@ _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::MassVelocity
 
 # E[|r|] = h(β|μ|²)/√β for an isotropic density (β/π)^(3/2)exp(-β|r-μ|²).
 # Polynomial derivatives avoid removable singularities under nested shift AD.
+# COV_EXCL_START: precomputed during precompilation
 const _DISTANCE_SERIES = ntuple(21) do j
     j == 1 ? 2 / sqrt(π) : 2 / sqrt(π) * (-1)^(j - 2) / factorial(j - 1) / (2j - 3) / (2j - 1)
 end
 const _DISTANCE_FIRST = ntuple(j -> j * _DISTANCE_SERIES[j + 1], 20)
 const _DISTANCE_SECOND = ntuple(j -> j * (j + 1) * _DISTANCE_SERIES[j + 2], 19)
+# COV_EXCL_STOP
 
 function _distance_moments(z)
     if z < 1
