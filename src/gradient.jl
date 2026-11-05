@@ -132,16 +132,17 @@ end
 
 function _require_gradient_basis(init)
     init === nothing || all(g -> g isa Rank0Gaussian, init.basis) ||
-        throw(ArgumentError("gradient methods require Rank0Gaussian functions; use SVM or Refine for Rank1 bases"))
+        throw(ArgumentError("gradient methods require unprojected Rank0Gaussian functions; use SVM or Refine for projected or Rank1 bases"))
     return nothing
 end
 
 function _solve(
         terms, masses, alg::GVM;
         state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false,
-        units, hamiltonian = nothing
+        units, hamiltonian = nothing, symmetry = nothing
     )
-    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian)
+    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian, symmetry)
+    ctx.symmetry === nothing || throw(ArgumentError("symmetry projection is supported by SVM and Refine"))
     _require_gradient_basis(init)
     n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)
     n_chol = n_dim * (n_dim + 1) ÷ 2
@@ -211,9 +212,10 @@ end
 function _solve(
         terms, masses, alg::DynamicGVM;
         state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false,
-        units, hamiltonian = nothing
+        units, hamiltonian = nothing, symmetry = nothing
     )
-    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian)
+    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian, symmetry)
+    ctx.symmetry === nothing || throw(ArgumentError("symmetry projection is supported by SVM and Refine"))
     _require_gradient_basis(init)
     scale, scale_note = _solve_scale(alg.scale, ctx, init)
     n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)

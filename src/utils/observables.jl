@@ -20,7 +20,7 @@ function radial_profile(
         coord::Int = 1, direction = (0, 0, 1), rmax::Real = 10.0, npoints::Int = 400,
         normalize::Bool = true
     )
-    d = size(first(ψ.basis.functions).A, 1)
+    d = _gaussian_dimension(first(ψ.basis.functions))
     1 ≤ coord ≤ d || throw(ArgumentError("coord must be in 1:$d"))
     length(direction) == 3 ||
         throw(ArgumentError("direction must have 3 Cartesian components, got $(length(direction))"))

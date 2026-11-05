@@ -10,6 +10,8 @@ struct _SolveCtx
     d::Int
     units::UnitSystem
     hamiltonian::Union{Nothing, Hamiltonian}
+    symmetry::Union{Nothing, PermutationSymmetry}
+    invariant::Bool
 end
 
 _pairwise_weights(terms) = Vector{Float64}[
@@ -17,7 +19,7 @@ _pairwise_weights(terms) = Vector{Float64}[
         if op isa Union{CoulombOperator, GaussianOperator, OscillatorOperator, NumericalPotential}
 ]
 
-function _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian = nothing)
+function _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian = nothing, symmetry::Union{Nothing, PermutationSymmetry} = nothing)
     state ≥ 1 || throw(ArgumentError("state must be ≥ 1, got $state"))
     units = _unitsystem(units)
     init === nothing || init.units == units || throw(
@@ -39,15 +41,26 @@ function _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltoni
                 "to define the candidate geometry"
         )
     )
+    if init !== nothing
+        inherited = _basis_symmetry(init.basis)
+        symmetry === nothing && (symmetry = inherited)
+        symmetry == inherited || throw(ArgumentError("initial basis has a different exchange symmetry"))
+    end
+    if symmetry !== nothing
+        length(symmetry.masses) - 1 == length(first(w_list)) || throw(DimensionMismatch("symmetry and Hamiltonian must use the same Jacobi dimension"))
+        masses === nothing || symmetry.masses == masses || throw(ArgumentError("symmetry and Hamiltonian must use the same particle masses"))
+    end
     return _SolveCtx(
         collect(FewBodyHamiltonians.Operator, terms), masses,
-        state, float(tol), window, verbose, w_list, length(w_list[1]), units, hamiltonian
+        state, float(tol), window, verbose, w_list, length(w_list[1]), units, hamiltonian,
+        symmetry, _hamiltonian_invariant(terms, symmetry)
     )
 end
 
 """
     solve(H::Hamiltonian, alg::SolverMethod = SVM();
-          state = 1, tol = 1e-4, window = 20, init = nothing, verbose = false)
+          state = 1, tol = 1e-4, window = 20, init = nothing, verbose = false,
+          symmetry = nothing)
     solve(terms::Vector{<:Operator}, alg::SolverMethod = SVM();
           units = :atomic, kw...)
 
@@ -63,6 +76,11 @@ Hamiltonian takes its [`UnitSystem`](@ref) from its [`Kinetic`](@ref) term; a
 raw operator vector takes it from the `units` keyword. Spin-dependent terms
 ([`Tensor`](@ref), [`SpinOrbit`](@ref)) need a [`SpinGaussian`](@ref) basis
 and are assembled with `FewBodyECG.build_hamiltonian_matrix` instead.
+
+`symmetry` is a [`PermutationSymmetry`](@ref), imposed on candidates, adaptive
+pilots, and returned wavefunctions by `SVM`/`Refine`. It is inherited from
+`init` when omitted; warm starts cannot change sectors. Gradient methods
+currently require an unprojected Rank0 basis.
 
 Returns a [`Solution`](@ref) carrying energies, the basis, S-orthonormal
 coefficients, and an honest [`ConvergenceReport`](@ref).
@@ -136,7 +154,7 @@ function _adaptive_scale(ctx::_SolveCtx, init; rank = 0)
             ctx.terms, ctx.masses,
             SVM(; basis = _PILOT_BASIS, rank, candidates = _PILOT_CANDIDATES, scale = center, widths = :wide);
             state = ctx.state, tol = ctx.tol, window = ctx.window, init = nothing,
-            verbose = false, units = ctx.units
+            verbose = false, units = ctx.units, symmetry = ctx.symmetry
         )
         r = _rms_pair_max(pilot, ctx.masses)
         isfinite(r) && r > 0 || throw(
@@ -172,7 +190,7 @@ function step!(st::BasisState, alg::SVM, ctx::_SolveCtx, scale::Float64)
     bestcols = nothing
     for _ in 1:alg.candidates
         cand = _draw_candidate!(st, scale, alg.sampler, alg.widths, ctx.w_list, ctx.d)
-        cols = _candidate_columns(cand, st.basis, ctx.terms)
+        cols = _candidate_columns(cand, st.basis, ctx.terms, ctx.invariant)
         cols === nothing && continue
         E = score_candidate(
             st.eig, cols...;
@@ -213,6 +231,7 @@ function _require_available_state(state::Int, nstates::Int)
 end
 
 function _solution(st::BasisState, ctx::_SolveCtx, stages::Vector{StageResult})
+    nfuns(st) == 0 && ctx.symmetry !== nothing && throw(ArgumentError("no admissible projected candidates; check rank and exchange signs"))
     nfuns(st) > 0 || error("solver produced no basis functions")
     state = _require_available_state(ctx.state, length(st.eig.ε))
     return Solution(
@@ -225,14 +244,15 @@ end
 function _solve(
         terms, masses, alg::SVM;
         state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false,
-        units, hamiltonian = nothing
+        units, hamiltonian = nothing, symmetry = nothing
     )
-    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian)
+    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian, symmetry)
     init_rank = init === nothing ? 0 : _stochastic_rank(init.basis)
     rank = something(alg.rank, init_rank)
     rank in (0, 1) || throw(ArgumentError("SVM rank must be 0 or 1"))
     init === nothing || rank == init_rank || throw(ArgumentError("SVM rank=$rank does not match the rank-$init_rank initial basis"))
-    st = init === nothing ? BasisState(rank == 0 ? Rank0Gaussian : Rank1Gaussian) : _solution_basis_state(init, ctx.terms)
+    G = ctx.symmetry === nothing ? (rank == 0 ? Rank0Gaussian : Rank1Gaussian) : ProjectedGaussian
+    st = init === nothing ? BasisState(G; rank, symmetry = ctx.symmetry) : _solution_basis_state(init, ctx.terms)
     scale, scale_note = _solve_scale(alg.scale, ctx, init; rank)
     n₀ = length(st.E_hist)
     n₀_funs = nfuns(st)
@@ -283,7 +303,7 @@ function step!(st::BasisState, alg::Refine, ctx::_SolveCtx, scale::Float64)
         replaced = false
         for _ in 1:alg.candidates
             cand = _draw_candidate!(base, scale, alg.sampler, alg.widths, ctx.w_list, ctx.d)
-            cols = _candidate_columns(cand, base.basis, ctx.terms)
+            cols = _candidate_columns(cand, base.basis, ctx.terms, ctx.invariant)
             cols === nothing && continue
             E = score_candidate(
                 base.eig, cols...;
@@ -306,12 +326,12 @@ end
 function _solve(
         terms, masses, alg::Refine;
         state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false,
-        units, hamiltonian = nothing
+        units, hamiltonian = nothing, symmetry = nothing
     )
     init === nothing && throw(
         ArgumentError("Refine requires an existing basis: pass init = sol or use a pipeline")
     )
-    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian)
+    ctx = _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian, symmetry)
     st = _solution_basis_state(init, ctx.terms)
     scale, scale_note = _solve_scale(alg.scale, ctx, init)
     sweep_hist = Float64[]
@@ -339,13 +359,13 @@ end
 function _solve(
         terms, masses, p::Pipeline;
         state = 1, tol = 1.0e-4, window = 20, init = nothing, verbose = false,
-        units, hamiltonian = nothing
+        units, hamiltonian = nothing, symmetry = nothing
     )
     isempty(p.stages) && throw(ArgumentError("empty pipeline"))
     stages = StageResult[]
     sol = init
     for alg in p.stages
-        sol = _solve(terms, masses, alg; state, tol, window, init = sol, verbose, units, hamiltonian)
+        sol = _solve(terms, masses, alg; state, tol, window, init = sol, verbose, units, hamiltonian, symmetry)
         append!(stages, sol.stages)
     end
     return Solution(
