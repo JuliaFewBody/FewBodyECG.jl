@@ -1,6 +1,6 @@
 module FewBodyECG
 
-using LinearAlgebra: Diagonal, Hermitian, I, Symmetric, UpperTriangular,
+using LinearAlgebra: Diagonal, Hermitian, I, RowMaximum, Symmetric, UpperTriangular,
     cholesky, cond, cross, det, diag, dot, eigen, eigmin, isposdef, issymmetric,
     norm, opnorm, pinv, tr
 import FewBodyHamiltonians

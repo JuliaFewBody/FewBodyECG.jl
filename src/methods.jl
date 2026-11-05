@@ -38,7 +38,7 @@ incremental whitened eigensolver; the best admissible one is committed.
 Gaussians with a sampled global vector along the z axis (L=1, M=0).
 When omitted, the rank is inherited from `init`, or is 0 on a cold start.
 Adaptive pilot runs use the same rank. [`Refine`](@ref) preserves the rank;
-gradient methods currently support Rank0 only.
+gradient methods preserve the rank and exchange symmetry of a warm start.
 
 `scale` is the sampling length (see [Choosing `scale`](@ref)): a number in the
 system's length unit, `:adaptive` (the default), or `:auto`. `:adaptive` sets
@@ -86,7 +86,7 @@ Refine(sweeps::Int; kw...) = Refine(; sweeps, kw...)
 const _GradientOptimizer = Union{GradientDescent, ConjugateGradient, LBFGS}
 
 """
-    GVM([basis]; scale = nothing, widths = nothing, optimizer = LBFGS(maxiter = 500, gradtol = 1e-6))
+    GVM([basis]; rank = nothing, scale = nothing, widths = nothing, optimizer = LBFGS(maxiter = 500, gradtol = 1e-6))
 
 Joint gradient optimisation of all Gaussian parameters (widths via
 log-Cholesky encoding, plus shifts) using ForwardDiff/Hellmann–Feynman
@@ -96,9 +96,20 @@ gradients. `optimizer` accepts an OptimKit `LBFGS`, `ConjugateGradient`, or
 when omitted. `scale` and `widths` (see [`SVM`](@ref); `:adaptive` and
 `:linear` when omitted) control only cold-start sampling and must be omitted
 for warm starts.
+Cold initialization selects an independent subset if the first samples are
+ill-conditioned; when `widths` is omitted it may retry with `:wide` sampling.
+The convergence report records extra draws and any sampling change.
+
+`rank` is 0 or 1, inherited from `init` or 0 on a cold start. Rank1 global
+vectors are optimized with unit norm. Exchange projectors are retained;
+initially unshifted projected Rank0 and Rank1 bases remain unshifted, preserving
+their S/P angular character. Shifted bases retain their shifts as parameters.
+Trial bases with null functions or an ill-conditioned normalized overlap are
+rejected, without adding spurious states through overlap regularization.
 """
 Base.@kwdef struct GVM{O <: _GradientOptimizer} <: GradientMethod
     basis::Union{Nothing, Int} = nothing
+    rank::Union{Nothing, Int} = nothing
     scale::Union{Nothing, Float64, Symbol} = nothing
     widths::Union{Nothing, Symbol} = nothing
     optimizer::O = LBFGS(; maxiter = 500, gradtol = 1.0e-6)
@@ -106,7 +117,7 @@ end
 GVM(basis::Int; kw...) = GVM(; basis, kw...)
 
 """
-    DynamicGVM(basis; candidates = 10, scale = :adaptive, widths = :linear,
+    DynamicGVM(basis; rank = nothing, candidates = 10, scale = :adaptive, widths = :linear,
                optimizer = LBFGS(maxiter = 100, gradtol = 1e-6))
 
 Per-step selection followed by joint gradient optimisation of the whole current
@@ -114,9 +125,12 @@ basis (SVM-style sequential growth). `basis` is the final basis size, including
 any functions supplied through `init`. `optimizer` accepts the same OptimKit
 algorithm instances as [`GVM`](@ref) and is reused at every growth step.
 `scale` and `widths` are as for [`SVM`](@ref).
+`rank`, exchange symmetry and shift constraints follow [`GVM`](@ref), including
+when drawing new functions for a warm start.
 """
 Base.@kwdef struct DynamicGVM{O <: _GradientOptimizer} <: GradientMethod
     basis::Int = 15
+    rank::Union{Nothing, Int} = nothing
     candidates::Int = 10
     scale::Union{Float64, Symbol} = :adaptive
     widths::Symbol = :linear
@@ -147,8 +161,8 @@ Compose two solver methods into a left-to-right `Pipeline`.
 
 Base.show(io::IO, m::SVM) = print(io, "SVM(", m.basis, m.rank === nothing ? "" : "; rank=$(m.rank)", ")")
 Base.show(io::IO, m::Refine) = print(io, "Refine(", m.sweeps, ")")
-Base.show(io::IO, m::GVM) = print(io, "GVM(", something(m.basis, "warm"), ")")
-Base.show(io::IO, m::DynamicGVM) = print(io, "DynamicGVM(", m.basis, ")")
+Base.show(io::IO, m::GVM) = print(io, "GVM(", something(m.basis, "warm"), m.rank === nothing ? "" : "; rank=$(m.rank)", ")")
+Base.show(io::IO, m::DynamicGVM) = print(io, "DynamicGVM(", m.basis, m.rank === nothing ? "" : "; rank=$(m.rank)", ")")
 Base.show(io::IO, p::Pipeline) = join(io, p.stages, " → ")
 
 # Resolve a numeric `scale` or `scale = :auto` against the system's masses
