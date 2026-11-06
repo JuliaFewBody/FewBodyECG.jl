@@ -1,7 +1,7 @@
 module FewBodyECG
 
-using LinearAlgebra: Diagonal, Hermitian, I, Symmetric, UpperTriangular,
-    cholesky, cond, cross, det, diag, dot, eigen, eigmin, isposdef, issymmetric,
+using LinearAlgebra: Diagonal, Hermitian, I, RowMaximum, Symmetric, UpperTriangular,
+    cholesky, cond, cross, det, diag, dot, eigen, eigmin, eigvals, isposdef, issymmetric,
     norm, opnorm, pinv, tr
 import FewBodyHamiltonians
 import ForwardDiff
