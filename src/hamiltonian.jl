@@ -52,6 +52,14 @@ end
 
 _check_coefficient(c) = isfinite(c) || throw(ArgumentError("coefficient must be finite, got $c"))
 
+# Jacobi-frame weight vector of an operator; `nonzero` rejects the zero vector.
+function _check_weight(w, name; nonzero = true)
+    Base.require_one_based_indexing(w)
+    !isempty(w) && all(isfinite, w) && (!nonzero || any(!iszero, w)) ||
+        throw(ArgumentError("$name must be a nonempty, finite$(nonzero ? ", nonzero" : "") vector, got $w"))
+    return nothing
+end
+
 """
     Coulomb(i, j; coefficient = 1)
     Coulomb(charges)

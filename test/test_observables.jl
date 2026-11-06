@@ -143,3 +143,18 @@ end
         KEY_SUPPORTED[] = true
     end
 end
+
+@testset "expectation" begin
+    sol = solve(ops, SVM(basis = 12, candidates = 10))
+    # The Hamiltonian terms' expectations sum to each eigenvalue.
+    @test sum(expectation(sol, op) for op in sol.operators) ≈ sol.E₀ rtol = 1.0e-10
+    @test sum(expectation(sol, op; state = 2) for op in sol.operators) ≈ sol.E[2] rtol = 1.0e-8
+
+    # Ps⁻ projected onto even electron exchange has ⟨P₂₃⟩ = 1.
+    masses = [1.0, 1.0, 1.0]
+    psm = solve(
+        Kinetic(masses) + Coulomb([+1.0, -1.0, -1.0]), SVM(basis = 10, candidates = 10);
+        symmetry = PermutationSymmetry(masses, [[1, 3, 2]])
+    )
+    @test expectation(psm, PermutationOperator(masses, [1, 3, 2])) ≈ 1 rtol = 1.0e-8
+end

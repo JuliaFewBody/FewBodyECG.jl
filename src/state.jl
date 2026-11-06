@@ -24,38 +24,50 @@ BasisState() = BasisState(Rank0Gaussian)
 nfuns(st::BasisState) = length(st.basis)
 
 # Overlap/Hamiltonian columns of `cand` against `basis`; `nothing` if any
-# element is non-finite.
-function _candidate_columns(cand, basis, operators, invariant::Bool = false)
+# element is non-finite or the projector nearly annihilates `cand`.
+function _candidate_columns(cand, basis, operators; invariant = false)
     s_diag = _compute_matrix_element(cand, cand)
-    if cand isa ProjectedGaussian
-        s_diag > 1.0e-12 * _compute_matrix_element(cand.orbital, cand.orbital) || return nothing
-    end
+    _survives_projection(cand, s_diag) || return nothing
     k = length(basis)
     s_col = Vector{Float64}(undef, k)
     h_col = Vector{Float64}(undef, k)
     for j in 1:k
         s_col[j] = _compute_matrix_element(cand, basis[j])
-        h_col[j] = _hamiltonian_element(cand, basis[j], operators, invariant)
+        h_col[j] = _hamiltonian_element(cand, basis[j], operators; invariant)
     end
-    h_diag = _hamiltonian_element(cand, cand, operators, invariant)
+    h_diag = _hamiltonian_element(cand, cand, operators; invariant)
     ok = isfinite(s_diag) && isfinite(h_diag) &&
         (k == 0 || (all(isfinite, s_col) && all(isfinite, h_col)))
     return ok ? (s_col, h_col, s_diag, h_diag) : nothing
 end
 
+_survives_projection(cand, s_diag) = true
+_survives_projection(cand::ProjectedGaussian, s_diag) =
+    s_diag > 1.0e-12 * _compute_matrix_element(cand.orbital, cand.orbital)
+
+# Basis-function type of a stochastic basis of the given rank and symmetry.
+_stochastic_type(rank, symmetry) = symmetry === nothing ? _rank_type(rank) : ProjectedGaussian
+function _rank_type(rank)
+    rank == 0 && return Rank0Gaussian
+    rank == 1 && return Rank1Gaussian
+    throw(ArgumentError("stochastic methods support rank 0 or 1, got $rank"))
+end
+
 # Draw the next quasi-random candidate; advances the stream counter.
 # Candidates are unshifted to preserve L=0, or L=1 through the Rank1 prefactor.
-function _draw_candidate!(st::BasisState{G}, scale::Float64, sampler, widths, w_list, d) where {G}
+function _draw_candidate!(st::BasisState, scale::Float64, sampler, widths, w_list)
     st.draw += 1
-    bij = generate_bij(:quasirandom, st.draw, length(w_list), scale; qmc_sampler = sampler, widths)
+    n_terms = length(w_list)
+    bij = generate_bij(:quasirandom, st.draw, n_terms, scale; qmc_sampler = sampler, widths)
     A = _generate_A_matrix(bij, w_list)
-    g = _candidate_orbital(st.rank == 0 ? Rank0Gaussian : Rank1Gaussian, A, st.draw, sampler, length(w_list), d)
+    g = _candidate_orbital(_rank_type(st.rank), A; st.draw, sampler, n_terms)
     return st.symmetry === nothing ? g : ProjectedGaussian(g, st.symmetry)
 end
 
-_candidate_orbital(::Type{<:Rank0Gaussian}, A, _, _, _, d) = Rank0Gaussian(A, zeros(d, 3))
+_candidate_orbital(::Type{Rank0Gaussian}, A; kwargs...) = Rank0Gaussian(A, zeros(size(A, 1), 3))
 
-function _candidate_orbital(::Type{<:Rank1Gaussian}, A, draw, sampler, n_terms, d)
+function _candidate_orbital(::Type{Rank1Gaussian}, A; draw, sampler, n_terms)
+    d = size(A, 1)
     # Extra QMC axes keep the global vector independent of the pair widths.
     a = d == 1 ? [1.0] : 2 .* _qmc_point(draw, n_terms + d; sampler)[(n_terms + 1):end] .- 1
     norm(a) > 0 || (a[1] = 1)
@@ -86,7 +98,7 @@ function BasisState(basis::Vector{G}, operators) where {G <: GaussianBase}
     st = BasisState(G; rank = _stochastic_rank(bs), symmetry)
     invariant = _hamiltonian_invariant(operators, symmetry)
     for g in basis
-        cols = _candidate_columns(g, st.basis, operators, invariant)
+        cols = _candidate_columns(g, st.basis, operators; invariant)
         cols === nothing && error("invalid or numerically null function while rebuilding basis state")
         commit!(st, g, cols) === nothing &&
             error("linearly dependent basis while rebuilding state")
@@ -114,8 +126,7 @@ end
 # resumes after the points `sol` already consumed, so no candidate is redrawn.
 function _solution_basis_state(sol::Solution, operators)
     fns = getfield(sol, :basis).functions
-    rank = _stochastic_rank(sol.basis)
-    G = _basis_symmetry(sol.basis) === nothing ? (rank == 0 ? Rank0Gaussian : Rank1Gaussian) : ProjectedGaussian
+    G = _stochastic_type(_stochastic_rank(sol.basis), _basis_symmetry(sol.basis))
     st = BasisState(G[g for g in fns], operators)
     st.draw = getfield(sol, :draws)
     return st

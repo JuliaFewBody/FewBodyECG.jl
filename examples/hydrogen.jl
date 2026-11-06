@@ -1,78 +1,48 @@
+# Hydrogen 1s and 2s from the gradient solver, 2p and 3d from hand-built
+# polarized bases, compared with the exact radial densities.
 using FewBodyECG
+using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem
 import Antique
 using OptimKit: LBFGS
 using Plots
-using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem
 
 ops = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
+atom = Antique.HydrogenAtom(Z = 1)
+exact(n) = Antique.energy(atom; n)
 
-H = Antique.HydrogenAtom(Z = 1)
-exact₁ = Antique.energy(H, n = 1)
-exact₂ = Antique.energy(H, n = 2)
-exact₃ = Antique.energy(H, n = 3)
+s1 = solve(ops, DynamicGVM(basis = 10, candidates = 20))
+s2 = solve(ops, DynamicGVM(basis = 15, candidates = 10, optimizer = LBFGS(; maxiter = 40, gradtol = 1.0e-6)); state = 2)
+display(plot(s1, exact(1); title = "Hydrogen 1s"))
 
-sol = solve(ops, DynamicGVM(basis = 10, candidates = 20))
-println("1s energy: ", sol.E₀, " Ha  (Antique ", exact₁, ", Δ = ", sol.E₀ - exact₁, ")")
-sol
-
-plot(convergence(sol); xlabel = "step", ylabel = "E (Ha)", label = "ECG")
-hline!([exact₁]; label = "reference", linestyle = :dash)
-
-sol₂s = solve(
-    ops,
-    DynamicGVM(
-        basis = 15, candidates = 10,
-        optimizer = LBFGS(; maxiter = 40, gradtol = 1.0e-6),
-    );
-    state = 2,
-)
-println("2s energy: ", sol₂s.E₀, " Ha  (Antique ", exact₂, ", Δ = ", sol₂s.E₀ - exact₂, ")")
-sol₂s
-
-αs = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0]
-basis₁ = BasisSet([Rank1Gaussian([α;;], [1.0], [0.0]) for α in αs])
-E₁, c₁ = solve_generalized_eigenproblem(
-    build_hamiltonian_matrix(basis₁, ops),
-    build_overlap_matrix(basis₁),
-)
-E₂p = minimum(E₁)
-println("2p energy: ", E₂p, " Ha  (Antique ", exact₂, ", Δ = ", E₂p - exact₂, ")")
-
-a = reshape([1.0, 0.0, 0.0], 1, 3)
-b = reshape([0.0, 1.0, 0.0], 1, 3)
-αd = exp10.(range(log10(0.002), log10(0.8), length = 24))
-basis₂ = BasisSet([Rank2Gaussian([α;;], a, b, [0.0]) for α in αd])
-E₂, c₂ = solve_generalized_eigenproblem(
-    build_hamiltonian_matrix(basis₂, ops),
-    build_overlap_matrix(basis₂),
-)
-E₃d = minimum(E₂)
-println("3d energy: ", E₃d, " Ha  (Antique ", exact₃, ", Δ = ", E₃d - exact₃, ")")
-
-ψs = (
-    wavefunction(sol),
-    wavefunction(sol₂s),
-    Wavefunction(basis₁, c₁[:, 1]),
-    Wavefunction(basis₂, c₂[:, 1]),
-)
-# (label, n, l, direction): the 2p basis is z-polarized; the 3d basis is xy
-# and vanishes on the z axis, so its radial profile is taken along (1, 1, 0).
-states = (
-    ("1s", 1, 0, (0, 0, 1)), ("2s", 2, 0, (0, 0, 1)),
-    ("2p", 2, 1, (0, 0, 1)), ("3d", 3, 2, (1, 1, 0)),
-)
-rs = range(0.0, 12.0, length = 400)
-
-function antique_density(n, l)
-    density = [r^2 * abs2(Antique.wavefunction(H, r, 0.0, 0.0; n = n, l = l, m = 0)) for r in rs]
-    area = sum((density[i] + density[i + 1]) * (rs[i + 1] - rs[i]) / 2 for i in 1:(length(rs) - 1))
-    return density ./ area
+# Lowest state of a fixed basis: E and its wavefunction.
+function lowest(basis)
+    E, c = solve_generalized_eigenproblem(build_hamiltonian_matrix(basis, ops), build_overlap_matrix(basis))
+    return first(E), Wavefunction(basis, c[:, 1])
 end
 
-p = plot(; xlabel = "r (Jacobi coordinate, mass-weighted)", ylabel = "normalized r²|ψ(r)|²", legend = :topright)
-for (i, (ψ, (label, n, l, direction))) in enumerate(zip(ψs, states))
+# 2p: z-polarized Rank1 Gaussians.  3d: xy-polarized Rank2 Gaussians, pure L = 2.
+p_widths = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0]
+d_widths = exp10.(range(log10(0.002), log10(0.8), length = 24))
+E2p, ψ2p = lowest(BasisSet([Rank1Gaussian([α;;], [1.0], [0.0]) for α in p_widths]))
+E3d, ψ3d = lowest(BasisSet([Rank2Gaussian([α;;], [1 0 0], [0 1 0], [0.0]) for α in d_widths]))
+
+@info "Hydrogen (Ha)" E1s = s1.E₀ E2s = s2.E₀ E2p E3d exact_n1 = exact(1) exact_n2 = exact(2) exact_n3 = exact(3)
+
+# Normalized radial densities; the xy-polarized 3d state vanishes on the z axis,
+# so it is sampled along (1, 1, 0).
+rs = range(0.0, 12.0, length = 400)
+function exact_density(n, l)
+    density = [r^2 * abs2(Antique.wavefunction(atom, r, 0.0, 0.0; n, l, m = 0)) for r in rs]
+    return density ./ sum((density[1:(end - 1)] + density[2:end]) .* diff(rs) / 2)
+end
+states = [
+    ("1s", wavefunction(s1), 1, 0, (0, 0, 1)), ("2s", wavefunction(s2), 2, 0, (0, 0, 1)),
+    ("2p", ψ2p, 2, 1, (0, 0, 1)), ("3d", ψ3d, 3, 2, (1, 1, 0)),
+]
+p = plot(; xlabel = "r (a₀)", ylabel = "normalized r²|ψ(r)|²")
+for (i, (label, ψ, n, l, direction)) in enumerate(states)
     r, density = radial_profile(ψ; direction, rmax = 12.0, npoints = 400)
     plot!(p, r, density; color = i, label = "ECG $label", linewidth = 2)
-    plot!(p, rs, antique_density(n, l); color = i, label = "Antique $label", linestyle = :dash)
+    plot!(p, rs, exact_density(n, l); color = i, label = "exact $label", linestyle = :dash)
 end
 p

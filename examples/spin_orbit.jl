@@ -33,8 +33,7 @@ H₀ = build_hamiltonian_matrix(basis, central)                     # real, SO-f
 H₁ = build_hamiltonian_matrix(basis, H(1.0))
 S = build_overlap_matrix(basis)
 
-println("H(λ = 0) eltype = ", eltype(H₀), "  (spin-orbit-free, real)")
-println("H(λ = 1) eltype = ", eltype(H₁), "  Hermitian? ", isapprox(H₁, H₁'))
+@info "Hamiltonian matrices" eltype_λ0 = eltype(H₀) eltype_λ1 = eltype(H₁) hermitian = H₁ ≈ H₁'
 
 ## Sweep the spin-orbit strength λ and collect the (real) spectrum
 λs = range(0, 2, length = 21)
@@ -46,7 +45,7 @@ spectrum = reduce(hcat, levels)'          # rows = λ, columns = levels
 
 ## The upper two levels form the spin-orbit doublet; its gap is linear in λ.
 gap = spectrum[:, 3] .- spectrum[:, 2]
-println("doublet gap at λ = 0, 1, 2: ", round.(gap[[1, 11, 21]], digits = 4))
+@info "Doublet gap at λ = 0, 1, 2" gap[[1, 11, 21]]
 
 plot(
     λs, spectrum;
@@ -66,18 +65,15 @@ plot(
 sg(α, d) = SpinGaussian(Rank0Gaussian([α;;], shift(d)), SpinState([up, up]))
 λ = 1.0
 
-sizes = Int[]
-ground = Float64[]
-for k in 1:length(αs)
+ground = map(eachindex(αs)) do k
     b = BasisSet([sg(α, d) for α in αs[1:k] for d in 1:3])
     E, _ = solve_generalized_eigenproblem(build_hamiltonian_matrix(b, H(λ)), build_overlap_matrix(b))
-    push!(sizes, 3k)
-    push!(ground, minimum(real.(E)))
+    minimum(real.(E))
 end
-println("converged ground-state energy: ", ground[end], " Ha")
+@info "Ground state at λ = 1" E₀ = last(ground)
 
 plot(
-    convergence(ground; steps = sizes);
+    3 .* eachindex(αs), ground;
     xlabel = "basis size", ylabel = "E₀ (Ha)", label = "ground state (λ = 1)",
     marker = :circle, linewidth = 2, title = "Basis-size convergence",
 )

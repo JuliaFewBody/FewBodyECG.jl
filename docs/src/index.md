@@ -23,7 +23,7 @@ H = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
 
 sol = solve(H, DynamicGVM(basis = 10, candidates = 20))
 exact = Antique.energy(Antique.HydrogenAtom(Z = 1), n = 1)
-println("E0 = ", sol.E₀, " Ha  (Antique ", exact, ", Δ = ", sol.E₀ - exact, ")")
+@info "Hydrogen" E₀ = sol.E₀ exact Δ = sol.E₀ - exact
 sol
 ```
 
@@ -44,7 +44,7 @@ f(r) = -exp(-r^2) / (1 + r^2)
 ops = Kinetic([1.0e15, 1.0]) + Custom(f, 1, 2)
 
 sol = solve(ops, SVM(basis = 8, candidates = 2))
-println(sol.E₀)
+sol.E₀
 ```
 
 The callable receives the nonnegative pair distance `r`; users do not need to

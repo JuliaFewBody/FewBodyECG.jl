@@ -43,3 +43,20 @@ function radial_profile(
     end
     return r, density
 end
+
+"""
+    expectation(sol::Solution, op; state = sol.state)
+
+Expectation value `⟨ψ|op|ψ⟩` of the Jacobi-frame operator `op` in eigenstate
+`state` of `sol`. The coefficients satisfy `cᴴSc = 1`, so this is
+`dot(c, M * c)` with `M = FewBodyECG.build_operator_matrix(sol.basis, op)`.
+
+The value is returned as computed: it is complex when `M` is (spin-dependent
+operators), and it can be complex for non-Hermitian operators such as
+permutation cycles. Transition elements between two solutions use the
+three-argument `FewBodyECG.build_operator_matrix(bra_basis, ket_basis, op)`.
+"""
+function expectation(sol::Solution, op::FewBodyHamiltonians.Operator; state::Integer = sol.state)
+    c = getfield(sol, :coefficients)[:, state]
+    return dot(c, build_operator_matrix(getfield(sol, :basis), op) * c)
+end

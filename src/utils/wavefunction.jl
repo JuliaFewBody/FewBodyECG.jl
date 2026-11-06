@@ -21,8 +21,7 @@ _gauss(g, r) = exp(-_superdot(r, g.A, r) + dot(g.s, r))
 _eval(g::Rank0Gaussian, r) = _gauss(g, r)
 _eval(g::Rank1Gaussian, r) = dot(g.a, r) * _gauss(g, r)
 _eval(g::Rank2Gaussian, r) = dot(g.a, r) * dot(g.b, r) * _gauss(g, r)
-_eval(g::ProjectedGaussian, r) =
-    sum(s * _eval(h, r) for (s, h) in zip(g.symmetry.signs, g.components)) / length(g.components)
+_eval(g::ProjectedGaussian, r) = _project(h -> _eval(h, r), g)
 
 function (ψ::Wavefunction)(r::AbstractMatrix{<:Real})
     Base.require_one_based_indexing(r)

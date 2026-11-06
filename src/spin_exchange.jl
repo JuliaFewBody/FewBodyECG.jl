@@ -50,6 +50,8 @@ _requires_spin_gaussian(op) =
 
 _compute_matrix_element(::Rank0Gaussian, ::Rank0Gaussian, op::_InternalExchange) =
     _requires_spin_gaussian(op)
+_compute_matrix_element(::Rank0Gaussian, ::Rank0Gaussian, op::_PermutedOperator{<:Any, <:_InternalExchange}) =
+    _requires_spin_gaussian(op.permutation)
 
 function _check_exchange_sites(op::_InternalExchange, ket::SpinGaussian)
     n = length(ket.spin.projections)
@@ -72,18 +74,14 @@ function _exchange_ket(ket::SpinGaussian, op::IsospinExchangeOperator)
     return SpinGaussian(ket.orbital, ket.spin; isospin = IsospinState(projections))
 end
 
-_exchange_ket(ket::SpinGaussian{<:Rank0Gaussian}, P::PermutationOperator) =
+_exchange_ket(ket::SpinGaussian, P::PermutationOperator) =
     SpinGaussian(_permuted_ket(ket.orbital, P), ket.spin; isospin = ket.isospin)
 
 _compute_matrix_element(bra::SpinGaussian, ket::SpinGaussian, op::_InternalExchange) =
     _compute_matrix_element(bra, _exchange_ket(ket, op))
 
-function _compute_matrix_element(bra::SpinGaussian, ket::SpinGaussian, op::_PermutedOperator)
-    if op.permutation isa PermutationOperator && !(bra.orbital isa Rank0Gaussian && ket.orbital isa Rank0Gaussian)
-        return _polarized_spin_element(bra, ket, op)
-    end
-    return _compute_matrix_element(bra, _exchange_ket(ket, op.permutation), op.operator)
-end
+_compute_matrix_element(bra::SpinGaussian, ket::SpinGaussian, op::_PermutedOperator) =
+    _compute_matrix_element(bra, _exchange_ket(ket, op.permutation), op.operator)
 
 # Spin/isospin labels are fixed while only the orbital shifts are differentiated.
 function _polarized_spin_element(bra::SpinGaussian, ket::SpinGaussian, op)

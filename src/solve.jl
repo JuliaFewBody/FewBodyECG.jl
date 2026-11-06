@@ -7,7 +7,6 @@ struct _SolveCtx
     window::Int
     verbose::Bool
     w_list::Vector{Vector{Float64}}
-    d::Int
     units::UnitSystem
     hamiltonian::Union{Nothing, Hamiltonian}
     symmetry::Union{Nothing, PermutationSymmetry}
@@ -52,7 +51,7 @@ function _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltoni
     end
     return _SolveCtx(
         collect(FewBodyHamiltonians.Operator, terms), masses,
-        state, float(tol), window, verbose, w_list, length(w_list[1]), units, hamiltonian,
+        state, float(tol), window, verbose, w_list, units, hamiltonian,
         symmetry, _hamiltonian_invariant(terms, symmetry)
     )
 end
@@ -189,8 +188,8 @@ function step!(st::BasisState, alg::SVM, ctx::_SolveCtx, scale::Float64)
     best = nothing
     bestcols = nothing
     for _ in 1:alg.candidates
-        cand = _draw_candidate!(st, scale, alg.sampler, alg.widths, ctx.w_list, ctx.d)
-        cols = _candidate_columns(cand, st.basis, ctx.terms, ctx.invariant)
+        cand = _draw_candidate!(st, scale, alg.sampler, alg.widths, ctx.w_list)
+        cols = _candidate_columns(cand, st.basis, ctx.terms; ctx.invariant)
         cols === nothing && continue
         E = score_candidate(
             st.eig, cols...;
@@ -251,7 +250,7 @@ function _solve(
     rank = something(alg.rank, init_rank)
     rank in (0, 1) || throw(ArgumentError("SVM rank must be 0 or 1"))
     init === nothing || rank == init_rank || throw(ArgumentError("SVM rank=$rank does not match the rank-$init_rank initial basis"))
-    G = ctx.symmetry === nothing ? (rank == 0 ? Rank0Gaussian : Rank1Gaussian) : ProjectedGaussian
+    G = _stochastic_type(rank, ctx.symmetry)
     st = init === nothing ? BasisState(G; rank, symmetry = ctx.symmetry) : _solution_basis_state(init, ctx.terms)
     scale, scale_note = _solve_scale(alg.scale, ctx, init; rank)
     n₀ = length(st.E_hist)
@@ -302,8 +301,8 @@ function step!(st::BasisState, alg::Refine, ctx::_SolveCtx, scale::Float64)
         best, bestcols = st.basis[i], cur_cols
         replaced = false
         for _ in 1:alg.candidates
-            cand = _draw_candidate!(base, scale, alg.sampler, alg.widths, ctx.w_list, ctx.d)
-            cols = _candidate_columns(cand, base.basis, ctx.terms, ctx.invariant)
+            cand = _draw_candidate!(base, scale, alg.sampler, alg.widths, ctx.w_list)
+            cols = _candidate_columns(cand, base.basis, ctx.terms; ctx.invariant)
             cols === nothing && continue
             E = score_candidate(
                 base.eig, cols...;

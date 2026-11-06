@@ -10,13 +10,12 @@ using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix
 ops = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
 terms = first(FewBodyECG._to_jacobi(ops))
 w_list = [op.w for op in terms if op isa CoulombOperator]
-d = length(w_list[1])
 
 @testset "BasisState growth and caches" begin
     st = BasisState()
     @test nfuns(st) == 0
     for _ in 1:6
-        cand = _draw_candidate!(st, 1.0, FewBodyECG.HaltonSample(), :linear, w_list, d)
+        cand = _draw_candidate!(st, 1.0, FewBodyECG.HaltonSample(), :linear, w_list)
         cols = _candidate_columns(cand, st.basis, terms)
         cols === nothing && continue
         commit!(st, cand, cols)
@@ -47,7 +46,7 @@ end
 @testset "rebuild_without boundaries and warm start" begin
     st = BasisState()
     for _ in 1:8
-        cand = _draw_candidate!(st, 1.0, FewBodyECG.HaltonSample(), :linear, w_list, d)
+        cand = _draw_candidate!(st, 1.0, FewBodyECG.HaltonSample(), :linear, w_list)
         cols = _candidate_columns(cand, st.basis, terms)
         cols === nothing && continue
         commit!(st, cand, cols)
@@ -61,7 +60,7 @@ end
         @test r.H ≈ st.H[idx, idx] atol = 1.0e-12
     end
     st1 = BasisState()                    # k = 1 → empty state after removal
-    cand1 = _draw_candidate!(st1, 1.0, FewBodyECG.HaltonSample(), :linear, w_list, d)
+    cand1 = _draw_candidate!(st1, 1.0, FewBodyECG.HaltonSample(), :linear, w_list)
     cols1 = _candidate_columns(cand1, st1.basis, terms)
     @test cols1 !== nothing
     commit!(st1, cand1, cols1)

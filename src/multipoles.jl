@@ -18,10 +18,9 @@ struct DipoleOperator{T <: Real} <: FewBodyHamiltonians.Operator
     component::Int
     coefficient::T
     function DipoleOperator(w::AbstractVector{<:Real}; component::Integer = 3, coefficient::Real = 1)
-        Base.require_one_based_indexing(w)
-        !isempty(w) && all(isfinite, w) || throw(ArgumentError("w must be a nonempty finite vector"))
+        _check_weight(w, "w"; nonzero = false)
         component in 1:3 || throw(ArgumentError("component must be 1, 2, or 3 (x, y, z)"))
-        isfinite(coefficient) || throw(ArgumentError("coefficient must be finite"))
+        _check_coefficient(coefficient)
         T = promote_type(Float64, eltype(w), typeof(coefficient))
         return new{T}(Vector{T}(w), Int(component), T(coefficient))
     end
@@ -29,14 +28,11 @@ end
 
 # U is a pseudoinverse, so it does not itself set the mass-weighted COM to zero.
 function _multipole_frame(masses::AbstractVector{<:Real}, charges::AbstractVector{<:Real})
-    Base.require_one_based_indexing(masses, charges)
+    Base.require_one_based_indexing(charges)
     length(masses) == length(charges) || throw(DimensionMismatch("masses and charges must have the same length"))
-    length(masses) ≥ 2 || throw(ArgumentError("multipoles need at least two particles"))
-    all(m -> isfinite(m) && m > 0, masses) || throw(ArgumentError("masses must be finite and positive"))
     all(isfinite, charges) || throw(ArgumentError("charges must be finite"))
-    m, q = Float64.(masses), collect(charges)
-    _, U = jacobi_transform(m)
-    return U, m / sum(m), q
+    m, _, U = _checked_jacobi(masses)
+    return U, m / sum(m), collect(charges)
 end
 
 function DipoleOperator(masses::AbstractVector{<:Real}, charges::AbstractVector{<:Real}; kwargs...)
@@ -70,7 +66,7 @@ struct QuadrupoleOperator{T <: Real} <: FewBodyHamiltonians.Operator
         !isempty(G) && issymmetric(G) && all(isfinite, G) ||
             throw(ArgumentError("G must be a nonempty finite symmetric matrix"))
         all(c -> c in 1:3, components) || throw(ArgumentError("components must be in 1:3 (x, y, z)"))
-        isfinite(coefficient) || throw(ArgumentError("coefficient must be finite"))
+        _check_coefficient(coefficient)
         T = promote_type(Float64, eltype(G), typeof(coefficient))
         return new{T}(Matrix{T}(G), Int.(components), T(coefficient))
     end
@@ -86,16 +82,18 @@ end
 function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::DipoleOperator)
     length(op.w) == size(bra.A, 1) == size(ket.A, 1) ||
         throw(DimensionMismatch("dipole weight length must equal Gaussian dimension"))
-    μ = inv(bra.A + ket.A) * (bra.s + ket.s) / 2
-    return op.coefficient * dot(op.w, μ[:, op.component]) * _compute_matrix_element(bra, ket)
+    R, v, M = _updated_rank0_data(bra, ket)
+    μ = R * v / 2
+    return op.coefficient * dot(op.w, view(μ, :, op.component)) * M
 end
 
 function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::QuadrupoleOperator)
     size(op.G) == size(bra.A) == size(ket.A) ||
         throw(DimensionMismatch("quadrupole matrix must match Gaussian dimension"))
-    μ = inv(bra.A + ket.A) * (bra.s + ket.s) / 2
+    R, v, M = _updated_rank0_data(bra, ket)
+    μ = R * v / 2
     a, b = op.components
-    moment = 3 * dot(μ[:, a], op.G * μ[:, b])
+    moment = 3 * dot(view(μ, :, a), op.G * view(μ, :, b))
     a == b && (moment -= _superdot(μ, op.G, μ))
-    return op.coefficient * moment * _compute_matrix_element(bra, ket)
+    return op.coefficient * moment * M
 end

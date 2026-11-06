@@ -22,17 +22,17 @@ of the even/odd projected spatial functions, with `S` the overlap matrix and
 struct PermutationOperator <: FewBodyHamiltonians.Operator
     T::Matrix{Float64}
     function PermutationOperator(masses::AbstractVector{<:Real}, p::AbstractVector{<:Integer})
-        Base.require_one_based_indexing(masses, p)
-        n = length(masses)
-        n ≥ 2 || throw(ArgumentError("a permutation needs at least two particles"))
-        length(p) == n && sort(collect(p)) == collect(1:n) ||
-            throw(ArgumentError("p must contain each particle index in 1:$n exactly once"))
-        m = Float64.(masses)
-        all(x -> isfinite(x) && x > 0, m) ||
-            throw(ArgumentError("masses must be finite and positive"))
-        J, U = jacobi_transform(m)
+        Base.require_one_based_indexing(p)
+        _check_permutation(p, length(masses))
+        _, J, U = _checked_jacobi(masses)
         return new(J * U[p, :])
     end
+end
+
+function _check_permutation(p, n)
+    length(p) == n && isperm(p) ||
+        throw(ArgumentError("p must contain each particle index in 1:$n exactly once"))
+    return nothing
 end
 
 """
@@ -62,12 +62,11 @@ struct ContactDensityOperator{T <: Real} <: FewBodyHamiltonians.PotentialTerm
             w::AbstractVector{<:Real}, r::AbstractVector{<:Real} = zeros(3);
             coefficient::Real = 1
         )
-        Base.require_one_based_indexing(w, r)
-        !isempty(w) && all(isfinite, w) && any(!iszero, w) ||
-            throw(ArgumentError("w must be a nonempty, finite, nonzero weight vector"))
+        _check_weight(w, "w")
+        Base.require_one_based_indexing(r)
         length(r) == 3 && all(isfinite, r) ||
             throw(ArgumentError("r must be a finite Cartesian three-vector"))
-        isfinite(coefficient) || throw(ArgumentError("coefficient must be finite"))
+        _check_coefficient(coefficient)
         T = promote_type(Float64, eltype(w), eltype(r), typeof(coefficient))
         return new{T}(T(coefficient), Vector{T}(w), Vector{T}(r))
     end
@@ -80,19 +79,22 @@ end
 
 Base.:*(op::FewBodyHamiltonians.Operator, P::PermutationOperator) = _PermutedOperator(op, P)
 
-function _permuted_ket(ket::Rank0Gaussian, P::PermutationOperator)
+# The Gaussian x ↦ g(T x): widths T'AT, and polarizations and shift T'a, T's.
+_transformed_gaussian(g::Rank0Gaussian, T) = Rank0Gaussian(T' * g.A * T, T' * g.s)
+_transformed_gaussian(g::Rank1Gaussian, T) = Rank1Gaussian(T' * g.A * T, T' * g.a, T' * g.s)
+_transformed_gaussian(g::Rank2Gaussian, T) = Rank2Gaussian(T' * g.A * T, T' * g.a, T' * g.b, T' * g.s)
+
+function _permuted_ket(ket::_AnyRankGaussian, P::PermutationOperator)
     size(P.T) == size(ket.A) ||
         throw(DimensionMismatch("permutation and Gaussian must use the same Jacobi dimension"))
-    return Rank0Gaussian(P.T' * ket.A * P.T, P.T' * ket.s)
+    return _transformed_gaussian(ket, P.T)
 end
 
 _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, P::PermutationOperator) =
     _compute_matrix_element(bra, _permuted_ket(ket, P))
 
-function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::_PermutedOperator)
-    op.permutation isa PermutationOperator || return _requires_spin_gaussian(op.permutation)
-    return _compute_matrix_element(bra, _permuted_ket(ket, op.permutation), op.operator)
-end
+_compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::_PermutedOperator{<:Any, PermutationOperator}) =
+    _compute_matrix_element(bra, _permuted_ket(ket, op.permutation), op.operator)
 
 function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::ContactDensityOperator)
     length(op.w) == size(bra.A, 1) == size(ket.A, 1) ||

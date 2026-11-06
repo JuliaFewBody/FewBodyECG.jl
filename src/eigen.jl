@@ -363,6 +363,13 @@ function score_candidate(
     end
 end
 
+# Arrowhead tolerance for commits.  Every later update treats the committed
+# eigenpairs as exact, so a commit may deflate couplings and clip roots near
+# poles only at rounding level of the spectrum; a coarser tolerance accumulates
+# as eigenvalue and eigenvector error over the commits.  Scoring keeps the
+# default tolerance because it leaves the decomposition unchanged.
+const _COMMIT_TOL = eps()
+
 """
     commit_candidate!(eig, s_col, h_col, s_diag, h_diag)
 
@@ -384,7 +391,7 @@ function commit_candidate!(eig::SVMEigen, s_col, h_col, s_diag, h_diag)
     β, ω, ρ2, _, r = _whiten_candidate(eig, s_col, h_col, s_diag, h_diag)
     ρ2 <= 0 && return nothing
     ρ = sqrt(ρ2)
-    λ, V = full_arrowhead_eigen(eig.ε, collect(β), ω)
+    λ, V = full_arrowhead_eigen(eig.ε, collect(β), ω; tol = _COMMIT_TOL)
 
     # W_new = blockdiag(W, 1) · V  (orthogonal × orthogonal = orthogonal).
     Vtop = @view V[1:k, :]
