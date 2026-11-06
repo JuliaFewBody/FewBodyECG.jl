@@ -90,6 +90,13 @@ The polarization `a` and the shift `s` are `N × 3` supervectors (row =
 Jacobi coordinate, column = Cartesian component), where `N = size(A, 1)`.
 Each accepts a length-`N` vector, which is placed in the `z` component.
 `A`, `a`, and `s` are converted to a common element type.
+
+Matrix elements exist for every operator that has a [`Rank0Gaussian`](@ref)
+element, in any combination of ranks in bra and ket and with or without
+shifts. Closed forms are used where they exist; the other combinations are
+the mixed derivatives of the shifted `Rank0Gaussian` element with respect to
+the shift, one derivative per polarization. Spin-dependent operators need
+[`SpinGaussian`](@ref) functions.
 """
 struct Rank1Gaussian{
         T <: Real,
@@ -115,7 +122,8 @@ Rank-2 (d-wave-like) ECG basis function
 The polarizations `a`, `b` and the shift `s` are `N × 3` supervectors, as for
 [`Rank1Gaussian`](@ref); a length-`N` vector is placed in the `z` component.
 Orthogonal Cartesian polarizations such as `a = [1 0 0]`, `b = [0 1 0]` give
-pure d-wave (`xy`) character.
+pure d-wave (`xy`) character. Matrix elements are available for the same
+operators and rank combinations as for [`Rank1Gaussian`](@ref).
 """
 struct Rank2Gaussian{
         T <: Real,
@@ -143,12 +151,14 @@ end
 
 A collection of `GaussianBase` functions that form the variational basis.
 
+The functions may mix [`Rank0Gaussian`](@ref), [`Rank1Gaussian`](@ref) and
+[`Rank2Gaussian`](@ref); build such a basis as `BasisSet(GaussianBase[...])`.
+
 Supports the standard container interface: `length`, iteration, and indexing
-(including `begin`/`end`), with `eltype` reporting the concrete basis-function
-type `G`.
+(including `begin`/`end`), with `eltype` reporting the basis-function type `G`.
 
 # Fields
-- `functions` : `Vector{G}` of basis functions, all of the same concrete `GaussianBase` subtype `G`.
+- `functions` : `Vector{G}` of basis functions.
 """
 struct BasisSet{G <: GaussianBase}
     functions::Vector{G}
@@ -270,6 +280,9 @@ The callable `f` receives a nonnegative scalar distance. Matrix elements are
 evaluated by analytically reducing the ECG product to the radial coordinate
 selected by `w`, followed by adaptive numerical quadrature.
 
+For polarized Gaussians, shift derivatives pass through the quadrature.
+Its error estimate controls the integral value, not each derivative separately.
+
 # Fields
 - `f`        : user-supplied callable evaluated as `f(r)`.
 - `w`        : Jacobi-coordinate weight vector selecting the pair coordinate.
@@ -342,17 +355,67 @@ end
 SpinState(projections::AbstractVector{SpinProjection}) = SpinState(collect(projections))
 
 """
-    SpinGaussian(orbital, spin)
+    IsospinProjection
+
+Nucleon isospin-½ projection: [`proton`](@ref) (+½) or [`neutron`](@ref) (−½).
+The convention is ``Q/e = (1 + τ_z)/2`` for a nucleon.
+"""
+@enum IsospinProjection neutron = -1 proton = 1
+
+"""
+    FewBodyECG.proton :: IsospinProjection
+
+Proton isospin projection, with ``t_z = +1/2``.
+"""
+proton
+
+"""
+    FewBodyECG.neutron :: IsospinProjection
+
+Neutron isospin projection, with ``t_z = -1/2``.
+"""
+neutron
+
+"""
+    IsospinState(projections)
+
+Direct-product nucleon isospin state, with one [`IsospinProjection`](@ref) per
+particle. Use `FewBodyECG.proton` and `FewBodyECG.neutron` for the labels.
+Attach this state with `SpinGaussian(orbital, spin; isospin=state)`.
+"""
+struct IsospinState
+    projections::Vector{IsospinProjection}
+    IsospinState(projections::AbstractVector{IsospinProjection}) = new(collect(projections))
+end
+
+"""
+    SpinGaussian(orbital, spin; isospin=nothing)
 
 An explicitly correlated Gaussian with an attached direct-product spin state.
-`orbital` is a [`Rank0Gaussian`](@ref); `spin` is a [`SpinState`](@ref).  Only
-introduced to support the tensor and spin-orbit interactions; central operators
-factor through the spin overlap.
+`orbital` is a [`Rank0Gaussian`](@ref), [`Rank1Gaussian`](@ref), or
+[`Rank2Gaussian`](@ref); `spin` is a [`SpinState`](@ref). An optional
+[`IsospinState`](@ref) supplies nucleon labels. Each internal state has one
+projection per particle, so its length is `size(orbital.A, 1) + 1`.
+
+Central operators factor through the spin and isospin overlaps. Polarized
+tensor and spin-orbit elements are shift derivatives of their Rank0 elements.
+Both functions in a matrix element must either carry isospin or omit it.
 """
-struct SpinGaussian{G <: Rank0Gaussian} <: GaussianBase
+struct SpinGaussian{G <: Union{Rank0Gaussian, Rank1Gaussian, Rank2Gaussian}} <: GaussianBase
     orbital::G
     spin::SpinState
+    isospin::Union{Nothing, IsospinState}
+    function SpinGaussian{G}(orbital, spin; isospin = nothing) where {G}
+        n = size(orbital.A, 1) + 1
+        length(spin.projections) == n ||
+            throw(ArgumentError("spin must have one projection per particle ($n)"))
+        isospin === nothing || length(isospin.projections) == n ||
+            throw(ArgumentError("isospin must have one projection per particle ($n)"))
+        return new{G}(orbital, spin, isospin)
+    end
 end
+
+SpinGaussian(orbital, spin; isospin = nothing) = SpinGaussian{typeof(orbital)}(orbital, spin; isospin)
 
 """
     GaussianTensorOperator(coefficient, γ, w, i, j; traceless = true)
@@ -385,6 +448,10 @@ end
 Gaussian-form spin-orbit interaction coupling the orbital motion in the
 coordinate `wᵀr` (range `γ`) to the total spin `Sᵢ + Sⱼ`.  Produces complex
 Hermitian matrix elements for shifted Gaussians.
+
+In mass-scaled Jacobi coordinates, the pair angular momentum is
+`L = (uᵀr) × (-im * uᵀ∇)` with `u = w / norm(w)`, in units of ℏ.
+Rescaling a pair coordinate and its conjugate momentum leaves `L` unchanged.
 """
 struct GaussianSpinOrbitOperator{T <: Real} <: FewBodyHamiltonians.PotentialTerm
     coefficient::T
@@ -398,6 +465,7 @@ struct GaussianSpinOrbitOperator{T <: Real} <: FewBodyHamiltonians.PotentialTerm
         )
         γ > 0 || throw(ArgumentError("γ must be positive, got γ = $γ"))
         i != j || throw(ArgumentError("sites i and j must differ, got i = j = $i"))
+        _check_weight(w, "spin-orbit weight")
         T = promote_type(typeof(coefficient), typeof(γ), eltype(w))
         return new{T}(T(coefficient), T(γ), Vector{T}(w), Int(i), Int(j))
     end

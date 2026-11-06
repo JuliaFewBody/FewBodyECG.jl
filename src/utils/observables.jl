@@ -20,7 +20,7 @@ function radial_profile(
         coord::Int = 1, direction = (0, 0, 1), rmax::Real = 10.0, npoints::Int = 400,
         normalize::Bool = true
     )
-    d = size(first(ψ.basis.functions).A, 1)
+    d = _gaussian_dimension(first(ψ.basis.functions))
     1 ≤ coord ≤ d || throw(ArgumentError("coord must be in 1:$d"))
     length(direction) == 3 ||
         throw(ArgumentError("direction must have 3 Cartesian components, got $(length(direction))"))
@@ -42,4 +42,21 @@ function radial_profile(
         area > 0 && (density ./= area)
     end
     return r, density
+end
+
+"""
+    expectation(sol::Solution, op; state = sol.state)
+
+Expectation value `⟨ψ|op|ψ⟩` of the Jacobi-frame operator `op` in eigenstate
+`state` of `sol`. The coefficients satisfy `cᴴSc = 1`, so this is
+`dot(c, M * c)` with `M = FewBodyECG.build_operator_matrix(sol.basis, op)`.
+
+The value is returned as computed: it is complex when `M` is (spin-dependent
+operators), and it can be complex for non-Hermitian operators such as
+permutation cycles. Transition elements between two solutions use the
+three-argument `FewBodyECG.build_operator_matrix(bra_basis, ket_basis, op)`.
+"""
+function expectation(sol::Solution, op::FewBodyHamiltonians.Operator; state::Integer = sol.state)
+    c = getfield(sol, :coefficients)[:, state]
+    return dot(c, build_operator_matrix(getfield(sol, :basis), op) * c)
 end

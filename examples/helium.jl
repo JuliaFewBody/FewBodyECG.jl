@@ -1,18 +1,15 @@
+# Helium and the hydride ion H⁻ with an infinitely heavy nucleus.
 using FewBodyECG
 using FewBodyDB: db
 using Plots
 
-helium = Kinetic([1.0e15, 1.0, 1.0]) + Coulomb([+2.0, -1.0, -1.0])
+helium = solve(Kinetic([1.0e15, 1.0, 1.0]) + Coulomb([+2.0, -1.0, -1.0]), SVM(basis = 50, candidates = 25))
+helium_ref = db(:Suzuki2003Jul, "∞He", :energy, "¹Sᵉ").value
+@info "He" E₀ = helium.E₀ reference = helium_ref Δ = helium.E₀ - helium_ref
 
-he_ref = db(:Suzuki2003Jul, "∞He", :energy, "¹Sᵉ").value
-he = solve(helium, SVM(basis = 50, candidates = 25))
-println("Helium E0 = ", he.E₀, " Ha  (Suzuki–Varga ", he_ref, ", Δ = ", he.E₀ - he_ref, ")")
+hydride = solve(Kinetic([1.0e15, 1.0, 1.0]) + Coulomb([+1.0, -1.0, -1.0]), SVM(basis = 50, candidates = 20))
+hydride_ref = db(:Suzuki2003Jul, "∞H⁻", :energy, "¹Sᵉ").value
+@info "H⁻" E₀ = hydride.E₀ reference = hydride_ref Δ = hydride.E₀ - hydride_ref
 
-hminus = Kinetic([1.0e15, 1.0, 1.0]) + Coulomb([+1.0, -1.0, -1.0])
-
-hm_ref = db(:Suzuki2003Jul, "∞H⁻", :energy, "¹Sᵉ").value
-hm = solve(hminus, SVM(basis = 50, candidates = 20))
-println("H- E0 = ", hm.E₀, " Ha  (Suzuki–Varga ", hm_ref, ", Δ = ", hm.E₀ - hm_ref, ")")
-
-plot(he, he_ref)
-plot(wavefunction(hm); coord = 1, rmax = 10.0)
+display(plot(helium, helium_ref; title = "He"))
+plot(wavefunction(hydride); coord = 1, rmax = 10.0)

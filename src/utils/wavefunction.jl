@@ -21,10 +21,11 @@ _gauss(g, r) = exp(-_superdot(r, g.A, r) + dot(g.s, r))
 _eval(g::Rank0Gaussian, r) = _gauss(g, r)
 _eval(g::Rank1Gaussian, r) = dot(g.a, r) * _gauss(g, r)
 _eval(g::Rank2Gaussian, r) = dot(g.a, r) * dot(g.b, r) * _gauss(g, r)
+_eval(g::ProjectedGaussian, r) = _project(h -> _eval(h, r), g)
 
 function (ψ::Wavefunction)(r::AbstractMatrix{<:Real})
     Base.require_one_based_indexing(r)
-    _check_supervector(r, size(first(ψ.basis.functions).A, 1), "r")
+    _check_supervector(r, _gaussian_dimension(first(ψ.basis.functions)), "r")
     return sum(ψ.c[i] * _eval(ψ.basis.functions[i], r) for i in eachindex(ψ.c))
 end
 

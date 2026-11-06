@@ -21,6 +21,36 @@ function build_overlap_matrix(basis::BasisSet{<:GaussianBase})
     return S
 end
 
+"""
+    FewBodyECG.build_operator_matrix(basis, op)
+    FewBodyECG.build_operator_matrix(bra_basis, ket_basis, op)
+
+Return the matrix of a Jacobi-frame operator over `basis`, with entries
+`⟨gᵢ|op|gⱼ⟩`. Every entry is evaluated independently, so non-Hermitian
+operators such as permutation cycles keep their full matrix. For coefficients
+`c`, the normalized expectation is `dot(c, M * c) / dot(c, S * c)` with
+`M = build_operator_matrix(basis, op)` and `S = build_overlap_matrix(basis)`.
+
+The three-argument form returns a rectangular matrix with rows from
+`bra_basis` and columns from `ket_basis`. For separately normalized states,
+`dot(c_bra, M * c_ket)` is the transition matrix element; without normalization,
+divide by `sqrt(dot(c_bra, S_bra*c_bra) * dot(c_ket, S_ket*c_ket))`.
+Both bases must use the same Jacobi coordinate frame.
+"""
+build_operator_matrix(basis::BasisSet{<:GaussianBase}, op::FewBodyHamiltonians.Operator) =
+    build_operator_matrix(basis, basis, op)
+
+function build_operator_matrix(
+        bra_basis::BasisSet{<:GaussianBase}, ket_basis::BasisSet{<:GaussianBase}, op::FewBodyHamiltonians.Operator
+    )
+    isempty(bra_basis.functions) && throw(ArgumentError("bra basis must be nonempty"))
+    isempty(ket_basis.functions) && throw(ArgumentError("ket basis must be nonempty"))
+    return [_compute_matrix_element(bra, ket, op) for bra in bra_basis, ket in ket_basis]
+end
+
+_build_operator_matrix(basis::BasisSet{<:GaussianBase}, op::Union{PermutationOperator, _PermutedOperator}) =
+    build_operator_matrix(basis, op)
+
 function _build_operator_matrix(basis::BasisSet{<:GaussianBase}, op::FewBodyHamiltonians.Operator)
     n = length(basis.functions)
     v11 = _compute_matrix_element(basis.functions[1], basis.functions[1], op)
@@ -41,6 +71,9 @@ Return the Hamiltonian matrix assembled from all operator matrix elements over
 Jacobi-frame operators.
 """
 function build_hamiltonian_matrix(basis::BasisSet{<:GaussianBase}, operators::AbstractVector{<:FewBodyHamiltonians.Operator})
+    if _hamiltonian_invariant(operators, _basis_symmetry(basis))
+        return [_hamiltonian_element(g, h, operators; invariant = true) for g in basis, h in basis]
+    end
     n = length(basis.functions)
     g1 = first(basis.functions)
     # Infer the scalar type from matrix elements (spin wrappers expose no `A`).

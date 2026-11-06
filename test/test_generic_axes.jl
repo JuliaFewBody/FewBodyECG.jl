@@ -47,4 +47,12 @@ using FewBodyECG: build_hamiltonian_matrix, solve_generalized_eigenproblem
         @test Kinetic(view(m, :)).masses == m
         @test_throws ArgumentError Kinetic(OffsetArray(m, 0:2))
     end
+
+    @testset "Relativistic operator axes" begin
+        offset = OffsetVector([1.0, 1.0], 0:1)
+        @test_throws ArgumentError MomentumFourthOperator(offset)
+        @test_throws ArgumentError MassVelocityOperator(offset)
+        @test_throws ArgumentError OrbitOrbitOperator(offset, ones(2), ones(2))
+        @test_throws ArgumentError OrbitOrbitOperator(ones(2), offset)
+    end
 end

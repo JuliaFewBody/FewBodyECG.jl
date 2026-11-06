@@ -64,6 +64,14 @@ end
     @test steps == 1:length(history)
     @test history == energy_history(sol)
 
+    energies = [-0.4, -0.48, -0.499]
+    @test convergence(energies) == (1:3, energies)
+    @test convergence(energies; steps = [2, 4, 8]) == ([2, 4, 8], energies)
+    history_view = view(energies, 1:2)
+    @test last(convergence(history_view)) === history_view
+    @test convergence(Float64[]) == (1:0, Float64[])
+    @test_throws DimensionMismatch convergence(energies; steps = [1, 2])
+
     r, density = radial_profile(wavefunction(sol); rmax = 4, npoints = 200)
     @test first(r) ≥ 0
     @test all(≥(0), density)
@@ -134,4 +142,19 @@ end
     finally
         KEY_SUPPORTED[] = true
     end
+end
+
+@testset "expectation" begin
+    sol = solve(ops, SVM(basis = 12, candidates = 10))
+    # The Hamiltonian terms' expectations sum to each eigenvalue.
+    @test sum(expectation(sol, op) for op in sol.operators) ≈ sol.E₀ rtol = 1.0e-10
+    @test sum(expectation(sol, op; state = 2) for op in sol.operators) ≈ sol.E[2] rtol = 1.0e-8
+
+    # Ps⁻ projected onto even electron exchange has ⟨P₂₃⟩ = 1.
+    masses = [1.0, 1.0, 1.0]
+    psm = solve(
+        Kinetic(masses) + Coulomb([+1.0, -1.0, -1.0]), SVM(basis = 10, candidates = 10);
+        symmetry = PermutationSymmetry(masses, [[1, 3, 2]])
+    )
+    @test expectation(psm, PermutationOperator(masses, [1, 3, 2])) ≈ 1 rtol = 1.0e-8
 end

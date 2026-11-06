@@ -35,6 +35,21 @@ function jacobi_transform(masses::Vector{Float64})::Tuple{Matrix{Float64}, Matri
     return J, U
 end
 
+# `(m, J, U)` for operators built from particle masses: validated `Float64`
+# masses and their Jacobi transformation.
+function _checked_jacobi(masses::AbstractVector{<:Real})
+    Base.require_one_based_indexing(masses)
+    length(masses) ≥ 2 ||
+        throw(ArgumentError("at least two particle masses are required, got $(length(masses))"))
+    all(m -> isfinite(m) && m > 0, masses) ||
+        throw(ArgumentError("masses must be finite and positive, got $masses"))
+    m = collect(Float64, masses)
+    J, U = jacobi_transform(m)
+    all(isfinite, J) && all(isfinite, U) ||
+        throw(ArgumentError("masses $masses do not give a finite Jacobi transformation"))
+    return m, J, U
+end
+
 """
     FewBodyECG.Λ(masses) -> Symmetric matrix
 

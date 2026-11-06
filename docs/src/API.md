@@ -22,6 +22,19 @@ ManyBodyGaussianOperator
 NumericalPotential
 GaussianTensorOperator
 GaussianSpinOrbitOperator
+PermutationOperator
+PermutationSymmetry
+ProjectedGaussian
+ContactDensityOperator
+DipoleOperator
+QuadrupoleOperator
+MomentumFourthOperator
+MassVelocityOperator
+OrbitOrbitOperator
+SpinExchangeOperator
+IsospinExchangeOperator
+IsospinProjection
+IsospinState
 SpinProjection
 SpinState
 SpinGaussian
@@ -60,6 +73,7 @@ convergence
 wavefunction
 Wavefunction
 radial_profile
+expectation
 ```
 
 ## Matrix-level layer (public, not exported)
@@ -75,6 +89,7 @@ using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix,
 ```@docs
 FewBodyECG.build_hamiltonian_matrix
 FewBodyECG.build_overlap_matrix
+FewBodyECG.build_operator_matrix
 FewBodyECG.solve_generalized_eigenproblem
 FewBodyECG.Λ
 FewBodyECG.jacobi_transform
@@ -82,4 +97,6 @@ FewBodyECG.default_scale
 FewBodyECG.coulomb_weights
 FewBodyECG.up
 FewBodyECG.down
+FewBodyECG.proton
+FewBodyECG.neutron
 ```

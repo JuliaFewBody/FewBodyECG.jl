@@ -1,76 +1,18 @@
+# Hydrogen with SVM, comparing quasi-random samplers for the candidate widths.
 using FewBodyECG
 import Antique
 using Plots
-using QuasiMonteCarlo: GoldenSample, HaltonSample, SobolSample, LatticeRuleSample, LatinHypercubeSample, GridSample
+using QuasiMonteCarlo: GoldenSample, GridSample, HaltonSample, LatinHypercubeSample, LatticeRuleSample, SobolSample
 
 ops = Kinetic([1.0e15, 1.0]) + Coulomb([+1.0, -1.0])
-
 exact = Antique.energy(Antique.HydrogenAtom(Z = 1), n = 1)
 
-function run_method(label, alg, ops, exact)
-    sol = solve(ops, alg)
-    println(label, ": E0 = ", sol.E₀, " Ha, Δ = ", sol.E₀ - exact)
-    return sol
-end
-
-nsamples = 25
-svm_halton = run_method(
-    "SVM (Halton)",
-    SVM(basis = 25, candidates = nsamples, sampler = HaltonSample()),
-    ops,
-    exact,
-)
-svm_sobol = run_method(
-    "SVM (Sobol)",
-    SVM(basis = 25, candidates = nsamples, sampler = SobolSample()),
-    ops,
-    exact,
-)
-svm_golden = run_method(
-    "SVM (Golden)",
-    SVM(basis = 25, candidates = nsamples, sampler = GoldenSample()),
-    ops,
-    exact,
-)
-
-svm_lattice = run_method(
-    "SVM (Lattice)",
-    SVM(basis = 25, candidates = nsamples, sampler = LatticeRuleSample()),
-    ops,
-    exact,
-)
-
-svm_hypercube = run_method(
-    "SVM (Latin Hypercube)",
-    SVM(basis = 25, candidates = nsamples, sampler = LatinHypercubeSample()),
-    ops,
-    exact,
-)
-
-svm_grid = run_method(
-    "SVM (Grid sampling)",
-    SVM(basis = 25, candidates = nsamples, sampler = GridSample()),
-    ops,
-    exact,
-)
-
-p = plot(
-    convergence(svm_halton)...;
-    label = "SVM (Halton)",
-    linewidth = 1.5,
-    xlabel = "solver iteration",
-    ylabel = "E₀ (Ha)",
-    title = "Hydrogen solver convergence",
-    legend = :topright,
-)
-for (label, sol) in [
-        "SVM (Sobol)" => svm_sobol,
-        "SVM (Golden)" => svm_golden,
-        "SVM (LatticeRuleSample)" => svm_lattice,
-        "SVM (Latin Hypercube)" => svm_hypercube,
-        "SVM (Grid sample)" => svm_grid,
-    ]
-    plot!(p, convergence(sol)...; label, linewidth = 1.5)
+samplers = [HaltonSample(), SobolSample(), GoldenSample(), LatticeRuleSample(), LatinHypercubeSample(), GridSample()]
+p = plot(; xlabel = "step", ylabel = "E₀ (Ha)", title = "Hydrogen SVM convergence by sampler")
+for sampler in samplers
+    sol = solve(ops, SVM(; basis = 25, candidates = 25, sampler))
+    name = string(nameof(typeof(sampler)))
+    @info name E₀ = sol.E₀ Δ = sol.E₀ - exact
+    plot!(p, convergence(sol); label = name)
 end
 hline!(p, [exact]; label = "exact", color = :black, linestyle = :dash)
-p

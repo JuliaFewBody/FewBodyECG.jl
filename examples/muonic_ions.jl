@@ -23,20 +23,11 @@ systems = [
 ]
 
 for (name, masses, svm200) in systems
-    ref = db(:Suzuki2003Jul, name, :energy, "¹Sᵉ").value
-
     ops = Kinetic(masses) + Coulomb([+1.0, +1.0, -1.0])
-
     sol = solve(
-        ops,
-        SVM(basis = 200, candidates = 40) →
-            Refine(2; candidates = 20);
-        tol = 1.0e-4,
-        window = 15,
+        ops, SVM(basis = 200, candidates = 40) → Refine(2; candidates = 20);
+        tol = 1.0e-4, window = 15,
     )
-
-    println(name)
-    println("  ECG E₀              = ", sol.E₀, " Ha")
-    println("  Δ vs SVM K=200      = ", sol.E₀ - svm200, " Ha")
-    println("  Δ vs FewBodyDB      = ", sol.E₀ - ref, " Ha")
+    reference = db(:Suzuki2003Jul, name, :energy, "¹Sᵉ").value
+    @info name E₀ = sol.E₀ Δ_SVM200 = sol.E₀ - svm200 Δ_reference = sol.E₀ - reference
 end
