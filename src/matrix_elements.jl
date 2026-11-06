@@ -336,7 +336,8 @@ _overlap_prefactor(B) = (π^size(B, 1) / det(B))^(3 / 2)
 # Central rank-0 datum after shifting the combined exponent by `W`: the inverse
 # exponent `R`, the combined shift `v = bra.s + ket.s`, and the scalar overlap
 # `M` of the W-shifted Gaussians.  Central operators reduce to `coefficient·M`.
-function _updated_rank0_data(bra::Rank0Gaussian, ket::Rank0Gaussian, W)
+# With the default `W = 0`, `M` is the overlap and `R * v / 2` the Gaussian mean.
+function _updated_rank0_data(bra::Rank0Gaussian, ket::Rank0Gaussian, W = 0I)
     Bp = parent(bra.A) + parent(ket.A) + W
     R = inv(Bp)
     v = bra.s + ket.s
@@ -420,10 +421,14 @@ _compute_matrix_element(bra::SpinGaussian, ket::SpinGaussian, op::FewBodyHamilto
     _compute_matrix_element(bra.orbital, ket.orbital, op) * _spin_overlap(bra.spin, ket.spin) *
     _isospin_overlap(bra.isospin, ket.isospin)
 
-function _compute_matrix_element(bra::SpinGaussian, ket::SpinGaussian, op::GaussianTensorOperator)
-    if !(bra.orbital isa Rank0Gaussian && ket.orbital isa Rank0Gaussian)
-        return _polarized_spin_element(bra, ket, op)
-    end
+# Polarized orbitals: shift derivatives of the Rank0 methods below.
+_compute_matrix_element(
+    bra::SpinGaussian, ket::SpinGaussian, op::Union{GaussianTensorOperator, GaussianSpinOrbitOperator}
+) = _polarized_spin_element(bra, ket, op)
+
+function _compute_matrix_element(
+        bra::SpinGaussian{<:Rank0Gaussian}, ket::SpinGaussian{<:Rank0Gaussian}, op::GaussianTensorOperator
+    )
     i, j, w = op.i, op.j, op.w
     spectator = _spectator(bra.spin, ket.spin, (i, j)) * _isospin_overlap(bra.isospin, ket.isospin)
     spectator == 0 && return 0.0 + 0.0im
@@ -443,10 +448,9 @@ function _compute_matrix_element(bra::SpinGaussian, ket::SpinGaussian, op::Gauss
     return op.coefficient * M * spectator * result
 end
 
-function _compute_matrix_element(bra::SpinGaussian, ket::SpinGaussian, op::GaussianSpinOrbitOperator)
-    if !(bra.orbital isa Rank0Gaussian && ket.orbital isa Rank0Gaussian)
-        return _polarized_spin_element(bra, ket, op)
-    end
+function _compute_matrix_element(
+        bra::SpinGaussian{<:Rank0Gaussian}, ket::SpinGaussian{<:Rank0Gaussian}, op::GaussianSpinOrbitOperator
+    )
     isospin = _isospin_overlap(bra.isospin, ket.isospin)
     i, j, w = op.i, op.j, op.w
     data = _updated_rank0_data(bra.orbital, ket.orbital, op.γ * (op.w * op.w'))

@@ -1,4 +1,4 @@
-# Shared two-nucleon model construction for the physics example and book tests.
+# Two-nucleon model construction for the book nuclear-exchange tests.
 
 # Rows are (V [MeV], γ [fm⁻²], W, M, B, H), exactly as in Table 11.1.
 minnesota_rows(u) = [

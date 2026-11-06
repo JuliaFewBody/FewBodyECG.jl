@@ -122,14 +122,8 @@ Rank-2 (d-wave-like) ECG basis function
 The polarizations `a`, `b` and the shift `s` are `N × 3` supervectors, as for
 [`Rank1Gaussian`](@ref); a length-`N` vector is placed in the `z` component.
 Orthogonal Cartesian polarizations such as `a = [1 0 0]`, `b = [0 1 0]` give
-pure d-wave (`xy`) character.
-
-Matrix elements exist for every operator that has a [`Rank0Gaussian`](@ref)
-element, in any combination of ranks in bra and ket and with or without
-shifts. Closed forms are used where they exist; the other combinations are
-the mixed derivatives of the shifted `Rank0Gaussian` element with respect to
-the shift, one derivative per polarization. Spin-dependent operators need
-[`SpinGaussian`](@ref) functions.
+pure d-wave (`xy`) character. Matrix elements are available for the same
+operators and rank combinations as for [`Rank1Gaussian`](@ref).
 """
 struct Rank2Gaussian{
         T <: Real,
@@ -391,10 +385,7 @@ Attach this state with `SpinGaussian(orbital, spin; isospin=state)`.
 """
 struct IsospinState
     projections::Vector{IsospinProjection}
-    function IsospinState(projections::AbstractVector{IsospinProjection})
-        Base.require_one_based_indexing(projections)
-        return new(collect(projections))
-    end
+    IsospinState(projections::AbstractVector{IsospinProjection}) = new(collect(projections))
 end
 
 """
@@ -414,9 +405,7 @@ struct SpinGaussian{G <: Union{Rank0Gaussian, Rank1Gaussian, Rank2Gaussian}} <: 
     orbital::G
     spin::SpinState
     isospin::Union{Nothing, IsospinState}
-    function SpinGaussian(
-            orbital::G, spin::SpinState; isospin::Union{Nothing, IsospinState} = nothing
-        ) where {G <: Union{Rank0Gaussian, Rank1Gaussian, Rank2Gaussian}}
+    function SpinGaussian{G}(orbital, spin; isospin = nothing) where {G}
         n = size(orbital.A, 1) + 1
         length(spin.projections) == n ||
             throw(ArgumentError("spin must have one projection per particle ($n)"))
@@ -425,6 +414,8 @@ struct SpinGaussian{G <: Union{Rank0Gaussian, Rank1Gaussian, Rank2Gaussian}} <: 
         return new{G}(orbital, spin, isospin)
     end
 end
+
+SpinGaussian(orbital, spin; isospin = nothing) = SpinGaussian{typeof(orbital)}(orbital, spin; isospin)
 
 """
     GaussianTensorOperator(coefficient, γ, w, i, j; traceless = true)
@@ -474,8 +465,7 @@ struct GaussianSpinOrbitOperator{T <: Real} <: FewBodyHamiltonians.PotentialTerm
         )
         γ > 0 || throw(ArgumentError("γ must be positive, got γ = $γ"))
         i != j || throw(ArgumentError("sites i and j must differ, got i = j = $i"))
-        !isempty(w) && all(isfinite, w) && any(!iszero, w) ||
-            throw(ArgumentError("spin-orbit weight must be a nonempty, finite, nonzero vector"))
+        _check_weight(w, "spin-orbit weight")
         T = promote_type(typeof(coefficient), typeof(γ), eltype(w))
         return new{T}(T(coefficient), T(γ), Vector{T}(w), Int(i), Int(j))
     end

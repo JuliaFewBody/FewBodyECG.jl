@@ -1,107 +1,92 @@
 # # Why the deuteron binds: spin and isospin exchange
-# Minnesota central S-wave model: compare (S,T)=(1,0) and (0,1).
-# Suzuki–Varga, Table 11.1, p. 217; deuteron reference: Table 11.9, p. 237.
+#
+# The Minnesota potential (Suzuki–Varga, Table 11.1, p. 217) is a sum of
+# Gaussians with Wigner, Majorana, Bartlett and Heisenberg exchange parts,
+# `V = Σₖ Vₖ exp(-γₖr²) (Wₖ + Mₖ Pʳ + Bₖ Pσ - Hₖ Pτ)`. In an S-wave it binds
+# the S = 1, T = 0 channel (the deuteron, −2.202 MeV in Table 11.9, p. 237) but
+# not S = 0, T = 1.
 
 using FewBodyECG
+using FewBodyECG: build_operator_matrix, build_overlap_matrix, solve_generalized_eigenproblem, jacobi_transform
+using FewBodyECG: up, down, proton, neutron
 using LinearAlgebra
 using Plots
-include(joinpath(@__DIR__, "nuclear_exchange_model.jl"))
 
-masses = fill(1 / 41.47, 2)  # ℏ²/m = 41.47 MeV fm²
-_, U = FewBodyECG.jacobi_transform(masses)
-w = U' * [1.0, -1.0]
-Pr = PermutationOperator(masses, [2, 1])
+masses = fill(1 / 41.47, 2)   # ℏ²/m = 41.47 MeV fm²
+_, U = jacobi_transform(masses)
+w = U' * [1.0, -1.0]          # Jacobi weight of the proton–neutron separation
 
-# V = Σ Vₖ exp(-γₖr²)(Wₖ + MₖPʳ + BₖPσ - HₖPτ) in a Pauli-allowed channel.
+## Radial Gaussians in the pair distance, each times the four product states
+## with M_S = M_T = 0.  The innermost loop runs over isospin.
 widths = exp10.(range(-4, 2, length = 24))
-orbitals = pair_orbitals(0, widths, w)
-basis = nucleon_basis(orbitals)
-overlap = FewBodyECG.build_overlap_matrix(basis)
-H = FewBodyECG.build_operator_matrix(basis, KineticOperator(masses)) +
-    exchange_matrix(basis, minnesota_rows(1.0), w, Pr; isospin_form = true)
-C_triplet = channel_map(length(orbitals), 1, 0)
-C_singlet = channel_map(length(orbitals), 0, 1)
-H_triplet, S_triplet = C_triplet' * H * C_triplet, C_triplet' * overlap * C_triplet
-H_singlet, S_singlet = C_singlet' * H * C_singlet, C_singlet' * overlap * C_singlet
+orbitals = [Rank0Gaussian(α * (w * w'), zeros(1, 3)) for α in widths]
+spins = (SpinState([up, down]), SpinState([down, up]))
+isospins = (IsospinState([proton, neutron]), IsospinState([neutron, proton]))
+basis = BasisSet([SpinGaussian(g, s; isospin = t) for g in orbitals for s in spins for t in isospins])
 
-# Positive singlet levels approximate the continuum.
-basis_sizes = collect(4:2:24)
-triplet_states = [channel_solution(H_triplet[1:k, 1:k], S_triplet[1:k, 1:k], orbitals[1:k]) for k in basis_sizes]
-singlet_states = [channel_solution(H_singlet[1:k, 1:k], S_singlet[1:k, 1:k], orbitals[1:k]) for k in basis_sizes]
-triplet_energies = [state.energy for state in triplet_states]
-singlet_energies = [state.energy for state in singlet_states]
-deuteron = last(triplet_states)
+## Minnesota rows (Vₖ [MeV], γₖ [fm⁻²], Wₖ, Mₖ, Bₖ, Hₖ) with exchange parameter u = 1.
+minnesota = [
+    (200.0, 1.487, 0.5, 0.5, 0.0, 0.0),
+    (-178.0, 0.639, 0.25, 0.25, 0.25, 0.25),
+    (-91.85, 0.465, 0.25, 0.25, -0.25, -0.25),
+]
+Pʳ, Pσ, Pτ = PermutationOperator(masses, [2, 1]), SpinExchangeOperator(1, 2), IsospinExchangeOperator(1, 2)
+matrix(op) = build_operator_matrix(basis, op)
+potential = sum(minnesota) do (V, γ, W, M, B, H)
+    radial = GaussianOperator(V, γ, w)
+    W * matrix(radial) + M * matrix(radial * Pʳ) + B * matrix(radial * Pσ) - H * matrix(radial * Pτ)
+end
+hamiltonian = matrix(KineticOperator(masses)) + potential
+overlap = build_overlap_matrix(basis)
 
-S_orb = FewBodyECG.build_overlap_matrix(BasisSet(orbitals))
-R2 = FewBodyECG.build_operator_matrix(BasisSet(orbitals), OscillatorOperator(1.0, w))
-c = deuteron.coefficients
-rms_separation = sqrt(real(dot(c, R2 * c) / dot(c, S_orb * c)))
-println(
-    "Deuteron: E = ", round(deuteron.energy; digits = 6), " MeV; rms separation = ",
-    round(rms_separation; digits = 3), " fm"
-)
+## Coupled channel (|↑↓⟩ ± |↓↑⟩)/√2 ⊗ (|pn⟩ ± |np⟩)/√2 on the first k radial
+## functions: + for S = 1 or T = 1, − for S = 0 or T = 0.
+channel(S, T, k) = kron(Matrix(1.0I, length(orbitals), k), kron([1, 2S - 1], [1, 2T - 1]) / 2)
+
+## Lowest channel energy and its radial coefficients.  Rescaling to a unit
+## diagonal keeps the widely spread widths well conditioned.
+function ground_state(S, T, k)
+    C = channel(S, T, k)
+    Hc, Sc = C' * hamiltonian * C, C' * overlap * C
+    D = Diagonal(1 ./ sqrt.(diag(Sc)))
+    cond(D * Sc * D) < 1.0e12 || throw(ArgumentError("radial basis with $k functions is too ill-conditioned"))
+    E, c = solve_generalized_eigenproblem(D * Hc * D, D * Sc * D)
+    return first(E), D * c[:, 1]
+end
+
+sizes = 4:2:24
+triplet = [first(ground_state(1, 0, k)) for k in sizes]
+singlet = [first(ground_state(0, 1, k)) for k in sizes]   # positive levels approximate the continuum
+E_d, c_d = ground_state(1, 0, length(orbitals))
+
+## The spin-isospin states are normalized, so `c_d` also normalizes the radial part.
+radial_basis = BasisSet(orbitals)
+rms = sqrt(dot(c_d, build_operator_matrix(radial_basis, OscillatorOperator(1.0, w)) * c_d))
+@info "Deuteron (Minnesota)" E = E_d rms_separation_fm = rms reference = -2.202
+
+## u(r) = √(4π) r ψ(r) in physical fm; the Jacobi coordinate is x = |w| r.
+ψ = Wavefunction(radial_basis, c_d)
+radii = range(0, 20, length = 600)
+scale = abs(only(w))
+u = [sqrt(4π) * r * ψ([r / scale]) / scale^(3 / 2) for r in radii]
+u .*= sign(u[argmax(abs.(u))])   # fix the arbitrary sign of the eigenvector
 
 triplet_potential(r) = 200exp(-1.487r^2) - 178exp(-0.639r^2)
 singlet_potential(r) = 200exp(-1.487r^2) - 91.85exp(-0.465r^2)
-r_potential = range(0, 6, length = 400)
-triplet_color, singlet_color = "#b82a6b", "#426b9b"
-style = (;
-    framestyle = :box, gridalpha = 0.12, linewidth = 2,
-    titlefontsize = 12, guidefontsize = 11, tickfontsize = 10, legendfontsize = 9,
-    left_margin = 4Plots.mm, bottom_margin = 3Plots.mm,
+r = range(0, 6, length = 400)
+potentials = plot(
+    r, [triplet_potential.(r) singlet_potential.(r)]; label = ["S=1, T=0" "S=0, T=1"],
+    xlabel = "r (fm)", ylabel = "V(r) (MeV)", title = "Channel potentials",
 )
-
-potential_plot = plot(
-    r_potential, triplet_potential.(r_potential);
-    label = "S=1, T=0", color = triplet_color, xlabel = "r (fm)", ylabel = "V(r) (MeV)",
-    title = "(a) Spin-dependent attraction", style...
+energies = plot(
+    sizes, [triplet singlet]; label = ["triplet" "singlet"], marker = :circle,
+    xlabel = "radial Gaussians", ylabel = "E (MeV)", title = "Basis convergence",
 )
-plot!(
-    potential_plot, r_potential, singlet_potential.(r_potential);
-    label = "S=0, T=1", color = singlet_color, linestyle = :dash
+hline!(energies, [0.0]; label = "p + n threshold", color = :gray, linestyle = :dash)
+hline!(energies, [-2.202]; label = "book", color = :black, linestyle = :dot)
+probability = plot(
+    radii, abs2.(u); label = "deuteron", fillrange = 0, fillalpha = 0.15,
+    xlabel = "r (fm)", ylabel = "u(r)² (fm⁻¹)", title = "Separation probability",
 )
-hline!(potential_plot, [0.0]; color = :gray, linewidth = 1, label = "")
-
-convergence_plot = plot(
-    convergence(triplet_energies; steps = basis_sizes);
-    label = "triplet", marker = :circle, markersize = 3, color = triplet_color,
-    markerstrokecolor = triplet_color, markerstrokewidth = 0.5,
-    xlabel = "radial Gaussians N", ylabel = "E (MeV)", title = "(b) Basis convergence", style...
-)
-plot!(
-    convergence_plot, convergence(singlet_energies; steps = basis_sizes);
-    label = "singlet", color = singlet_color, marker = :diamond, markersize = 3, linestyle = :dash,
-    markerstrokecolor = singlet_color, markerstrokewidth = 0.5
-)
-hline!(convergence_plot, [0.0]; color = :gray, linewidth = 1, linestyle = :dash, label = "p+n threshold")
-hline!(convergence_plot, [-2.202]; color = :black, linewidth = 1, linestyle = :dot, label = "book (rounded)")
-
-# u(r)=√(4π)rψ(r), normalized in physical fm.
-radii = range(0, 20, length = 600)
-amplitude_plot = plot(;
-    xlabel = "r (fm)", ylabel = "u(r) [1/sqrt(fm)]",
-    title = "(c) Radial wavefunction", style...
-)
-for (k, color, line) in ((12, :gray, :dot), (16, singlet_color, :dash), (24, triplet_color, :solid))
-    state = triplet_states[findfirst(==(k), basis_sizes)]
-    plot!(
-        amplitude_plot, radii, s_wave_radial_amplitude(state.wavefunction, radii, w);
-        label = "N=$k", color, linestyle = line
-    )
-end
-u = s_wave_radial_amplitude(deuteron.wavefunction, radii, w)
-probability_plot = plot(
-    radii, abs2.(u);
-    label = "deuteron", color = triplet_color, fillrange = 0, fillalpha = 0.12,
-    xlabel = "r (fm)", ylabel = "P(r) [1/fm]", title = "(d) Separation probability", style...
-)
-vline!(
-    probability_plot, [rms_separation]; color = :black, linestyle = :dash, linewidth = 1,
-    label = "r_rms = $(round(rms_separation; digits = 2)) fm"
-)
-
-physics_plot = plot(
-    potential_plot, convergence_plot, amplitude_plot, probability_plot;
-    layout = (2, 2), size = (1000, 760), dpi = 180
-)
-physics_plot
+vline!(probability, [rms]; label = "rms = $(round(rms; digits = 2)) fm", color = :black, linestyle = :dash)
+plot(potentials, energies, probability; layout = (1, 3), size = (1200, 380))

@@ -72,7 +72,7 @@ Jacobi-frame operators.
 """
 function build_hamiltonian_matrix(basis::BasisSet{<:GaussianBase}, operators::AbstractVector{<:FewBodyHamiltonians.Operator})
     if _hamiltonian_invariant(operators, _basis_symmetry(basis))
-        return [_hamiltonian_element(g, h, operators, true) for g in basis, h in basis]
+        return [_hamiltonian_element(g, h, operators; invariant = true) for g in basis, h in basis]
     end
     n = length(basis.functions)
     g1 = first(basis.functions)

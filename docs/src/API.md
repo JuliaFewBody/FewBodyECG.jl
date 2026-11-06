@@ -73,6 +73,7 @@ convergence
 wavefunction
 Wavefunction
 radial_profile
+expectation
 ```
 
 ## Matrix-level layer (public, not exported)

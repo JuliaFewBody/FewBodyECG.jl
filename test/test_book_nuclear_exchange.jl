@@ -1,7 +1,7 @@
 module BookNuclearExchangeTests
 
 using Test, LinearAlgebra, FewBodyECG
-include(joinpath(@__DIR__, "..", "examples", "nuclear_exchange_model.jl"))
+include("nuclear_exchange_model.jl")
 
 # Table 11.1, p. 217: ATS3 contains Wigner and Bartlett terms.
 const ATS3_ROWS = [

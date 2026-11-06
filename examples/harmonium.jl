@@ -1,94 +1,62 @@
 # # Hooke's atom (harmonium)
 #
-# Two electrons bound to a fixed centre by a harmonic trap and repelling each
-# other through the Coulomb interaction.  At trap frequency `ω = 1/2` the ground
+# Two electrons bound to a fixed center by a harmonic trap and repelling each
+# other through the Coulomb interaction. At trap frequency `ω = 1/2` the ground
 # state is known in closed form (Taut 1993): `E₀ = 2` Ha, with relative
-# wavefunction `χ(u) ∝ (1 + u/2) e^{-u²/8}`.  The fixed centre is a particle of
-# mass `1e15`; each `("Oscillator", 1, i, k)` term adds `k r²` between the centre
-# and electron `i`.
+# wavefunction `χ(u) ∝ (1 + u/2) e^{-u²/8}`. The fixed center is a particle of
+# mass `1e15`; each `Oscillator(1, i)` term adds `r²` between the center and
+# electron `i`.
 
 using FewBodyECG
-using Plots
 using FewBodyECG: jacobi_transform
+using Plots
 
 ω = 0.5
 masses = [1.0e15, 1.0, 1.0]
-
 ops = Kinetic(masses) +
     0.5 * ω^2 * Oscillator(1, 2) +       # ½ω² r₁²  (trap on electron 1)
     0.5 * ω^2 * Oscillator(1, 3) +       # ½ω² r₂²  (trap on electron 2)
     Coulomb(2, 3)                        # +1/r₁₂ electron–electron repulsion
 
 exact = 2.0                              # Taut 1993, ω = 1/2
-
 sol = solve(ops, SVM(basis = 80, candidates = 40))
-println("Hooke's atom E₀ = ", sol.E₀, " Ha   (Taut exact ", exact, ", Δ = ", sol.E₀ - exact, ")")
-println("variational upper bound respected: ", sol.E₀ ≥ exact)
-sol
+@info "Hooke's atom" E₀ = sol.E₀ exact Δ = sol.E₀ - exact
+plot(sol, exact; title = "Convergence to the exact energy")
 
-# Shared styling so the three figures read as one consistent set: a magma-family
-# magenta for the ECG (computed) data, a neutral slate for the reference/exact.
-FIG = (
-    titlefontsize = 12, guidefontsize = 10, tickfontsize = 9, legendfontsize = 9,
-    framestyle = :box, grid = true, gridalpha = 0.12, size = (640, 420), dpi = 200,
-    left_margin = 4Plots.mm, bottom_margin = 3Plots.mm,
-)
-ecg_color = RGB(0.72, 0.16, 0.42)     # computed (ECG)
-ref_color = RGB(0.45, 0.47, 0.52)     # reference / exact
+# `jacobi_transform` gives the matrix `J` that maps particle positions to the
+# Jacobi coordinates of the solution, so `ψ(J * x)` evaluates the wavefunction
+# at particle positions `x`. With both electrons on the z axis:
 
-plot(
-    convergence(sol);
-    xlabel = "step", ylabel = "E (Ha)", label = "ECG", color = ecg_color, linewidth = 2,
-    title = "Convergence to the exact energy", FIG...,
-)
-hline!([exact]; label = "reference", color = ref_color, linestyle = :dash)
-
-# Back to laboratory coordinates: `jacobi_transform` gives J mapping physical
-# particle positions to the (mass-weighted) Jacobi coordinates the solution uses,
-# so ψ(J·r) evaluates the wavefunction directly in coordinate space.
 ψ = wavefunction(sol)
 J, _ = jacobi_transform(masses)
-Ψ(z₁, z₂) = ψ(J * [0.0, z₁, z₂])         # electrons at z₁, z₂ on the axis; centre at 0
+Ψ(z₁, z₂) = ψ(J * [0.0, z₁, z₂])
 
-# Relative wavefunction χ(u): electrons at ±u/2 (centre of mass at the trap origin)
-# vs Taut's closed form χ(u) ∝ (1 + u/2) e^{-u²/8}.
+# The relative wavefunction `χ(u)` puts the electrons at `±u/2`. Both curves are
+# scaled to a unit peak so that only their shapes are compared.
+
 u = range(0, 10, length = 200)
 χ_ecg = [Ψ(x / 2, -x / 2) for x in u]
 χ_exact = [(1 + x / 2) * exp(-x^2 / 8) for x in u]
-χ_ecg ./= maximum(abs, χ_ecg)                       # peak-normalise for shape
+χ_ecg .*= sign(sum(χ_ecg .* χ_exact)) / maximum(abs, χ_ecg)
 χ_exact ./= maximum(χ_exact)
-χ_ecg .*= sign(sum(χ_ecg .* χ_exact))
-println("max |Δχ| (shape) = ", maximum(abs, χ_ecg .- χ_exact))
+@info "Relative wavefunction" max_shape_error = maximum(abs, χ_ecg .- χ_exact)
 
-plot(u, χ_exact; label = "exact (Taut 1993)", color = ref_color, linewidth = 3, FIG...)
+plot(u, χ_exact; label = "exact (Taut 1993)", linewidth = 3)
 plot!(
-    u, χ_ecg; label = "ECG", color = ecg_color, linestyle = :dash, linewidth = 2,
-    xlabel = "interelectronic distance  u", ylabel = "χ(u)  (peak-normalised)",
-    title = "Relative wavefunction vs Taut's closed form", legend = :topright,
+    u, χ_ecg; label = "ECG", linestyle = :dash, linewidth = 2,
+    xlabel = "interelectronic distance u", ylabel = "χ(u) (unit peak)",
+    title = "Relative wavefunction vs Taut's closed form",
 )
 
-# Full two-electron density in coordinate space.  The reduced amplitude along the
-# diagonal z₁ = z₂ is the Coulomb hole — the electrons avoid each other.
-lim = 4.5
-zs = range(-lim, lim, length = 251)
+# The two-electron density in coordinate space. The trough along the diagonal
+# `z₁ = z₂` is the Coulomb hole: the electrons avoid each other.
+
+zs = range(-4.5, 4.5, length = 251)
 density = [abs2(Ψ(z₁, z₂)) for z₂ in zs, z₁ in zs]
-density ./= maximum(density)                       # peak-normalise → colorbar 0…1
-
 heatmap(
-    zs, zs, density;
-    c = :magma, clims = (0, 1),
-    xlims = (-lim, lim), ylims = (-lim, lim), aspect_ratio = :equal,
-    xlabel = "electron 1 position  z₁", ylabel = "electron 2 position  z₂",
-    colorbar_title = "\n|Ψ|²  (normalised)", colorbar_titlefontsize = 9,
-    title = "Hooke's atom — two-electron density",
-    titlefontsize = 12, guidefontsize = 10, tickfontsize = 9,
-    grid = false, framestyle = :box, widen = false,
-    size = (600, 500), dpi = 200, left_margin = 3Plots.mm,
+    zs, zs, density ./ maximum(density);
+    c = :magma, aspect_ratio = :equal, widen = false,
+    xlabel = "electron 1 position z₁", ylabel = "electron 2 position z₂",
+    title = "Hooke's atom: two-electron density (unit peak)",
 )
-## dashed line marks where the electrons coincide — the trough is the Coulomb hole
-plot!(
-    [-lim, lim], [-lim, lim];
-    color = :white, alpha = 0.4, linestyle = :dash, linewidth = 1.5,
-    label = "z₁ = z₂  (Coulomb hole)", legend = :topleft, foreground_color_legend = nothing,
-    background_color_legend = RGBA(0, 0, 0, 0.35), legendfontcolor = :white, legendfontsize = 8,
-)
+plot!(zs, zs; color = :white, linestyle = :dash, label = "z₁ = z₂")

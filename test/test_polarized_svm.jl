@@ -63,7 +63,7 @@ using FewBodyECG: BasisState, _draw_candidate!, _candidate_columns, commit!,
         st = BasisState(Rank1Gaussian)
         polarizations = Vector{Float64}[]
         for _ in 1:5
-            g = _draw_candidate!(st, 1.0, FewBodyECG.HaltonSample(), :wide, weights, 2)
+            g = _draw_candidate!(st, 1.0, FewBodyECG.HaltonSample(), :wide, weights)
             @test iszero(g.a[:, 1:2])
             @test norm(g.a[:, 3]) ≈ 1
             push!(polarizations, g.a[:, 3])

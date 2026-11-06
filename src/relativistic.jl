@@ -11,22 +11,11 @@ struct MomentumFourthOperator{T <: Real} <: Operator
     u::Vector{T}
     coefficient::T
     function MomentumFourthOperator(u::AbstractVector{<:Real}; coefficient::Real = 1)
-        Base.require_one_based_indexing(u)
-        !isempty(u) && all(isfinite, u) || throw(ArgumentError("momentum weights must be nonempty and finite"))
-        isfinite(coefficient) || throw(ArgumentError("coefficient must be finite"))
+        _check_weight(u, "momentum weights"; nonzero = false)
+        _check_coefficient(coefficient)
         T = promote_type(Float64, eltype(u), typeof(coefficient))
         return new{T}(Vector{T}(u), T(coefficient))
     end
-end
-
-function _relativistic_frame(masses::AbstractVector{<:Real})
-    Base.require_one_based_indexing(masses)
-    length(masses) ≥ 2 || throw(ArgumentError("at least two particle masses are required"))
-    all(m -> isfinite(m) && m > 0, masses) || throw(ArgumentError("masses must be finite and positive"))
-    m = collect(Float64, masses)
-    J, U = jacobi_transform(m)
-    all(isfinite, J) && all(isfinite, U) || throw(ArgumentError("masses must give a finite Jacobi transformation"))
-    return m, J, U
 end
 
 """
@@ -43,12 +32,22 @@ fixed frame; width, shift, and coupling derivatives remain supported.
 """
 struct MassVelocityOperator{T <: Real} <: Operator
     terms::Vector{MomentumFourthOperator{T}}
-    function MassVelocityOperator(masses::AbstractVector{<:Real}; coefficient::Real = 1)
-        m, J, _ = _relativistic_frame(masses)
-        isfinite(coefficient) || throw(ArgumentError("coefficient must be finite"))
-        terms = [MomentumFourthOperator(J[:, i]; coefficient = -coefficient / (8m[i]^3)) for i in eachindex(m)]
-        return new{typeof(first(terms).coefficient)}(terms)
-    end
+end
+
+function MassVelocityOperator(masses::AbstractVector{<:Real}; coefficient::Real = 1)
+    _check_coefficient(coefficient)
+    m, J, _ = _checked_jacobi(masses)
+    return MassVelocityOperator(
+        [MomentumFourthOperator(J[:, i]; coefficient = -coefficient / (8m[i]^3)) for i in eachindex(m)]
+    )
+end
+
+# One orbit–orbit pair: separation weight `w`, momentum weights `u`, `v`.
+struct _OrbitOrbitPair{T <: Real}
+    w::Vector{T}
+    u::Vector{T}
+    v::Vector{T}
+    coefficient::T
 end
 
 """
@@ -71,50 +70,51 @@ all higher-rank and parameter derivatives compose through ForwardDiff.
 See Stanke et al., Phys. Rev. A **97**, 012513 (2018), Eq. (29).
 """
 struct OrbitOrbitOperator{T <: Real} <: Operator
-    terms::Vector{Tuple{Vector{T}, Vector{T}, Vector{T}, T}}
-    function OrbitOrbitOperator(
-            w::AbstractVector{<:Real}, u::AbstractVector{<:Real}, v::AbstractVector{<:Real}; coefficient::Real = 1
-        )
-        Base.require_one_based_indexing(w, u, v)
-        length(w) == length(u) == length(v) || throw(DimensionMismatch("separation and momentum weights must have the same dimension"))
-        !isempty(w) && all(isfinite, w) && any(!iszero, w) || throw(ArgumentError("separation weights must be nonempty, finite, and nonzero"))
-        all(isfinite, u) && all(isfinite, v) || throw(ArgumentError("momentum weights must be finite"))
-        isfinite(coefficient) || throw(ArgumentError("coefficient must be finite"))
-        T = promote_type(Float64, eltype(w), eltype(u), eltype(v), typeof(coefficient))
-        return new{T}([(Vector{T}(w), Vector{T}(u), Vector{T}(v), T(coefficient))])
-    end
-    function OrbitOrbitOperator(masses::AbstractVector{<:Real}, charges::AbstractVector{<:Real}; coefficient::Real = 1)
-        Base.require_one_based_indexing(charges)
-        length(masses) == length(charges) || throw(DimensionMismatch("each particle needs one charge"))
-        all(isfinite, charges) || throw(ArgumentError("charges must be finite"))
-        isfinite(coefficient) || throw(ArgumentError("coefficient must be finite"))
-        m, J, U = _relativistic_frame(masses)
-        T = promote_type(Float64, eltype(charges), typeof(coefficient))
-        terms = [
-            (
-                Vector{T}(U[i, :] - U[j, :]), Vector{T}(J[:, i]), Vector{T}(J[:, j]),
-                -T(coefficient) * T(charges[i]) * T(charges[j]) / (2m[i] * m[j]),
-            )
-                for i in eachindex(m) for j in (i + 1):lastindex(m)
-        ]
-        all(term -> isfinite(term[4]), terms) || throw(ArgumentError("orbit–orbit pair coefficients must be finite"))
-        return new{T}(terms)
-    end
+    pairs::Vector{_OrbitOrbitPair{T}}
+end
+
+function OrbitOrbitOperator(
+        w::AbstractVector{<:Real}, u::AbstractVector{<:Real}, v::AbstractVector{<:Real}; coefficient::Real = 1
+    )
+    length(w) == length(u) == length(v) || throw(DimensionMismatch("separation and momentum weights must have the same dimension"))
+    _check_weight(w, "separation weights")
+    _check_weight(u, "momentum weights"; nonzero = false)
+    _check_weight(v, "momentum weights"; nonzero = false)
+    _check_coefficient(coefficient)
+    T = promote_type(Float64, eltype(w), eltype(u), eltype(v), typeof(coefficient))
+    return OrbitOrbitOperator([_OrbitOrbitPair{T}(w, u, v, coefficient)])
+end
+
+function OrbitOrbitOperator(masses::AbstractVector{<:Real}, charges::AbstractVector{<:Real}; coefficient::Real = 1)
+    Base.require_one_based_indexing(charges)
+    length(masses) == length(charges) || throw(DimensionMismatch("each particle needs one charge"))
+    all(isfinite, charges) || throw(ArgumentError("charges must be finite"))
+    _check_coefficient(coefficient)
+    m, J, U = _checked_jacobi(masses)
+    T = promote_type(Float64, eltype(charges), typeof(coefficient))
+    # Convert before multiplying: products of small low-precision charges underflow.
+    q, c = collect(T, charges), T(coefficient)
+    pairs = [
+        _OrbitOrbitPair{T}(U[i, :] - U[j, :], J[:, i], J[:, j], -c * q[i] * q[j] / (2m[i] * m[j]))
+            for i in eachindex(m) for j in (i + 1):lastindex(m)
+    ]
+    all(p -> isfinite(p.coefficient), pairs) || throw(ArgumentError("orbit–orbit pair coefficients must be finite"))
+    return OrbitOrbitOperator(pairs)
 end
 
 function _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::MomentumFourthOperator)
     size(bra.A) == size(ket.A) == (length(op.u), length(op.u)) || throw(DimensionMismatch("momentum weights must match Gaussian dimensions"))
     A, B, u = bra.A, ket.A, op.u
-    R = inv(A + B)
-    μ = R * (bra.s + ket.s) / 2
+    R, t, M = _updated_rank0_data(bra, ket)
+    μ = R * t / 2
     Au, Bu = A * u, B * u
     l = vec(u' * bra.s - 2Au' * μ)
     r = vec(u' * ket.s - 2Bu' * μ)
-    covariance = 2dot(Au, R * Bu)
     # A - A*R*A = A*R*B avoids subtracting nearly equal large widths.
+    covariance = 2dot(Au, R * Bu)
     left = 3covariance - sum(abs2, l)
     right = 3covariance - sum(abs2, r)
-    return op.coefficient * (left * right + 4covariance * dot(l, r) + 6covariance^2) * _compute_matrix_element(bra, ket)
+    return op.coefficient * (left * right + 4covariance * dot(l, r) + 6covariance^2) * M
 end
 
 _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::MassVelocityOperator) =
@@ -144,8 +144,8 @@ end
 function _orbit_orbit_element(bra::Rank0Gaussian, ket::Rank0Gaussian, w, u, v)
     size(bra.A) == size(ket.A) == (length(w), length(w)) || throw(DimensionMismatch("orbit–orbit weights must match Gaussian dimensions"))
     A, B = bra.A, ket.A
-    R = inv(A + B)
-    μx = R * (bra.s + ket.s) / 2
+    R, t, M = _updated_rank0_data(bra, ket)
+    μx = R * t / 2
     Rw = R * w
     β = inv(dot(w, Rw))
     μ = vec(w' * μx)
@@ -163,8 +163,8 @@ function _orbit_orbit_element(bra::Rank0Gaussian, ket::Rank0Gaussian, w, u, v)
     lμ, rμ = dot(l0, μ), dot(r0, μ)
     moment = 2 * (F - rootβ * hp) * dot(l0, r0) - 4β * rootβ * hpp * lμ * rμ +
         4rootβ * hp * (b * lμ + a * rμ) + 2a * b * h / rootβ + 4covariance * F
-    return moment * _compute_matrix_element(bra, ket)
+    return moment * M
 end
 
 _compute_matrix_element(bra::Rank0Gaussian, ket::Rank0Gaussian, op::OrbitOrbitOperator) =
-    sum(c * _orbit_orbit_element(bra, ket, w, u, v) for (w, u, v, c) in op.terms)
+    sum(p.coefficient * _orbit_orbit_element(bra, ket, p.w, p.u, p.v) for p in op.pairs)

@@ -37,6 +37,23 @@ end
         @test V' * V ≈ I atol = 1.0e-12
     end
 
+    @testset "commits are accurate to rounding beside a wide spectrum" begin
+        # The 1e-5 coupling of the last function shifts the ground state by
+        # ≈ 5e-11, far above rounding of the 1e4 pole.  Each commit is reused
+        # by every later one, so its eigenpairs must be accurate to rounding.
+        H = [
+            1.0 0.0 0.0 1.0e-5
+            0.0 2.0 0.0 0.0
+            0.0 0.0 1.0e4 0.0
+            1.0e-5 0.0 0.0 3.0
+        ]
+        eig = incremental_decomp(H, Matrix(1.0I, 4, 4))
+        C = coefficients(eig)
+        tol = 100 * eps() * opnorm(H)
+        @test eig.ε ≈ eigvals(Symmetric(H)) atol = tol
+        @test C' * H * C ≈ Diagonal(eig.ε) atol = tol
+    end
+
     @testset "matches LAPACK on random SPD systems" begin
         rng = MersenneTwister(20260612)
         for n in (2, 5, 12, 30)

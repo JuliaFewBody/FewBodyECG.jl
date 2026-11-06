@@ -11,7 +11,7 @@ function finite_energy(θ, basis, layout, terms)
     decoded = FewBodyECG._decode_basis(θ, length(basis), 2, layout)
     S = build_overlap_matrix(decoded)
     D = Diagonal(1 ./ sqrt.(diag(S)))
-    return first(eigen(Symmetric(D * build_hamiltonian_matrix(decoded, terms) * D), Symmetric(D * S * D + 1.0e-10I)).values)
+    return first(eigen(Symmetric(D * build_hamiltonian_matrix(decoded, terms) * D), Symmetric(D * S * D)).values)
 end
 
 @testset "Projected gradient encoding and derivatives" begin
@@ -32,9 +32,9 @@ end
         @test all(g -> g.symmetry == symmetry && iszero(g.orbital.s), decoded)
         @test decoded[1].orbital.A ≈ basis[1].orbital.A
         rank == 1 && @test norm(decoded[1].orbital.a) ≈ 1
-        cfg = ForwardDiff.GradientConfig(nothing, θ, ForwardDiff.Chunk(min(12, length(θ))))
+        cfg = ForwardDiff.GradientConfig(FewBodyECG._energy_gradient, θ, ForwardDiff.Chunk(min(12, length(θ))))
         bad = Ref{Union{Nothing, Vector{Float64}}}(nothing)
-        energy, gradient = FewBodyECG._energy_gradient(θ, 2, 2, terms, cfg, 1, 1.0e-10, bad, layout)
+        energy, gradient = FewBodyECG._energy_gradient(θ, 2, 2, terms, cfg, 1, bad, layout)
         @test energy ≈ finite_energy(θ, basis, layout, terms)
         h = 1.0e-5
         differences = map(eachindex(θ)) do i
@@ -56,14 +56,30 @@ end
     layout = FewBodyECG._gradient_layout(basis)
     θ = FewBodyECG._encode_basis(basis, layout)
     terms = first(FewBodyECG._to_jacobi(Kinetic(ones(2)) + 0.5Oscillator(1, 2)))
-    cfg = ForwardDiff.GradientConfig(nothing, θ, ForwardDiff.Chunk(min(12, length(θ))))
+    cfg = ForwardDiff.GradientConfig(FewBodyECG._energy_gradient, θ, ForwardDiff.Chunk(min(12, length(θ))))
     bad = Ref{Union{Nothing, Vector{Float64}}}(nothing)
-    @test first(FewBodyECG._energy_gradient(θ, 2, 1, terms, cfg, 1, 1.0e-10, bad, layout)) == Inf
+    @test first(FewBodyECG._energy_gradient(θ, 2, 1, terms, cfg, 1, bad, layout)) == Inf
     θ[2:4] .= 0
-    @test first(FewBodyECG._energy_gradient(θ, 2, 1, terms, cfg, 1, 1.0e-10, bad, layout)) == Inf
+    @test first(FewBodyECG._energy_gradient(θ, 2, 1, terms, cfg, 1, bad, layout)) == Inf
     @test_throws ArgumentError FewBodyECG._gradient_layout(BasisSet(GaussianBase[Rank0Gaussian([0.5;;], zeros(1)), g]))
     @test_throws ArgumentError FewBodyECG._gradient_layout(BasisSet(GaussianBase[ProjectedGaussian(g, odd), g]))
     @test_throws ArgumentError FewBodyECG._gradient_layout(BasisSet([Rank2Gaussian([0.5;;], [1.0], [1.0], zeros(1))]))
+end
+
+@testset "Extreme trial points have energy Inf" begin
+    terms = first(FewBodyECG._to_jacobi(Kinetic([1.0e15, 1.0, 1.0]) + Coulomb([2.0, -1.0, -1.0])))
+    layout = FewBodyECG._GradientLayout(0, nothing)
+    θ₀ = [0.0, 0.1, 0.2, zeros(6)...]
+    cfg = ForwardDiff.GradientConfig(FewBodyECG._energy_gradient, [θ₀; θ₀], ForwardDiff.Chunk(12))
+    bad = Ref{Union{Nothing, Vector{Float64}}}(nothing)
+    # Widths that overflow, underflow to a singular matrix, or are NaN.
+    for log_width in (800.0, -800.0, NaN)
+        θ = [[log_width; θ₀[2:end]]; θ₀ .+ 0.3]
+        @test first(FewBodyECG._energy_gradient(θ, 2, 2, terms, cfg, 1, bad, layout)) == Inf
+    end
+    @test isfinite(first(FewBodyECG._energy_gradient([θ₀; θ₀ .+ 0.3], 2, 2, terms, cfg, 1, bad, layout)))
+    H = Kinetic([1.0e15, 1.0]) + Coulomb([1.0, -1.0])
+    @test_throws "requested state 3" solve(H, GVM(2; scale = 1.0, optimizer = optimizer(0)); state = 3)
 end
 
 @testset "GVM optimizes S/P sectors" begin
@@ -139,11 +155,10 @@ end
     terms = first(FewBodyECG._to_jacobi(H))
     cfg = ForwardDiff.GradientConfig(FewBodyECG._energy_gradient, θ, ForwardDiff.Chunk(min(12, length(θ))))
     bad = Ref{Union{Nothing, Vector{Float64}}}(nothing)
-    value, gradient = FewBodyECG._energy_gradient(θ, 1, 1, terms, cfg, 1, 0.0, bad, layout)
-    finite(θ) = begin
+    value, gradient = FewBodyECG._energy_gradient(θ, 1, 1, terms, cfg, 1, bad, layout)
+    function finite(θ)
         decoded = FewBodyECG._decode_basis(θ, 1, 1, layout)
-        H = build_hamiltonian_matrix(decoded, terms)
-        H[1, 1] / build_overlap_matrix(decoded)[1, 1]
+        return build_hamiltonian_matrix(decoded, terms)[1, 1] / build_overlap_matrix(decoded)[1, 1]
     end
     h = 1.0e-5
     differences = map(eachindex(θ)) do i

@@ -19,46 +19,43 @@ struct PermutationSymmetry
             masses::AbstractVector{<:Real}, generators::AbstractVector{<:AbstractVector{<:Integer}};
             signs::AbstractVector{<:Integer} = ones(Int, length(generators))
         )
-        Base.require_one_based_indexing(masses, generators, signs)
+        Base.require_one_based_indexing(generators, signs)
         length(signs) == length(generators) || throw(DimensionMismatch("each generator needs one exchange sign"))
         all(s -> s in (-1, 1), signs) || throw(ArgumentError("exchange signs must be +1 or -1"))
-        n = length(masses)
-        identity = collect(1:n)
-        PermutationOperator(masses, identity)  # validate masses and particle count
-        m = Float64.(masses)
-        gens = Vector{Int}[]
+        m, J, U = _checked_jacobi(masses)
+        n = length(m)
         for p in generators
-            PermutationOperator(m, p)
+            Base.require_one_based_indexing(p)
+            _check_permutation(p, n)
             m[p] == m || throw(ArgumentError("symmetry generators must exchange equal-mass particles"))
-            push!(gens, collect(Int, p))
         end
-        permutations, characters = [identity], [1]
-        known = Dict(Tuple(identity) => 1)
-        i = 1
-        while i ≤ length(permutations)
-            for (p, sign) in zip(gens, signs)
-                q, character = permutations[i][p], characters[i] * sign
-                key = Tuple(q)
-                if haskey(known, key)
-                    known[key] == character || throw(ArgumentError("generator signs do not define a consistent permutation character"))
+        # Close the group under the generators; every group element must be
+        # reached with a single character.
+        characters = Dict(collect(1:n) => 1)
+        unvisited = collect(keys(characters))
+        while !isempty(unvisited)
+            q = pop!(unvisited)
+            for (p, sign) in zip(generators, signs)
+                qp, character = q[p], characters[q] * sign
+                known = get(characters, qp, nothing)
+                if known === nothing
+                    characters[qp] = character
+                    push!(unvisited, qp)
                 else
-                    known[key] = character
-                    push!(permutations, q)
-                    push!(characters, character)
+                    known == character ||
+                        throw(ArgumentError("generator signs do not define a consistent permutation character"))
                 end
             end
-            i += 1
         end
-        order = sortperm(permutations; by = Tuple)
-        permutations, characters = permutations[order], characters[order]
-        J, U = jacobi_transform(m)
-        transforms = [p == identity ? Matrix{Float64}(I, n - 1, n - 1) : J * U[p, :] for p in permutations]
-        return new(m, permutations, characters, transforms)
+        elements = sort!(collect(characters); by = first)
+        permutations = first.(elements)
+        transforms = [p == 1:n ? Matrix{Float64}(I, n - 1, n - 1) : J * U[p, :] for p in permutations]
+        return new(m, permutations, last.(elements), transforms)
     end
 end
 
 Base.:(==)(a::PermutationSymmetry, b::PermutationSymmetry) =
-    a.masses == b.masses && a.permutations == b.permutations && a.signs == b.signs
+    a === b || a.masses == b.masses && a.permutations == b.permutations && a.signs == b.signs
 Base.hash(symmetry::PermutationSymmetry, seed::UInt) =
     hash((symmetry.masses, symmetry.permutations, symmetry.signs), seed)
 
@@ -82,10 +79,6 @@ struct ProjectedGaussian{G <: _AnyRankGaussian, C <: _AnyRankGaussian} <: Gaussi
     end
 end
 
-_transformed_gaussian(g::Rank0Gaussian, T) = Rank0Gaussian(T' * g.A * T, T' * g.s)
-_transformed_gaussian(g::Rank1Gaussian, T) = Rank1Gaussian(T' * g.A * T, T' * g.a, T' * g.s)
-_transformed_gaussian(g::Rank2Gaussian, T) = Rank2Gaussian(T' * g.A * T, T' * g.a, T' * g.b, T' * g.s)
-
 _unprojected(g::GaussianBase) = g
 _unprojected(g::ProjectedGaussian) = g.orbital
 _gaussian_dimension(g::GaussianBase) = size(g.A, 1)
@@ -98,33 +91,38 @@ function _basis_symmetry(basis::BasisSet)
     return all(h -> h isa ProjectedGaussian && h.symmetry == g.symmetry, basis) ? g.symmetry : nothing
 end
 
-function _single_projection(element, bra::ProjectedGaussian, ket::ProjectedGaussian)
-    return sum(s * element(bra.orbital, g) for (s, g) in zip(ket.symmetry.signs, ket.components)) / length(ket.components)
+# Symmetry shared by all functions of a solver basis; `nothing` if none is projected.
+function _shared_symmetry(basis::BasisSet)
+    symmetry = _basis_symmetry(basis)
+    symmetry === nothing && any(g -> g isa ProjectedGaussian, basis) &&
+        throw(ArgumentError("all basis functions must share the same exchange symmetry"))
+    return symmetry
 end
 
-function _double_projection(bra::ProjectedGaussian, ket::ProjectedGaussian, ops...)
-    return sum(
-        s * t * _compute_matrix_element(g, h, ops...)
-            for (s, g) in zip(bra.symmetry.signs, bra.components)
-            for (t, h) in zip(ket.symmetry.signs, ket.components)
-    ) / (length(bra.components) * length(ket.components))
-end
+# Group average Σₚ χ(p) f(g∘p) / |G| over the transformed components of `g`.
+_project(f, g::ProjectedGaussian) =
+    sum(s * f(h) for (s, h) in zip(g.symmetry.signs, g.components)) / length(g.components)
+
+# Π is a Hermitian idempotent, so ⟨Πg|Πh⟩ = ⟨g|Πh⟩ for a shared symmetry; the
+# same holds for any operator that commutes with Π.
+_single_projection(element, bra::ProjectedGaussian, ket::ProjectedGaussian) =
+    _project(h -> element(bra.orbital, h), ket)
+_double_projection(bra::ProjectedGaussian, ket::ProjectedGaussian, ops...) =
+    _project(g -> _project(h -> _compute_matrix_element(g, h, ops...), ket), bra)
 
 _compute_matrix_element(bra::ProjectedGaussian, ket::ProjectedGaussian) =
     bra.symmetry == ket.symmetry ? _single_projection(_compute_matrix_element, bra, ket) : _double_projection(bra, ket)
 _compute_matrix_element(bra::ProjectedGaussian, ket::ProjectedGaussian, op::Operator) = _double_projection(bra, ket, op)
-_compute_matrix_element(bra::ProjectedGaussian, ket::GaussianBase) =
-    sum(s * _compute_matrix_element(g, ket) for (s, g) in zip(bra.symmetry.signs, bra.components)) / length(bra.components)
-_compute_matrix_element(bra::GaussianBase, ket::ProjectedGaussian) =
-    sum(s * _compute_matrix_element(bra, g) for (s, g) in zip(ket.symmetry.signs, ket.components)) / length(ket.components)
+_compute_matrix_element(bra::ProjectedGaussian, ket::GaussianBase) = _project(g -> _compute_matrix_element(g, ket), bra)
+_compute_matrix_element(bra::GaussianBase, ket::ProjectedGaussian) = _project(h -> _compute_matrix_element(bra, h), ket)
 _compute_matrix_element(bra::ProjectedGaussian, ket::GaussianBase, op::Operator) =
-    sum(s * _compute_matrix_element(g, ket, op) for (s, g) in zip(bra.symmetry.signs, bra.components)) / length(bra.components)
+    _project(g -> _compute_matrix_element(g, ket, op), bra)
 _compute_matrix_element(bra::GaussianBase, ket::ProjectedGaussian, op::Operator) =
-    sum(s * _compute_matrix_element(bra, g, op) for (s, g) in zip(ket.symmetry.signs, ket.components)) / length(ket.components)
+    _project(h -> _compute_matrix_element(bra, h, op), ket)
 
 # Single projection for the whole invariant Hamiltonian, never its individual terms.
-_hamiltonian_element(bra, ket, ops, invariant::Bool = false) = sum(_compute_matrix_element(bra, ket, op) for op in ops)
-function _hamiltonian_element(bra::ProjectedGaussian, ket::ProjectedGaussian, ops, invariant::Bool = false)
+_hamiltonian_element(bra, ket, ops; invariant = false) = sum(_compute_matrix_element(bra, ket, op) for op in ops)
+function _hamiltonian_element(bra::ProjectedGaussian, ket::ProjectedGaussian, ops; invariant = false)
     if invariant && bra.symmetry == ket.symmetry
         return _single_projection((g, h) -> sum(_compute_matrix_element(g, h, op) for op in ops), bra, ket)
     end
@@ -139,7 +137,7 @@ _conjugated_operator(op::CoulombOperator{Float64}, T) = CoulombOperator(op.coeff
 _conjugated_operator(op::GaussianOperator{Float64}, T) = GaussianOperator(op.coefficient, op.γ, T' * op.w)
 _conjugated_operator(op::OscillatorOperator{Float64}, T) = OscillatorOperator(op.coefficient, T' * op.w)
 
-_same_operator(::Any, ::Any) = false # COV_EXCL_LINE: constant-folded
+_same_operator(_, _) = false # COV_EXCL_LINE: constant-folded
 _same_operator(a::KineticOperator, b::KineticOperator) = _symmetry_close(a.K, b.K)
 _same_operator(a::CoulombOperator, b::CoulombOperator) =
     _symmetry_close(a.coefficient, b.coefficient) && _symmetry_close(a.w * a.w', b.w * b.w')

@@ -1,7 +1,7 @@
 module FewBodyECG
 
 using LinearAlgebra: Diagonal, Hermitian, I, RowMaximum, Symmetric, UpperTriangular,
-    cholesky, cond, cross, det, diag, dot, eigen, eigmin, isposdef, issymmetric,
+    cholesky, cond, cross, det, diag, dot, eigen, eigmin, eigvals, isposdef, issymmetric,
     norm, opnorm, pinv, tr
 import FewBodyHamiltonians
 import ForwardDiff
@@ -34,7 +34,7 @@ export solve, SolverMethod, StochasticMethod, GradientMethod,
     SVM, Refine, GVM, DynamicGVM, Pipeline, →
 # results
 export Solution, ConvergenceReport, StageResult, converged, energy, energy_history
-export wavefunction, Wavefunction, convergence, radial_profile
+export wavefunction, Wavefunction, convergence, radial_profile, expectation
 # matrix-level layer and generic names: documented and supported, reached via
 # `FewBodyECG.name` or `using FewBodyECG: name`
 public build_hamiltonian_matrix, build_overlap_matrix, build_operator_matrix,
