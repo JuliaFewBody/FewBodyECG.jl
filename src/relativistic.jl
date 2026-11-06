@@ -42,6 +42,14 @@ function MassVelocityOperator(masses::AbstractVector{<:Real}; coefficient::Real 
     )
 end
 
+# One orbit–orbit pair: separation weight `w`, momentum weights `u`, `v`.
+struct _OrbitOrbitPair{T <: Real}
+    w::Vector{T}
+    u::Vector{T}
+    v::Vector{T}
+    coefficient::T
+end
+
 """
     OrbitOrbitOperator(w, u, v; coefficient=1)
     OrbitOrbitOperator(masses, charges; coefficient=1)
@@ -61,14 +69,6 @@ Rank0 elements use analytic displaced Gaussian moments, smooth at zero shift;
 all higher-rank and parameter derivatives compose through ForwardDiff.
 See Stanke et al., Phys. Rev. A **97**, 012513 (2018), Eq. (29).
 """
-# One orbit–orbit pair: separation weight `w`, momentum weights `u`, `v`.
-struct _OrbitOrbitPair{T <: Real}
-    w::Vector{T}
-    u::Vector{T}
-    v::Vector{T}
-    coefficient::T
-end
-
 struct OrbitOrbitOperator{T <: Real} <: Operator
     pairs::Vector{_OrbitOrbitPair{T}}
 end
