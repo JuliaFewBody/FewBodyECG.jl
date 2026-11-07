@@ -77,9 +77,8 @@ raw operator vector takes it from the `units` keyword. Spin-dependent terms
 and are assembled with `FewBodyECG.build_hamiltonian_matrix` instead.
 
 `symmetry` is a [`PermutationSymmetry`](@ref), imposed on candidates, adaptive
-pilots, and returned wavefunctions by `SVM`/`Refine`. It is inherited from
-`init` when omitted; warm starts cannot change sectors. Gradient methods
-currently require an unprojected Rank0 basis.
+pilots, and returned wavefunctions by every method. It is inherited from
+`init` when omitted; warm starts cannot change sectors.
 
 Returns a [`Solution`](@ref) carrying energies, the basis, S-orthonormal
 coefficients, and an honest [`ConvergenceReport`](@ref).

@@ -1,6 +1,7 @@
 module PolarizedSVMTests
 
 using Test, LinearAlgebra, FewBodyECG
+using OptimKit: LBFGS
 using FewBodyECG: BasisState, _draw_candidate!, _candidate_columns, commit!,
     rebuild_without, _solution_basis_state, build_operator_matrix,
     build_overlap_matrix, build_hamiltonian_matrix
@@ -55,8 +56,11 @@ using FewBodyECG: BasisState, _draw_candidate!, _candidate_columns, commit!,
         @test_throws ArgumentError solve(H, SVM(2; rank = 2))
         mixed = BasisSet(GaussianBase[Rank0Gaussian([1.0;;], zeros(1)), Rank1Gaussian([1.0;;], [1.0], zeros(1))])
         @test_throws ArgumentError FewBodyECG.BasisState(mixed.functions, first(FewBodyECG._to_jacobi(H)))
-        @test_throws ArgumentError solve(H, GVM(); init = grown)
-        @test_throws ArgumentError solve(H, DynamicGVM(12); init = grown)
+        quiet = LBFGS(; maxiter = 3, verbosity = 0, ls_verbosity = 0)
+        optimized = solve(H, GVM(; optimizer = quiet); init = grown)
+        @test all(g -> g isa Rank1Gaussian, optimized.basis)
+        @test optimized.E₀ ≤ grown.E₀ + 1.0e-10
+        @test all(g -> g isa Rank1Gaussian, solve(H, DynamicGVM(length(grown.basis) + 1; optimizer = quiet); init = grown).basis)
     end
 
     @testset "Many-body global vectors and cached matrices" begin

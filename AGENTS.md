@@ -49,7 +49,8 @@ A matrix-level layer (`build_overlap_matrix`, `build_operator_matrix`, `build_ha
 - **methods.jl** — `SolverMethod` hierarchy, method structs, `→` composition
 - **state.jl** — `BasisState`, the cached S/H/eigensolver state shared by the stochastic methods
 - **solve.jl** — `solve` entry points and the `SVM`/`Refine`/`Pipeline` drivers
-- **gradient.jl** — `GVM`/`DynamicGVM`: log-Cholesky encoding and Hellmann–Feynman gradients via ForwardDiff
+- **gradient_encoding.jl** — parameter layouts of the gradient methods: Rank0 `[log-Cholesky of A | shift]`, Rank1 `[log-Cholesky of A | z polarization]`, optional symmetry projection
+- **gradient.jl** — `GVM`/`DynamicGVM`: Hellmann–Feynman gradients via ForwardDiff
 - **solution.jl** — `Solution`, `StageResult`, `ConvergenceReport`
 - **utils/** — `Wavefunction`, `convergence`, `radial_profile`, plot recipes, the PrecompileTools workload
 
@@ -62,7 +63,7 @@ A matrix-level layer (`build_overlap_matrix`, `build_operator_matrix`, `build_ha
 
 ### Parameterization for Gradient Methods
 
-`Rank0Gaussian` is encoded as `[log-diag Cholesky of A | shift s]`, so positive-definiteness holds for any unconstrained parameter vector. Gradients use the Hellmann–Feynman theorem with ForwardDiff, at a fixed chunk size (`_GRADIENT_CHUNK = 12`) so every system reuses one compiled gradient.
+`Rank0Gaussian` is encoded as `[log-diag Cholesky of A | shift s]` and `Rank1Gaussian` as `[log-diag Cholesky of A | u]`, decoded unshifted with polarization `u/‖u‖` in the z column (pure L=1, M=0); positive-definiteness holds for any unconstrained parameter vector. With a `PermutationSymmetry`, each decoded orbital is wrapped in `ProjectedGaussian`; the projected and polarized matrix elements accept ForwardDiff duals, so the same gradient code serves every layout. Gradients use the Hellmann–Feynman theorem with ForwardDiff, at a fixed chunk size (`_GRADIENT_CHUNK = 12`) so every system reuses one compiled gradient.
 
 ## Precompilation
 

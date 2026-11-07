@@ -101,9 +101,21 @@ omitted:
 sol = solve(ops, GVM(); init = seed)
 ```
 
+Rank-1 bases and permutation symmetry carry through the gradient methods. A
+Rank-1 function stays unshifted and polarized along z, so it remains an L=1,
+M=0 function while its widths and the direction of its global vector are
+optimized. For the spatially antisymmetric P states of helium:
+
+```julia
+He = Kinetic([1.0e15, 1.0, 1.0]) + Coulomb([2.0, -1.0, -1.0])
+symmetry = PermutationSymmetry([1.0e15, 1.0, 1.0], [[1, 3, 2]]; signs = [-1])
+sol = solve(He, SVM(20; rank = 1) → GVM(); symmetry)
+```
+
 | option | meaning |
 |---|---|
 | `basis` | number of functions for a cold start; optional with `init` |
+| `rank` | 0 or 1; inherited from `init`, 0 on a cold start |
 | `scale` | cold-start length scale, `:adaptive` when omitted; omit with `init` |
 | `widths` | cold-start width sampling, `:linear` or `:wide`; omit with `init` |
 | `optimizer` | OptimKit gradient algorithm and its settings |
@@ -116,6 +128,7 @@ basis after each addition.
 | option | meaning |
 |---|---|
 | `basis` | final number of functions, including a warm-start basis |
+| `rank` | 0 or 1; inherited from `init`, 0 on a cold start |
 | `candidates` | candidates per growth step |
 | `scale` | candidate length scale, `:adaptive` by default |
 | `widths` | `:linear` (default) or `:wide` |

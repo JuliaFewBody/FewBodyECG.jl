@@ -5,61 +5,16 @@ using OptimKit: optimize
 # faster for ECG energies.
 const _GRADIENT_CHUNK = 12
 
-function _chol_to_params(L::AbstractMatrix)
-    n = size(L, 1)
-    params = Float64[]
-    for j in 1:n
-        for i in j:n
-            push!(params, i == j ? log(L[i, j]) : L[i, j])
-        end
-    end
-    return params
-end
+# A named tag (rather than `nothing`) orders the gradient's duals outside the
+# `_ShiftTag` duals of polarized matrix elements, which nest inside it.
+_gradient_config(θ) = ForwardDiff.GradientConfig(
+    _energy_gradient, θ, ForwardDiff.Chunk(min(_GRADIENT_CHUNK, length(θ)))
+)
 
-function _params_to_matrix(θ::AbstractVector, n::Int)
-    T = eltype(θ)
-    L = zeros(T, n, n)
-    idx = 1
-    for j in 1:n
-        for i in j:n
-            L[i, j] = (i == j) ? exp(θ[idx]) : θ[idx]
-            idx += 1
-        end
-    end
-    return Symmetric(L * L')
-end
-
-function _encode_basis(basis::BasisSet{<:Rank0Gaussian})
-    params = Float64[]
-    for g in basis.functions
-        C = cholesky(Symmetric(Matrix(g.A)))
-        append!(params, _chol_to_params(Matrix(C.L)))
-        append!(params, Float64.(vec(parent(g.s))))   # N×3 shift, column-major
-    end
-    return params
-end
-
-# Decode a flat parameter vector back into a BasisSet{Rank0Gaussian}.
-# Layout per Gaussian: [n_chol Cholesky params | 3·n_dim shift params (N×3)].
-function _decode_basis(θ::AbstractVector, n_basis::Int, n_dim::Int)
-    T = eltype(θ)
-    n_chol = n_dim * (n_dim + 1) ÷ 2
-    n_shift = 3 * n_dim
-    n_per = n_chol + n_shift
-    fns = Vector{Rank0Gaussian{T, Matrix{T}, Matrix{T}}}(undef, n_basis)
-    for i in 1:n_basis
-        start = (i - 1) * n_per + 1
-        A = _params_to_matrix(θ[start:(start + n_chol - 1)], n_dim)
-        s = reshape(θ[(start + n_chol):(start + n_per - 1)], n_dim, 3)
-        fns[i] = Rank0Gaussian(Matrix(A), Matrix(s))
-    end
-    return BasisSet(fns)
-end
-
-function _energy_gradient(θ, n, n_dim, terms, grad_cfg, state, regularization, bad_gradient)
+function _energy_gradient(θ, layout, n, terms, grad_cfg, state, regularization, bad_gradient)
     local energy::Float64, coefficients::Vector{Float64}
     try
-        basis = _decode_basis(θ, n, n_dim)
+        basis = _decode_basis(layout, θ, n)
         H = build_hamiltonian_matrix(basis, terms)
         S = build_overlap_matrix(basis)
         values, vectors = solve_generalized_eigenproblem(H, S; regularization)
@@ -73,7 +28,7 @@ function _energy_gradient(θ, n, n_dim, terms, grad_cfg, state, regularization, 
 
     gradient = try
         ForwardDiff.gradient(θ, grad_cfg, Val(false)) do θ_ad
-            basis = _decode_basis(θ_ad, n, n_dim)
+            basis = _decode_basis(layout, θ_ad, n)
             H = build_hamiltonian_matrix(basis, terms)
             S = build_overlap_matrix(basis)
             dot(coefficients, H * coefficients) -
@@ -130,10 +85,24 @@ function _solution_from_basis(basis::BasisSet, ctx::_SolveCtx, stages, draws)
     )
 end
 
-function _require_gradient_basis(init)
-    init === nothing || all(g -> g isa Rank0Gaussian, init.basis) ||
-        throw(ArgumentError("gradient methods require unprojected Rank0Gaussian functions; use SVM or Refine for projected or Rank1 bases"))
-    return nothing
+# Selection state that draws candidates of `layout`'s rank and symmetry from the
+# quasi-random stream, continuing after its first `draw` points.
+function _gradient_draw_state(layout::_GradientLayout, draw::Integer)
+    st = BasisState(
+        _stochastic_type(layout.rank, layout.symmetry);
+        rank = layout.rank, symmetry = layout.symmetry
+    )
+    st.draw = draw
+    return st
+end
+
+# The next drawn candidate that the symmetry projection does not annihilate.
+function _next_admissible!(st::BasisState, scale, widths, w_list; max_draws = 100)
+    for _ in 1:max_draws
+        cand = _draw_candidate!(st, scale, HaltonSample(), widths, w_list)
+        _survives_projection(cand, real(_compute_overlap_element(cand, cand))) && return cand
+    end
+    throw(ArgumentError("no admissible projected candidates; check rank and exchange signs"))
 end
 
 function _solve(
@@ -142,11 +111,8 @@ function _solve(
         units, hamiltonian = nothing, symmetry = nothing
     )
     ctx = _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian, symmetry)
-    ctx.symmetry === nothing || throw(ArgumentError("symmetry projection is supported by SVM and Refine"))
-    _require_gradient_basis(init)
     n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)
-    n_chol = n_dim * (n_dim + 1) ÷ 2
-    n_per = n_chol + 3 * n_dim
+    layout = _gradient_layout(alg.rank, ctx.symmetry, n_dim; init)
 
     scale_note = nothing
     if init === nothing
@@ -154,15 +120,12 @@ function _solve(
             ArgumentError("cold GVM requires `basis`; use GVM(basis = n)")
         )
         n = something(alg.basis)
-        scale, scale_note = _solve_scale(something(alg.scale, :adaptive), ctx, nothing)
-        functions = Rank0Gaussian[]
-        for i in 1:n
-            bij = generate_bij(:quasirandom, i, length(ctx.w_list), scale; widths = something(alg.widths, :linear))
-            A = _generate_A_matrix(bij, ctx.w_list)
-            push!(functions, Rank0Gaussian(A, zeros(n_dim, 3)))
-        end
-        θ = _encode_basis(BasisSet(functions))
-        draws = n
+        scale, scale_note = _solve_scale(something(alg.scale, :adaptive), ctx, nothing; rank = layout.rank)
+        st = _gradient_draw_state(layout, 0)
+        widths = something(alg.widths, :linear)
+        functions = [_next_admissible!(st, scale, widths, ctx.w_list) for _ in 1:n]
+        θ = _encode_basis(layout, BasisSet(functions))
+        draws = st.draw
     else
         alg.scale === nothing || throw(
             ArgumentError("warm GVM uses the basis from `init`; omit `scale`")
@@ -177,15 +140,14 @@ function _solve(
                     "omit `basis` or set basis = $n"
             )
         )
-        θ = _encode_basis(BasisSet(Rank0Gaussian[g for g in init.basis.functions]))
+        θ = _encode_basis(layout, init.basis)
         draws = init.draws
     end
 
-    chunk = min(_GRADIENT_CHUNK, length(θ))
-    grad_cfg = ForwardDiff.GradientConfig(nothing, θ, ForwardDiff.Chunk(chunk))
+    grad_cfg = _gradient_config(θ)
     bad_gradient = Ref{Union{Nothing, Vector{Float64}}}(nothing)
     fg = x -> _energy_gradient(
-        x, n, n_dim, ctx.terms, grad_cfg, ctx.state, 1.0e-10, bad_gradient
+        x, layout, n, ctx.terms, grad_cfg, ctx.state, 1.0e-10, bad_gradient
     )
     report_iteration = function (x, energy, gradient, iteration)
         verbose && @info "GVM: iteration $iteration" energy gradnorm = norm(gradient)
@@ -197,7 +159,7 @@ function _solve(
     )
     _check_optimization_result(x, energy, bad_gradient)
 
-    basis = _decode_basis(x, n, n_dim)
+    basis = _decode_basis(layout, x, n)
     energy_history = accumulate(min, history[:, 1])
     ΔE = length(energy_history) ≥ 2 ? abs(energy_history[end - 1] - energy_history[end]) : NaN
     report = _gradient_report(
@@ -215,12 +177,10 @@ function _solve(
         units, hamiltonian = nothing, symmetry = nothing
     )
     ctx = _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian, symmetry)
-    ctx.symmetry === nothing || throw(ArgumentError("symmetry projection is supported by SVM and Refine"))
-    _require_gradient_basis(init)
-    scale, scale_note = _solve_scale(alg.scale, ctx, init)
     n_dim = size(first(op for op in terms if op isa KineticOperator).K, 1)
-    n_chol = n_dim * (n_dim + 1) ÷ 2
-    n_per = n_chol + 3 * n_dim
+    layout = _gradient_layout(alg.rank, ctx.symmetry, n_dim; init)
+    scale, scale_note = _solve_scale(alg.scale, ctx, init; rank = layout.rank)
+    n_per = _n_params(layout)
     θ = Float64[]
 
     if init !== nothing
@@ -232,11 +192,11 @@ function _solve(
                     "to re-optimise"
             )
         )
-        θ = _encode_basis(BasisSet(Rank0Gaussian[g for g in init.basis.functions]))
+        θ = _encode_basis(layout, init.basis)
     end
 
     initial_size = length(θ) ÷ n_per
-    draw = init === nothing ? 0 : init.draws
+    st = _gradient_draw_state(layout, init === nothing ? 0 : init.draws)
     energy_history = Float64[]
     gradnorm = NaN
 
@@ -245,15 +205,11 @@ function _solve(
         best_candidate = Float64[]
 
         for _ in 1:alg.candidates
-            draw += 1
-            bij = generate_bij(:quasirandom, draw, length(ctx.w_list), scale; widths = alg.widths)
-            A = _generate_A_matrix(bij, ctx.w_list)
-            candidate_parameters = _encode_basis(
-                BasisSet([Rank0Gaussian(A, zeros(n_dim, 3))])
-            )
+            cand = _next_admissible!(st, scale, alg.widths, ctx.w_list)
+            candidate_parameters = _encode_basis(layout, BasisSet([cand]))
             trial_parameters = [θ; candidate_parameters]
             try
-                basis = _decode_basis(trial_parameters, step, n_dim)
+                basis = _decode_basis(layout, trial_parameters, step)
                 H = build_hamiltonian_matrix(basis, ctx.terms)
                 S = build_overlap_matrix(basis)
                 values, _ = solve_generalized_eigenproblem(H, S; regularization = 1.0e-10)
@@ -273,11 +229,10 @@ function _solve(
         end
 
         append!(θ, best_candidate)
-        chunk = min(_GRADIENT_CHUNK, length(θ))
-        grad_cfg = ForwardDiff.GradientConfig(nothing, θ, ForwardDiff.Chunk(chunk))
+        grad_cfg = _gradient_config(θ)
         bad_gradient = Ref{Union{Nothing, Vector{Float64}}}(nothing)
         fg = x -> _energy_gradient(
-            x, step, n_dim, ctx.terms, grad_cfg, ctx.state, 1.0e-10, bad_gradient
+            x, layout, step, ctx.terms, grad_cfg, ctx.state, 1.0e-10, bad_gradient
         )
         report_iteration = function (x, energy, gradient, iteration)
             verbose && @info "DynamicGVM: step $step/$(alg.basis), iteration $iteration" energy gradnorm = norm(gradient)
@@ -295,13 +250,13 @@ function _solve(
 
     n_built = length(θ) ÷ n_per
     n_built ≥ 1 || error("Sequential selection produced no basis functions")
-    basis = _decode_basis(θ, n_built, n_dim)
+    basis = _decode_basis(layout, θ, n_built)
     ΔE = length(energy_history) ≥ 2 ? energy_history[end - 1] - energy_history[end] : NaN
     report = _gradient_report(
         gradnorm, alg.optimizer.gradtol, ΔE,
         cond(Symmetric(build_overlap_matrix(basis)))
     )
     return _solution_from_basis(
-        basis, ctx, [StageResult(alg, energy_history, _add_note!(report, scale_note))], draw
+        basis, ctx, [StageResult(alg, energy_history, _add_note!(report, scale_note))], st.draw
     )
 end

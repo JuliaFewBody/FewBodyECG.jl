@@ -80,6 +80,14 @@ Solving `Coulomb(charges)` throws an `ArgumentError` unless the units are
 `Solution` has new trailing fields `units` and `draws`; code that calls the
 `Solution` constructor directly must pass a `UnitSystem` and a draw count.
 
+### Gradient methods accept `rank` and `symmetry`
+
+`GVM` and `DynamicGVM` take `rank = 0` or `rank = 1` and honor the `symmetry`
+keyword of `solve`, so pipelines such as
+`solve(H, SVM(20; rank = 1) → GVM(); symmetry)` keep the rank and the
+permutation symmetry through every stage. Rank-1 functions are optimized
+unshifted and polarized along z.
+
 ### Fixed
 
 The incremental eigensolver behind `SVM` and `Refine` dropped arrowhead

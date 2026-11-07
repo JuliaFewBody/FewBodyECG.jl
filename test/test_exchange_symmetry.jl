@@ -2,6 +2,7 @@ module ExchangeSymmetryTests
 
 using Test, LinearAlgebra, FewBodyECG
 import ForwardDiff
+using OptimKit: LBFGS
 using FewBodyECG: build_operator_matrix, build_overlap_matrix, build_hamiltonian_matrix
 import FewBodyECG: _compute_matrix_element
 
@@ -108,8 +109,9 @@ import FewBodyECG: _compute_matrix_element
         @test energy(refined) ≤ energy(sol) + 1.0e-10
         @test length(refined.basis) == length(sol.basis)
         @test_throws ArgumentError solve(H, SVM(1); init = sol, symmetry = PermutationSymmetry(masses, [[1, 3, 2]]; signs = [-1]))
-        @test_throws ArgumentError solve(H, GVM(3); symmetry)
-        @test_throws ArgumentError solve(H, GVM(); init = sol)
+        optimized = solve(H, GVM(; optimizer = LBFGS(; maxiter = 5, verbosity = 0, ls_verbosity = 0)); init = sol)
+        @test all(g -> g isa ProjectedGaussian && g.symmetry == symmetry, optimized.basis)
+        @test energy(optimized) ≤ energy(sol) + 1.0e-10
         @test_throws ArgumentError solve(Kinetic([2.0, 2.0, 2.0]) + Coulomb([1.0, -1.0, -1.0]), SVM(1); symmetry)
     end
 
