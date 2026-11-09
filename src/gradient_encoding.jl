@@ -1,12 +1,14 @@
 # Flat parameter vectors of the gradient methods.
 #
 # Each basis function contributes one block:
-#   Rank0: [log-Cholesky of A | vec(s)]  (s is N×3, column-major)
-#   Rank1: [log-Cholesky of A | u]       (u is the z column of the polarization)
+#   Rank0: [log-Cholesky of A]
+#   Rank1: [log-Cholesky of A | u]  (u is the z column of the polarization)
 # The log-Cholesky encoding keeps A positive definite for any parameter values.
-# Rank1 functions are unshifted and polarized along z, which makes each one a
-# pure L = 1, M = 0 function; u is normalized on decode, so only its direction
-# matters.  With a symmetry, every decoded orbital is wrapped in its projection.
+# Every function is unshifted.  At zero shifts the energy is even in each
+# function's shift, so a shift parameter would have zero gradient.  Rank1
+# functions are polarized along z, which makes each one a pure L = 1, M = 0
+# function; u is normalized on decode, so only its direction matters.  With a
+# symmetry, every decoded orbital is wrapped in its projection.
 
 struct _GradientLayout
     rank::Int
@@ -16,7 +18,7 @@ end
 
 _n_chol(n_dim) = n_dim * (n_dim + 1) ÷ 2
 _n_params(layout::_GradientLayout) =
-    _n_chol(layout.n_dim) + (layout.rank == 0 ? 3 * layout.n_dim : layout.n_dim)
+    _n_chol(layout.n_dim) + (layout.rank == 0 ? 0 : layout.n_dim)
 
 function _chol_to_params(L::AbstractMatrix)
     n = size(L, 1)
@@ -55,10 +57,16 @@ function _gradient_layout(rank, symmetry, n_dim::Integer; init = nothing)
     rank in (0, 1) || throw(ArgumentError("gradient methods support rank 0 or 1, got $rank"))
     init_rank === nothing || rank == init_rank ||
         throw(ArgumentError("rank=$rank does not match the rank-$init_rank initial basis"))
-    if init !== nothing && rank == 1
-        foreach(g -> _check_rank1_encodable(_unprojected(g)), getfield(init, :basis).functions)
+    if init !== nothing
+        check = rank == 0 ? _check_rank0_encodable : _check_rank1_encodable
+        foreach(g -> check(_unprojected(g)), getfield(init, :basis).functions)
     end
     return _GradientLayout(rank, n_dim, symmetry)
+end
+
+function _check_rank0_encodable(g::Rank0Gaussian)
+    iszero(g.s) || throw(ArgumentError("Rank0 functions must be unshifted for gradient methods"))
+    return nothing
 end
 
 function _check_rank1_encodable(g::Rank1Gaussian)
@@ -68,7 +76,10 @@ function _check_rank1_encodable(g::Rank1Gaussian)
     return nothing
 end
 
-_orbital_params(g::Rank0Gaussian) = vec(parent(g.s))
+function _orbital_params(g::Rank0Gaussian)
+    _check_rank0_encodable(g)
+    return Float64[]
+end
 _orbital_params(g::Rank1Gaussian) = g.a[:, 3]
 
 function _encode_basis(layout::_GradientLayout, basis::BasisSet)
@@ -89,7 +100,7 @@ function _decode_orbital(layout::_GradientLayout, θ::AbstractVector)
     T = eltype(θ)
     A = Matrix(_params_to_matrix(view(θ, 1:_n_chol(d)), d))
     rest = θ[(_n_chol(d) + 1):end]
-    layout.rank == 0 && return Rank0Gaussian(A, reshape(rest, d, 3))
+    layout.rank == 0 && return Rank0Gaussian(A, zeros(T, d, 3))
     return Rank1Gaussian(A, rest / norm(rest), zeros(T, d, 3))
 end
 

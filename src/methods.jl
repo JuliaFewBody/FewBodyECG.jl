@@ -88,10 +88,10 @@ const _GradientOptimizer = Union{GradientDescent, ConjugateGradient, LBFGS}
 """
     GVM([basis]; rank = nothing, scale = nothing, widths = nothing, optimizer = LBFGS(maxiter = 500, gradtol = 1e-6))
 
-Joint gradient optimization of all Gaussian parameters using
-ForwardDiff/Hellmann–Feynman gradients: widths via a log-Cholesky encoding, plus
-shifts for `rank = 0` or the z-polarization vector for `rank = 1`. Rank1
-functions stay unshifted and polarized along z (L=1, M=0). `rank` is inherited
+Joint gradient optimization of every Gaussian in the basis using
+ForwardDiff/Hellmann–Feynman gradients: widths via a log-Cholesky encoding,
+plus the z-polarization vector for `rank = 1`. Every function stays unshifted,
+and Rank1 functions stay polarized along z (L=1, M=0). `rank` is inherited
 from `init` when omitted, or is 0 on a cold start; a `symmetry` passed to
 `solve` (or inherited from `init`) projects every function, as for
 [`SVM`](@ref). `optimizer` accepts an OptimKit `LBFGS`, `ConjugateGradient`, or

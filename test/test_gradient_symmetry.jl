@@ -25,9 +25,10 @@ r1 = Rank1Gaussian(A, [0.6, 0.8], zeros(2, 3))
             @test typeof(h) == typeof(g)
             o, p = sym === nothing ? (h, g) : (h.orbital, g.orbital)
             @test o.A ≈ p.A
+            rank == 0 && @test iszero(o.s)
             rank == 1 && @test o.a ≈ p.a
         end
-        @test _n_params(_gradient_layout(0, nothing, 2)) == 9
+        @test _n_params(_gradient_layout(0, nothing, 2)) == 3
         @test _n_params(_gradient_layout(1, nothing, 2)) == 5
     end
 
@@ -53,6 +54,16 @@ r1 = Rank1Gaussian(A, [0.6, 0.8], zeros(2, 3))
             1, nothing, 2; init = init([r0])
         )
         @test_throws "gradient methods support rank 0 or 1" _gradient_layout(2, nothing, 2)
+        s = [0.3 -0.2 0.5; -0.1 0.4 -0.3]
+        @test_throws "Rank0 functions must be unshifted" _gradient_layout(
+            nothing, nothing, 2; init = init([r0, Rank0Gaussian(A, s)])
+        )
+        @test_throws "Rank0 functions must be unshifted" _gradient_layout(
+            nothing, he_sym, 2; init = init([ProjectedGaussian(Rank0Gaussian(A, s), he_sym)])
+        )
+        @test_throws "Rank0 functions must be unshifted" _encode_basis(
+            _gradient_layout(0, nothing, 2), BasisSet([Rank0Gaussian(A, s)])
+        )
     end
 end
 
@@ -92,6 +103,73 @@ end
             g_ad, g_fd = gradient_pair(sol, _gradient_layout(rank, sym, n_dim))
             @test all(isfinite, g_ad)
             @test maximum(abs, g_ad - g_fd) ≤ 1.0e-5 * max(1, maximum(abs, g_fd))
+        end
+    end
+
+    @testset "gradient chunk size does not depend on the basis size" begin
+        for n_θ in (1, 3, 11, 12, 30)
+            @test ForwardDiff.chunksize(FewBodyECG._gradient_config(zeros(n_θ))) == FewBodyECG._GRADIENT_CHUNK
+        end
+        # Fewer parameters than one chunk: the gradient has the input's length.
+        sol = solve(Hh, SVM(2))
+        L = _gradient_layout(0, nothing, 1)
+        θ = _encode_basis(L, sol.basis)
+        bad = Ref{Union{Nothing, Vector{Float64}}}(nothing)
+        _, g = FewBodyECG._energy_gradient(
+            θ, L, 2, getfield(sol, :operators), FewBodyECG._gradient_config(θ), 1, 1.0e-10, bad
+        )
+        @test length(g) == length(θ) == 2
+        @test all(isfinite, g)
+    end
+
+    @testset "shift gradient vanishes at zero shifts" begin
+        # Objective over [log-Cholesky | vec(s)] per function, evaluated at s = 0:
+        # its shift derivatives vanish, and its width derivatives match the
+        # unshifted layout's gradient.
+        for (H, sym, svm) in ((Hh, nothing, SVM(6)), (He, antisym, SVM(6)), (well, nothing, SVM(4; scale = 1.0)))
+            sol = solve(H, svm; symmetry = sym)
+            terms = getfield(sol, :operators)
+            orbitals = [FewBodyECG._unprojected(g) for g in sol.basis]
+            d = size(first(orbitals).A, 1)
+            nc = FewBodyECG._n_chol(d)
+            per = nc + 3d
+            wrap(o) = sym === nothing ? o : ProjectedGaussian(o, sym)
+            decode_full(θ) = BasisSet(
+                [
+                    wrap(
+                        Rank0Gaussian(
+                            Matrix(FewBodyECG._params_to_matrix(θ[(k - 1) * per .+ (1:nc)], d)),
+                            reshape(θ[(k - 1) * per + nc .+ (1:(3d))], d, 3)
+                        )
+                    ) for k in eachindex(orbitals)
+                ]
+            )
+            θ_full = reduce(
+                vcat,
+                [[FewBodyECG._chol_to_params(Matrix(cholesky(Symmetric(Matrix(o.A))).L)); zeros(3d)] for o in orbitals]
+            )
+            basis = decode_full(θ_full)
+            E, V = FewBodyECG.solve_generalized_eigenproblem(
+                FewBodyECG.build_hamiltonian_matrix(basis, terms), FewBodyECG.build_overlap_matrix(basis);
+                regularization = 1.0e-10
+            )
+            c = V[:, 1]
+            objective(θ) = let b = decode_full(θ)
+                dot(c, FewBodyECG.build_hamiltonian_matrix(b, terms) * c) -
+                    E[1] * dot(c, FewBodyECG.build_overlap_matrix(b) * c)
+            end
+            g_full = ForwardDiff.gradient(objective, θ_full)
+            is_width = repeat([trues(nc); falses(3d)], length(orbitals))
+            @test maximum(abs, g_full[.!is_width]) ≤ 1.0e-10 * max(1, maximum(abs, g_full))
+
+            layout = _gradient_layout(0, sym, d)
+            θ = _encode_basis(layout, sol.basis)
+            bad = Ref{Union{Nothing, Vector{Float64}}}(nothing)
+            E_red, g_red = FewBodyECG._energy_gradient(
+                θ, layout, length(orbitals), terms, FewBodyECG._gradient_config(θ), 1, 1.0e-10, bad
+            )
+            @test E_red ≈ E[1]
+            @test g_full[is_width] ≈ g_red rtol = 1.0e-8
         end
     end
 

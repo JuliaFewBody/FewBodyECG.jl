@@ -48,14 +48,13 @@ end
 end
 
 @testset "_encode_basis / _decode_basis round-trip" begin
-    # 2-body (n_dim=1): 1×1 A matrices, 1-D shift vectors
-    # n_per = n_chol(1) + n_dim(1) = 2 params per function
+    # 2-body (n_dim=1): 1×1 A matrices, n_chol(1) = 1 param per function
     g1 = Rank0Gaussian([2.0;;], [0.0])
     g2 = Rank0Gaussian([5.0;;], [0.0])
     basis = BasisSet([g1, g2])
 
     θ = _encode_basis(_gradient_layout(0, nothing, 1), basis)
-    @test length(θ) == 8   # 2 functions × (n_chol=1 + 3·n_dim=3)
+    @test length(θ) == 2   # 2 functions × n_chol(1)
 
     basis2 = _decode_basis(_gradient_layout(0, nothing, 1), θ, 2)
     @test length(basis2.functions) == 2
@@ -66,33 +65,22 @@ end
 end
 
 @testset "_encode_basis / _decode_basis round-trip (2D)" begin
-    # 3-body (n_dim=2): 2×2 A matrices, 2-D shift vectors
-    # n_per = n_chol(2) + n_dim(2) = 5 params per function
+    # 3-body (n_dim=2): 2×2 A matrices, n_chol(2) = 3 params per function
     A = [3.0 0.5; 0.5 2.0]
     g = Rank0Gaussian(A, [0.0, 0.0])
     basis = BasisSet([g])
 
     θ = _encode_basis(_gradient_layout(0, nothing, 2), basis)
-    @test length(θ) == 9   # 1 function × (n_chol=3 + 3·n_dim=6)
+    @test length(θ) == 3   # 1 function × n_chol(2)
 
     basis2 = _decode_basis(_gradient_layout(0, nothing, 2), θ, 1)
     @test Matrix(basis2.functions[1].A) ≈ A rtol = 1.0e-8
     @test basis2.functions[1].s ≈ g.s rtol = 1.0e-10
 end
 
-@testset "_encode_basis / _decode_basis round-trip with non-zero shifts" begin
-    # Verify shift vectors are correctly preserved through the encode/decode cycle.
-    A = [3.0 0.5; 0.5 2.0]
-    s = [0.3 -0.2 0.5; -0.1 0.4 -0.3]   # full N×3 shift
-    g = Rank0Gaussian(A, s)
-    basis = BasisSet([g])
-
-    θ = _encode_basis(_gradient_layout(0, nothing, 2), basis)
-    @test length(θ) == 9
-
-    basis2 = _decode_basis(_gradient_layout(0, nothing, 2), θ, 1)
-    @test Matrix(basis2.functions[1].A) ≈ A rtol = 1.0e-8
-    @test basis2.functions[1].s ≈ s rtol = 1.0e-10
+@testset "_encode_basis rejects shifted Rank0 functions" begin
+    g = Rank0Gaussian([3.0 0.5; 0.5 2.0], [0.3 -0.2 0.5; -0.1 0.4 -0.3])
+    @test_throws "Rank0 functions must be unshifted" _encode_basis(_gradient_layout(0, nothing, 2), BasisSet([g]))
 end
 
 # ---------------------------------------------------------------------------
@@ -229,19 +217,15 @@ end
 end
 
 # ---------------------------------------------------------------------------
-# Shift vectors are optimised (not pinned to zero)
+# Gradient methods keep Rank0 functions unshifted
 # ---------------------------------------------------------------------------
 
-@testset "shift vectors are included in optimised parameters" begin
-    # _encode_basis packs n_chol + 3·n_dim params per Gaussian (N×3 shift).
-    # For a 1-D (hydrogen) basis: n_chol=1, 3·n_dim=3 → 4 params per function.
-    # The shift is optimised; _decode_basis round-trips it.
+@testset "GVM keeps Rank0 functions unshifted" begin
     ops = _hydrogen_ops()
     sol = solve(ops, GVM(basis = 4, scale = 1.0, optimizer = _variational_lbfgs(50)))
-    # Each basis function has a 1×3 shift supervector stored in s.
     for g in sol.basis.functions
         @test size(g.s) == (1, 3)
-        @test all(isfinite, g.s)
+        @test iszero(g.s)
     end
 end
 

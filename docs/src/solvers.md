@@ -75,8 +75,9 @@ initial basis, either through `init = sol` or a pipeline.
 
 ## GVM
 
-`GVM` (gradient variational method) jointly optimizes all Gaussian parameters
-with ForwardDiff/Hellmann-Feynman gradients. The optimizer is an OptimKit
+`GVM` (gradient variational method) jointly optimizes the widths of every
+Gaussian (and the polarization directions of Rank-1 Gaussians) with
+ForwardDiff/Hellmann-Feynman gradients. The optimizer is an OptimKit
 algorithm object, so its iteration limit, gradient tolerance, line search, and
 verbosity stay together:
 
@@ -101,8 +102,12 @@ omitted:
 sol = solve(ops, GVM(); init = seed)
 ```
 
+Every function stays unshifted during gradient optimization. Each Hamiltonian
+term is unchanged under r → −r, so while all functions are unshifted the energy
+is even in each function's shift and its shift gradient is zero.
+
 Rank-1 bases and permutation symmetry carry through the gradient methods. A
-Rank-1 function stays unshifted and polarized along z, so it remains an L=1,
+Rank-1 function stays polarized along z, so it remains an L=1,
 M=0 function while its widths and the direction of its global vector are
 optimized. For the spatially antisymmetric P states of helium:
 

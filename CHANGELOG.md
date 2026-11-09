@@ -88,6 +88,14 @@ keyword of `solve`, so pipelines such as
 permutation symmetry through every stage. Rank-1 functions are optimized
 unshifted and polarized along z.
 
+### Rank-0 gradient methods optimize widths only
+
+`GVM` and `DynamicGVM` keep Rank-0 functions unshifted and optimize only their
+width matrices: at zero shifts the energy is even in every shift, so the shift
+gradient vanishes. This removes `3N` of the `N(N+1)/2 + 3N` parameters per
+function for `N` Jacobi coordinates. An `init` basis with a shifted Rank-0
+function is rejected.
+
 ### Fixed
 
 The incremental eigensolver behind `SVM` and `Refine` dropped arrowhead

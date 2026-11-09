@@ -2,13 +2,16 @@ using OptimKit: optimize
 
 # ForwardDiff compiles the energy gradient once per chunk size, so a fixed
 # chunk lets every system reuse one compiled gradient.  Larger chunks are no
-# faster for ECG energies.
+# faster for ECG energies.  Parameter vectors shorter than one chunk are padded
+# with unused entries, so small bases use the same chunk as large ones.
 const _GRADIENT_CHUNK = 12
+
+_padded_length(θ) = max(_GRADIENT_CHUNK, length(θ))
 
 # A named tag (rather than `nothing`) orders the gradient's duals outside the
 # `_ShiftTag` duals of polarized matrix elements, which nest inside it.
 _gradient_config(θ) = ForwardDiff.GradientConfig(
-    _energy_gradient, θ, ForwardDiff.Chunk(min(_GRADIENT_CHUNK, length(θ)))
+    _energy_gradient, zeros(_padded_length(θ)), ForwardDiff.Chunk(_GRADIENT_CHUNK)
 )
 
 function _energy_gradient(θ, layout, n, terms, grad_cfg, state, regularization, bad_gradient)
@@ -26,9 +29,11 @@ function _energy_gradient(θ, layout, n, terms, grad_cfg, state, regularization,
     end
     isfinite(energy) || return Inf, zeros(Float64, length(θ))
 
+    n_θ = length(θ)
+    θ_padded = [θ; zeros(_padded_length(θ) - n_θ)]
     gradient = try
-        ForwardDiff.gradient(θ, grad_cfg, Val(false)) do θ_ad
-            basis = _decode_basis(layout, θ_ad, n)
+        ForwardDiff.gradient(θ_padded, grad_cfg, Val(false)) do θ_ad
+            basis = _decode_basis(layout, view(θ_ad, 1:n_θ), n)
             H = build_hamiltonian_matrix(basis, terms)
             S = build_overlap_matrix(basis)
             dot(coefficients, H * coefficients) -
@@ -42,6 +47,7 @@ function _energy_gradient(θ, layout, n, terms, grad_cfg, state, regularization,
             )
         )
     end
+    gradient = gradient[1:n_θ]
     if !all(isfinite, gradient)
         bad_gradient[] = gradient
         return Inf, zeros(Float64, length(θ))
