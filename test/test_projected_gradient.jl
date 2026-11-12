@@ -7,11 +7,11 @@ using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, build_operator
 
 optimizer(n) = LBFGS(; maxiter = n, gradtol = 1.0e-7, verbosity = 0, ls_verbosity = 0)
 
-function finite_energy(θ, basis, layout, terms)
+function finite_energy(θ, basis, layout, terms, state)
     decoded = FewBodyECG._decode_basis(θ, length(basis), 2, layout)
     S = build_overlap_matrix(decoded)
     D = Diagonal(1 ./ sqrt.(diag(S)))
-    return first(eigen(Symmetric(D * build_hamiltonian_matrix(decoded, terms) * D), Symmetric(D * S * D)).values)
+    return eigen(Symmetric(D * build_hamiltonian_matrix(decoded, terms) * D), Symmetric(D * S * D)).values[state]
 end
 
 @testset "Projected gradient encoding and derivatives" begin
@@ -34,16 +34,18 @@ end
         rank == 1 && @test norm(decoded[1].orbital.a) ≈ 1
         cfg = ForwardDiff.GradientConfig(FewBodyECG._energy_gradient, θ, ForwardDiff.Chunk(min(12, length(θ))))
         bad = Ref{Union{Nothing, Vector{Float64}}}(nothing)
-        energy, gradient = FewBodyECG._energy_gradient(θ, 2, 2, terms, cfg, 1, bad, layout)
-        @test energy ≈ finite_energy(θ, basis, layout, terms)
-        h = 1.0e-5
-        differences = map(eachindex(θ)) do i
-            step = zeros(length(θ))
-            step[i] = h
-            (finite_energy(θ + step, basis, layout, terms) - finite_energy(θ - step, basis, layout, terms)) / (2h)
+        for state in (1, 2)
+            energy, gradient = FewBodyECG._energy_gradient(θ, 2, 2, terms, cfg, state, bad, layout)
+            @test energy ≈ finite_energy(θ, basis, layout, terms, state)
+            h = 1.0e-5
+            differences = map(eachindex(θ)) do i
+                step = zeros(length(θ))
+                step[i] = h
+                (finite_energy(θ + step, basis, layout, terms, state) - finite_energy(θ - step, basis, layout, terms, state)) / (2h)
+            end
+            @test gradient ≈ differences rtol = 2.0e-5 atol = 2.0e-7
+            @test norm(gradient) > 1.0e-3
         end
-        @test gradient ≈ differences rtol = 2.0e-5 atol = 2.0e-7
-        @test norm(gradient) > 1.0e-3
     end
 end
 
@@ -114,6 +116,17 @@ end
         P = build_operator_matrix(sol.basis, PermutationOperator(masses, [1, 3, 2]))
         @test dot(c, P * c) ≈ sign atol = 1.0e-8
         @test dot(c, build_overlap_matrix(sol.basis) * c) ≈ 1 atol = 1.0e-9
+    end
+
+    @testset "Second state in antisymmetric helium" begin
+        symmetry = PermutationSymmetry(masses, [[1, 3, 2]]; signs = [-1])
+        seed = solve(H, SVM(6; candidates = 15); symmetry, state = 2)
+        sol = solve(H, GVM(; optimizer = optimizer(30)); init = seed, state = 2)
+        history = energy_history(sol)
+        @test first(history) ≈ energy(seed)
+        @test last(history) ≈ sol.E[2]
+        @test energy(sol) == sol.E[2]
+        @test energy(sol) < energy(seed) - 1.0e-5
     end
 end
 

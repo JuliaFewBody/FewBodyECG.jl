@@ -75,8 +75,9 @@ initial basis, either through `init = sol` or a pipeline.
 
 ## GVM
 
-`GVM` (gradient variational method) jointly optimizes all Gaussian parameters
-with ForwardDiff/Hellmann-Feynman gradients. The optimizer is an OptimKit
+`GVM` (gradient variational method) jointly optimizes the Gaussian widths and,
+for Rank‑1 functions, the polarization vectors. It uses ForwardDiff and
+Hellmann–Feynman gradients. The optimizer is an OptimKit
 algorithm object, so its iteration limit, gradient tolerance, line search, and
 verbosity stay together:
 
@@ -94,16 +95,37 @@ sol = solve(ops, GVM(30; optimizer = gradient_method))
 `GradientDescent`, `ConjugateGradient`, and `LBFGS` are supported. `LBFGS` is
 the default.
 
-A warm start already has a basis, so the size is inferred and `scale` must be
-omitted:
+A warm start infers the basis size from `init`. Omit `scale` and `widths`
+because these options control cold-start sampling.
 
 ```julia
 sol = solve(ops, GVM(); init = seed)
 ```
 
+Both gradient methods preserve the rank and exchange symmetry of a warm-start
+basis. An unshifted Rank‑1 or projected basis stays unshifted. Shifts are
+optimized for unprojected Rank‑0 bases and for bases with existing shifts.
+
+In this helium example, the Rank‑1 spatial wavefunction changes sign when the
+two electrons are exchanged. `GVM` inherits the rank and symmetry from the
+`SVM` seed. To target the second eigenvalue within that sector, pass `state = 2`
+to `solve`.
+
+```@example projected_gvm
+using FewBodyECG
+
+masses = [7294.2618241, 1.0, 1.0]
+H = Kinetic(masses) + Coulomb([2.0, -1.0, -1.0])
+symmetry = PermutationSymmetry(masses, [[1, 3, 2]]; signs = [-1])
+seed = solve(H, SVM(6; rank = 1, candidates = 15); symmetry)
+sol = solve(H, GVM(); init = seed)
+energy(sol)
+```
+
 | option | meaning |
 |---|---|
 | `basis` | number of functions for a cold start; optional with `init` |
+| `rank` | `0` or `1`, inherited from `init` or `0` on a cold start |
 | `scale` | cold-start length scale, `:adaptive` when omitted; omit with `init` |
 | `widths` | cold-start width sampling, `:linear` or `:wide`; omit with `init` |
 | `optimizer` | OptimKit gradient algorithm and its settings |
@@ -116,6 +138,7 @@ basis after each addition.
 | option | meaning |
 |---|---|
 | `basis` | final number of functions, including a warm-start basis |
+| `rank` | same as [`GVM`](@ref) |
 | `candidates` | candidates per growth step |
 | `scale` | candidate length scale, `:adaptive` by default |
 | `widths` | `:linear` (default) or `:wide` |
