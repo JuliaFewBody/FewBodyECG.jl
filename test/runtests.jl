@@ -38,6 +38,7 @@ using FewBodyECG
     include("test_book_nuclear_exchange.jl")
     include("test_muonic.jl")
     include("test_fewbodydb.jl")
+    include("test_table_8_1.jl")
     include("test_utils.jl")
     include("test_types.jl")
     include("test_variational.jl")

@@ -34,13 +34,12 @@ The scripts listed in `LITERATE_EXAMPLES` in `docs/make.jl` are rendered into `d
 A matrix-level layer (`build_overlap_matrix`, `build_operator_matrix`, `build_hamiltonian_matrix`, `solve_generalized_eigenproblem`) is `public` but not exported; it is used for hand-built bases, spin-dependent operators, and Rank-1/Rank-2 Gaussians. `build_operator_matrix` evaluates every entry, including non-Hermitian permutation cycles.
 
 ### Source Files (src/)
+
+#### Core (`src/`)
+
 - **types.jl** — `GaussianBase` → `Rank0Gaussian`, `Rank1Gaussian`, `Rank2Gaussian`, `SpinGaussian`; `BasisSet`; operator types (`KineticOperator`, `CoulombOperator`, `GaussianOperator`, `OscillatorOperator`, `ManyBodyGaussianOperator`, `NumericalPotential`, `GaussianTensorOperator`, `GaussianSpinOrbitOperator`); `SpinState`
-- **units.jl** — `UnitSystem` and the `:atomic`/`:nuclear` presets; labels only, nothing is converted
 - **coordinates.jl** — `jacobi_transform`, `Λ` (kinetic mass matrix)
-- **matrix_elements.jl** — analytic ⟨bra|op|ket⟩ formulas dispatched on Gaussian rank × operator type
-- **numerical_matrix_elements.jl** — `NumericalPotential` matrix elements via a 1-D radial QuadGK integral
-- **polarized_elements.jl** — Rank1/Rank2 and cross-rank elements for any operator, as shift derivatives of the Rank0 element (nested ForwardDiff)
-- **permutation_contact.jl** — spatial `PermutationOperator`, radial-operator × permutation products, and `ContactDensityOperator` for three-dimensional pair densities
+- **matrix_elements.jl** — analytic ⟨bra|op|ket⟩ formulas dispatched on Gaussian rank × operator type, plus 1-D radial QuadGK integrals for `NumericalPotential`
 - **hamiltonian.jl** — physical terms (`Kinetic`, `Coulomb`, `Gaussian`, `ManyBodyGaussian`, `Oscillator`, `Custom`, `Tensor`, `SpinOrbit`), `Hamiltonian`, and their algebra; no Jacobi coordinates, so it can move to FewBodyHamiltonians unchanged
 - **jacobi_frame.jl** — `_to_jacobi(H)`: transform of a `Hamiltonian` to Jacobi-frame operators, masses and units
 - **linalg.jl** — overlap/Hamiltonian assembly, `solve_generalized_eigenproblem`, `default_scale`
@@ -50,8 +49,25 @@ A matrix-level layer (`build_overlap_matrix`, `build_operator_matrix`, `build_ha
 - **state.jl** — `BasisState`, the cached S/H/eigensolver state shared by the stochastic methods
 - **solve.jl** — `solve` entry points and the `SVM`/`Refine`/`Pipeline` drivers
 - **gradient.jl** — `GVM`/`DynamicGVM`: log-Cholesky encoding and Hellmann–Feynman gradients via ForwardDiff
-- **solution.jl** — `Solution`, `StageResult`, `ConvergenceReport`
-- **utils/** — `Wavefunction`, `convergence`, `radial_profile`, plot recipes, the PrecompileTools workload
+
+#### Physics (`src/physics/`)
+
+- **units.jl** — `UnitSystem` and the `:atomic`/`:nuclear` presets; labels only, nothing is converted
+- **polarized_elements.jl** — Rank1/Rank2 and cross-rank elements for any operator, as shift derivatives of the Rank0 element (nested ForwardDiff)
+- **permutation_contact.jl** — spatial `PermutationOperator`, radial-operator × permutation products, and `ContactDensityOperator` for three-dimensional pair densities
+- **symmetry.jl** — `PermutationSymmetry` and `ProjectedGaussian` for exchange-symmetry projection
+- **spin_exchange.jl** — spin and isospin exchange operators
+- **multipoles.jl** — dipole and quadrupole operators
+- **relativistic.jl** — momentum to the fourth power, mass–velocity, and orbit–orbit operators
+
+#### Results and utilities (`src/utils/`)
+
+- **solution.jl** — `Solution`, `StageResult`, `ConvergenceReport`, and energy accessors
+- **convergence.jl** — convergence analysis of energy histories
+- **wavefunction.jl** — `Wavefunction` and `wavefunction`
+- **observables.jl** — `radial_profile` and `expectation`
+- **plotting.jl** — RecipesBase plot recipes
+- **precompile.jl** — PrecompileTools workload
 
 ### Key Design Patterns
 - **Multiple dispatch on Gaussian rank × operator type** for matrix elements.
