@@ -1,4 +1,5 @@
 using Documenter, FewBodyECG, DocumenterCitations, Literate
+import FewBodyHamiltonians
 
 bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"); style = :numeric)
 
@@ -20,7 +21,8 @@ end
 
 makedocs(
     build = "build",
-    modules = [FewBodyECG],
+    modules = [FewBodyECG, FewBodyHamiltonians],
+    checkdocs_ignored_modules = [FewBodyHamiltonians], # Shared API coverage is checked in its own manual.
     checkdocs = :public,
     sitename = "FewBodyECG.jl",
     pages = [

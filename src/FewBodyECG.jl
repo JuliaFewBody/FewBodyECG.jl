@@ -4,6 +4,9 @@ using LinearAlgebra: Diagonal, Hermitian, I, Symmetric, UpperTriangular,
     cholesky, cond, cross, det, diag, dot, eigen, eigmin, isposdef, issymmetric,
     norm, opnorm, pinv, tr
 import FewBodyHamiltonians
+using FewBodyHamiltonians: UnitSystem, Hamiltonian, Kinetic, Coulomb, Gaussian,
+    ManyBodyGaussian, Oscillator, Custom, Tensor, SpinOrbit,
+    kinetic, validate, exponent_matrix, unit_system
 import ForwardDiff
 
 """
@@ -41,9 +44,8 @@ public build_hamiltonian_matrix, build_overlap_matrix, build_operator_matrix,
     solve_generalized_eigenproblem, Λ, jacobi_transform, default_scale,
     coulomb_weights, up, down, proton, neutron
 
+include("validation.jl")
 include("types.jl")
-include("units.jl")
-include("hamiltonian.jl")
 include("coordinates.jl")
 include("matrix_elements.jl")
 include("numerical_matrix_elements.jl")

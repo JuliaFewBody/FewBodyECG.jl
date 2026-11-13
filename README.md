@@ -18,6 +18,12 @@ recipes.
 
 ## Install
 
+Hamiltonian construction is shared with
+[FewBodyHamiltonians.jl](https://github.com/JuliaFewBody/FewBodyHamiltonians.jl).
+The constructors exported here are the same types, so existing ECG expressions
+continue to work and Hamiltonians built directly by the shared package can be
+passed to `solve` or the matrix-level API without conversion.
+
 ```julia
 import Pkg
 Pkg.add("FewBodyECG")
