@@ -166,5 +166,9 @@ The printed `Solution` lists every stage with its final energy, and
 |---|---|
 | `SVM` | `O(k^2)` per candidate with the incremental eigensolver |
 | `Refine` | up to `O(k^4)` per sweep in the current implementation |
-| `GVM` | `O(iter * n_param * k^3)` engine cost |
+| `GVM` | an eigensolve plus `O(k² * ceil(p / C))` differentiated matrix elements per gradient |
 | `DynamicGVM` | repeated gradient solves over growing `k` |
+
+For the row-wise gradient, `p` is the number of parameters per Gaussian and
+`C` is the ForwardDiff chunk size. Hamiltonians containing raw permutation
+operators or externally defined operator types use the full-matrix derivative.

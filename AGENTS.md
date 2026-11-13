@@ -78,7 +78,7 @@ A matrix-level layer (`build_overlap_matrix`, `build_operator_matrix`, `build_ha
 
 ### Parameterization for Gradient Methods
 
-`Rank0Gaussian` is encoded as `[log-diag Cholesky of A | shift s]`, so positive-definiteness holds for any unconstrained parameter vector. Gradients use the Hellmann–Feynman theorem with ForwardDiff, at a fixed chunk size (`_GRADIENT_CHUNK = 12`) so every system reuses one compiled gradient.
+The gradient layout stores log-Cholesky widths, shifts when the layout permits them, and polarization vectors that are normalized on decode for Rank1. ForwardDiff differentiates the Hellmann–Feynman contraction one Gaussian at a time, using only its row and column of `H` and `S` and at most 12 dual partials per chunk. Hamiltonians with raw permutation terms or externally defined operator types use the full-matrix derivative.
 
 ## Precompilation
 

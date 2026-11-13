@@ -25,7 +25,7 @@ systems = [
 for (name, masses, svm200) in systems
     ops = Kinetic(masses) + Coulomb([+1.0, +1.0, -1.0])
     sol = solve(
-        ops, SVM(basis = 200, candidates = 40) → Refine(2; candidates = 20);
+        ops, SVM(basis = 50, candidates = 40) → Refine(2; candidates = 20);
         tol = 1.0e-4, window = 15,
     )
     reference = db(:Suzuki2003Jul, name, :energy, "¹Sᵉ").value

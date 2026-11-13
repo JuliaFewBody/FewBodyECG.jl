@@ -1,7 +1,6 @@
 module ProjectedGradientTests
 
 using Test, LinearAlgebra, FewBodyECG
-import ForwardDiff
 using OptimKit: LBFGS
 using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, build_operator_matrix
 
@@ -32,7 +31,7 @@ end
         @test all(g -> g.symmetry == symmetry && iszero(g.orbital.s), decoded)
         @test decoded[1].orbital.A ≈ basis[1].orbital.A
         rank == 1 && @test norm(decoded[1].orbital.a) ≈ 1
-        cfg = ForwardDiff.GradientConfig(FewBodyECG._energy_gradient, θ, ForwardDiff.Chunk(min(12, length(θ))))
+        cfg = FewBodyECG._gradient_config(θ, 2, layout, terms)
         bad = Ref{Union{Nothing, Vector{Float64}}}(nothing)
         for state in (1, 2)
             energy, gradient = FewBodyECG._energy_gradient(θ, 2, 2, terms, cfg, state, bad, layout)
@@ -49,6 +48,33 @@ end
     end
 end
 
+@testset "Shifted Rank0 gradients" begin
+    masses = ones(3)
+    terms = first(FewBodyECG._to_jacobi(Kinetic(masses) + Coulomb([2.0, -1.0, -1.0])))
+    exchange = PermutationOperator(masses, [1, 3, 2])
+    basis = BasisSet(
+        [
+            Rank0Gaussian([0.8 0.2; 0.2 1.3], [0.2 0.0 0.1; 0.1 -0.3 0.2]),
+            Rank0Gaussian([0.5 -0.15; -0.15 0.9], [0.0 0.2 -0.1; -0.2 0.0 0.4]),
+        ]
+    )
+    layout = FewBodyECG._gradient_layout(basis)
+    θ = FewBodyECG._encode_basis(basis, layout)
+    for ops in (terms, [terms; exchange])
+        cfg = FewBodyECG._gradient_config(θ, 2, layout, ops)
+        bad = Ref{Union{Nothing, Vector{Float64}}}(nothing)
+        energy, gradient = FewBodyECG._energy_gradient(θ, 2, 2, ops, cfg, 2, bad, layout)
+        @test energy ≈ finite_energy(θ, basis, layout, ops, 2)
+        h = 1.0e-5
+        differences = map(eachindex(θ)) do i
+            step = zeros(length(θ))
+            step[i] = h
+            (finite_energy(θ + step, basis, layout, ops, 2) - finite_energy(θ - step, basis, layout, ops, 2)) / (2h)
+        end
+        @test gradient ≈ differences rtol = 2.0e-5 atol = 2.0e-7
+    end
+end
+
 @testset "Gradient bases reject null directions" begin
     odd = PermutationSymmetry(ones(2), [[2, 1]]; signs = [-1])
     null = ProjectedGaussian(Rank0Gaussian([0.5;;], zeros(1)), odd)
@@ -58,7 +84,7 @@ end
     layout = FewBodyECG._gradient_layout(basis)
     θ = FewBodyECG._encode_basis(basis, layout)
     terms = first(FewBodyECG._to_jacobi(Kinetic(ones(2)) + 0.5Oscillator(1, 2)))
-    cfg = ForwardDiff.GradientConfig(FewBodyECG._energy_gradient, θ, ForwardDiff.Chunk(min(12, length(θ))))
+    cfg = FewBodyECG._gradient_config(θ, 1, layout, terms)
     bad = Ref{Union{Nothing, Vector{Float64}}}(nothing)
     @test first(FewBodyECG._energy_gradient(θ, 2, 1, terms, cfg, 1, bad, layout)) == Inf
     θ[2:4] .= 0
@@ -72,7 +98,7 @@ end
     terms = first(FewBodyECG._to_jacobi(Kinetic([1.0e15, 1.0, 1.0]) + Coulomb([2.0, -1.0, -1.0])))
     layout = FewBodyECG._GradientLayout(0, nothing)
     θ₀ = [0.0, 0.1, 0.2, zeros(6)...]
-    cfg = ForwardDiff.GradientConfig(FewBodyECG._energy_gradient, [θ₀; θ₀], ForwardDiff.Chunk(12))
+    cfg = FewBodyECG._gradient_config([θ₀; θ₀], 2, layout, terms)
     bad = Ref{Union{Nothing, Vector{Float64}}}(nothing)
     # Widths that overflow, underflow to a singular matrix, or are NaN.
     for log_width in (800.0, -800.0, NaN)
@@ -166,7 +192,7 @@ end
     @test decoded.s ≈ g.s
     @test decoded.a ≈ g.a / norm(g.a)
     terms = first(FewBodyECG._to_jacobi(H))
-    cfg = ForwardDiff.GradientConfig(FewBodyECG._energy_gradient, θ, ForwardDiff.Chunk(min(12, length(θ))))
+    cfg = FewBodyECG._gradient_config(θ, 1, layout, terms)
     bad = Ref{Union{Nothing, Vector{Float64}}}(nothing)
     value, gradient = FewBodyECG._energy_gradient(θ, 1, 1, terms, cfg, 1, bad, layout)
     function finite(θ)

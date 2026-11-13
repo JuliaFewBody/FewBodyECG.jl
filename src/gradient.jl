@@ -1,8 +1,6 @@
 using OptimKit: optimize
 
-# ForwardDiff compiles the energy gradient once per chunk size, so a fixed
-# chunk lets every system reuse one compiled gradient.  Larger chunks are no
-# faster for ECG energies.
+# Cap the dual width for large parameter blocks.
 const _GRADIENT_CHUNK = 12
 
 function _chol_to_params(L::AbstractMatrix)
@@ -87,23 +85,26 @@ function _encode_basis(basis::BasisSet, layout::_GradientLayout{R}) where {R}
     return params
 end
 
-function _decode_basis(θ::AbstractVector, n_basis::Int, n_dim::Int, layout::_GradientLayout{R}) where {R}
-    T = eltype(θ)
+function _decode_gradient_function(θ, n_dim, layout::_GradientLayout{R}) where {R}
     n_chol = n_dim * (n_dim + 1) ÷ 2
     n_shift = layout.shifts ? 3n_dim : 0
+    A = Matrix(_params_to_matrix(view(θ, 1:n_chol), n_dim))
+    offset = n_chol + 1
+    s = layout.shifts ? reshape(view(θ, offset:(offset + n_shift - 1)), n_dim, 3) : zeros(eltype(θ), n_dim, 3)
+    if R == 0
+        g = Rank0Gaussian(A, s)
+    else
+        a = reshape(view(θ, (offset + n_shift):lastindex(θ)), n_dim, 3)
+        g = Rank1Gaussian(A, a / norm(a), s)
+    end
+    return layout.symmetry === nothing ? g : ProjectedGaussian(g, layout.symmetry)
+end
+
+function _decode_basis(θ::AbstractVector, n_basis::Int, n_dim::Int, layout::_GradientLayout)
     n_per = _gradient_parameters(n_dim, layout)
     fns = map(1:n_basis) do i
         start = (i - 1) * n_per + 1
-        A = _params_to_matrix(view(θ, start:(start + n_chol - 1)), n_dim)
-        offset = start + n_chol
-        s = layout.shifts ? reshape(view(θ, offset:(offset + n_shift - 1)), n_dim, 3) : zeros(T, n_dim, 3)
-        if R == 0
-            g = Rank0Gaussian(Matrix(A), s)
-        else
-            a = reshape(view(θ, (offset + n_shift):(start + n_per - 1)), n_dim, 3)
-            g = Rank1Gaussian(Matrix(A), a / norm(a), s)
-        end
-        return layout.symmetry === nothing ? g : ProjectedGaussian(g, layout.symmetry)
+        return _decode_gradient_function(view(θ, start:(start + n_per - 1)), n_dim, layout)
     end
     return BasisSet(fns)
 end
@@ -130,20 +131,65 @@ end
 # `state`; until the basis is large enough it optimizes the highest state.
 _target_index(state, values) = min(state, length(values))
 
+function _gradient_config(θ, n_dim, layout, terms)
+    # External operators may require matching scalar types on bra and ket.
+    # Permutation terms can fill the two triangles independently.
+    rowwise = all(terms) do op
+        parentmodule(typeof(op)) === (@__MODULE__) && !(op isa Union{PermutationOperator, _PermutedOperator})
+    end
+    n = rowwise ? _gradient_parameters(n_dim, layout) : length(θ)
+    chunk = ForwardDiff.Chunk(min(_GRADIENT_CHUNK, n))
+    diff = ForwardDiff.GradientConfig(_energy_gradient, view(θ, 1:n), chunk)
+    return (; diff, rowwise, invariant = _hamiltonian_invariant(terms, layout.symmetry))
+end
+
+_gradient_residual(bra, ket, terms, invariant, energy) =
+    _hamiltonian_element(bra, ket, terms; invariant) - energy * _compute_overlap_element(bra, ket)
+
+# A function's parameters enter only its own row and column of H and S.
+function _row_energy(x, i, n_dim, layout, basis, terms, invariant, c, energy)
+    g = _decode_gradient_function(x, n_dim, layout)
+    ci = c[i]
+    total = real(conj(ci) * (_gradient_residual(g, g, terms, invariant, energy) * ci))
+    for (j, h) in pairs(basis.functions)
+        j == i && continue
+        # Match the lower-triangle orientation used by matrix assembly.
+        if j < i
+            total += 2real(conj(ci) * (_gradient_residual(g, h, terms, invariant, energy) * c[j]))
+        else
+            total += 2real(conj(c[j]) * (_gradient_residual(h, g, terms, invariant, energy) * ci))
+        end
+    end
+    return total
+end
+
 function _energy_gradient(θ, n, n_dim, terms, grad_cfg, state, bad_gradient, layout)
-    problem = _gradient_eigenproblem(_decode_basis(θ, n, n_dim, layout), terms)
+    basis = _decode_basis(θ, n, n_dim, layout)
+    problem = _gradient_eigenproblem(basis, terms)
     problem === nothing && return Inf, zeros(Float64, length(θ))
-    values, vectors, _ = problem
+    values, vectors, D = problem
     index = _target_index(state, values)
     energy, coefficients = values[index], vectors[:, index]
     isfinite(energy) || return Inf, zeros(Float64, length(θ))
 
     gradient = try
-        ForwardDiff.gradient(θ, grad_cfg, Val(false)) do θ_ad
-            basis = _decode_basis(θ_ad, n, n_dim, layout)
-            H, S, _ = _gradient_matrices(basis, terms)
-            dot(coefficients, H * coefficients) -
-                energy * dot(coefficients, S * coefficients)
+        if grad_cfg.rowwise
+            # The derivative of D cancels in the eigenvalue derivative.
+            c = D * coefficients
+            n_per = _gradient_parameters(n_dim, layout)
+            result = similar(θ)
+            for i in eachindex(basis.functions)
+                block = ((i - 1) * n_per + 1):(i * n_per)
+                result[block] = ForwardDiff.gradient(view(θ, block), grad_cfg.diff, Val(false)) do x
+                    _row_energy(x, i, n_dim, layout, basis, terms, grad_cfg.invariant, c, energy)
+                end
+            end
+            result
+        else
+            ForwardDiff.gradient(θ, grad_cfg.diff, Val(false)) do θ_ad
+                H, S, _ = _gradient_matrices(_decode_basis(θ_ad, n, n_dim, layout), terms)
+                dot(coefficients, H * coefficients) - energy * dot(coefficients, S * coefficients)
+            end
         end
     catch e
         throw(
@@ -188,8 +234,7 @@ end
 # Optimize the parameters θ of an n-function basis.  Returns the optimizer's
 # (x, energy, gradient, evaluations, history); `prefix` labels verbose output.
 function _optimize_parameters(θ, n, n_dim, ctx, layout, optimizer, prefix)
-    chunk = ForwardDiff.Chunk(min(_GRADIENT_CHUNK, length(θ)))
-    grad_cfg = ForwardDiff.GradientConfig(_energy_gradient, θ, chunk)
+    grad_cfg = _gradient_config(θ, n_dim, layout, ctx.terms)
     bad_gradient = Ref{Union{Nothing, Vector{Float64}}}(nothing)
     fg = x -> _energy_gradient(x, n, n_dim, ctx.terms, grad_cfg, ctx.state, bad_gradient, layout)
     report_iteration = function (x, energy, gradient, iteration)
