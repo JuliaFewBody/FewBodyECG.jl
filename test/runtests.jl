@@ -11,6 +11,7 @@ using FewBodyECG
     include("test_solution.jl")
     include("test_units.jl")
     include("test_algebra.jl")
+    include("test_shared_hamiltonians.jl")
     include("test_state.jl")
     include("test_solve.jl")
     include("test_refine.jl")

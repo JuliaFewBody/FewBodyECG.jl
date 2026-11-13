@@ -169,3 +169,8 @@ function Base.show(io::IO, ::MIME"text/plain", sol::Solution)
     )
     return nothing
 end
+
+function _hamiltonian_header(H::Hamiltonian)
+    K = kinetic(H)
+    return "Hamiltonian ($(length(K.masses)) particles; $(K.units.energy), $(K.units.length))"
+end

@@ -175,10 +175,10 @@ end
 end
 
 @testset "final-review regressions" begin
-    @testset "couplings are keyword-only" begin
+    @testset "pair constructors and legacy Coulomb compatibility" begin
         @test_throws MethodError Oscillator(1, 2, 0.5)
         @test_throws MethodError SpinOrbit(1, 2, 0.5, 1.0)
-        @test_throws MethodError Coulomb(1, 2, -1.0)
+        @test Coulomb(1, 2, -1.0).coefficient == -1.0  # shared package's legacy constructor
         @test_throws MethodError Gaussian(1.0, 2)
         @test_throws MethodError ManyBodyGaussian(1.0, [1.0 -1.0; -1.0 1.0])
     end

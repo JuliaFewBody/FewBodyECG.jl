@@ -17,3 +17,6 @@ docs/superpowers/
 *_REVIEW_PLAN.md
 *_REVIEW_SESSION.md
 LocalPreferences.toml
+
+# Proposed provider checkout used only by pull-request CI.
+/.ci/FewBodyHamiltonians/
