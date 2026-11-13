@@ -77,9 +77,9 @@ raw operator vector takes it from the `units` keyword. Spin-dependent terms
 and are assembled with `FewBodyECG.build_hamiltonian_matrix` instead.
 
 `symmetry` is a [`PermutationSymmetry`](@ref), imposed on candidates, adaptive
-pilots, and returned wavefunctions by `SVM`/`Refine`. It is inherited from
-`init` when omitted; warm starts cannot change sectors. Gradient methods
-currently require an unprojected Rank0 basis.
+pilots, and returned wavefunctions by all solvers. It is inherited from
+`init` when omitted; warm starts cannot change sectors. Solvers support
+uniformly Rank0 or Rank1 bases.
 
 Returns a [`Solution`](@ref) carrying energies, the basis, S-orthonormal
 coefficients, and an honest [`ConvergenceReport`](@ref).
@@ -246,11 +246,11 @@ function _solve(
         units, hamiltonian = nothing, symmetry = nothing
     )
     ctx = _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian, symmetry)
-    init_rank = init === nothing ? 0 : _stochastic_rank(init.basis)
+    init_rank = init === nothing ? 0 : _basis_rank(init.basis)
     rank = something(alg.rank, init_rank)
     rank in (0, 1) || throw(ArgumentError("SVM rank must be 0 or 1"))
     init === nothing || rank == init_rank || throw(ArgumentError("SVM rank=$rank does not match the rank-$init_rank initial basis"))
-    G = _stochastic_type(rank, ctx.symmetry)
+    G = _basis_type(rank, ctx.symmetry)
     st = init === nothing ? BasisState(G; rank, symmetry = ctx.symmetry) : _solution_basis_state(init, ctx.terms)
     scale, scale_note = _solve_scale(alg.scale, ctx, init; rank)
     n₀ = length(st.E_hist)

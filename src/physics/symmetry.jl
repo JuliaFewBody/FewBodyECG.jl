@@ -91,6 +91,14 @@ function _basis_symmetry(basis::BasisSet)
     return all(h -> h isa ProjectedGaussian && h.symmetry == g.symmetry, basis) ? g.symmetry : nothing
 end
 
+# Symmetry shared by all functions of a solver basis; `nothing` if none is projected.
+function _shared_symmetry(basis::BasisSet)
+    symmetry = _basis_symmetry(basis)
+    symmetry === nothing && any(g -> g isa ProjectedGaussian, basis) &&
+        throw(ArgumentError("all basis functions must share the same exchange symmetry"))
+    return symmetry
+end
+
 # Group average Σₚ χ(p) f(g∘p) / |G| over the transformed components of `g`.
 _project(f, g::ProjectedGaussian) =
     sum(s * f(h) for (s, h) in zip(g.symmetry.signs, g.components)) / length(g.components)

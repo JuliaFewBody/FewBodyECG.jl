@@ -174,29 +174,13 @@ end
     @test !isnan(something(g.convergence.gradnorm, NaN))
 end
 
-@testset "DynamicGVM early stop when every candidate fails" begin
-    # An absurdly large `scale` pushes every quasi-random candidate's width
-    # into a regime where its matrix elements against `terms` are numerically
-    # degenerate, so every one of the 5 candidates throws inside the
-    # per-candidate try/catch and the "all candidates failed" branch fires at
-    # step 1, leaving the solver with no basis to return.
-    local caught
-    @test_logs (:warn, r"Sequential search stopped at step 1: all 5 candidates failed") match_mode = :any begin
-        try
-            solve(
-                ops,
-                DynamicGVM(
-                    basis = 5, candidates = 5, scale = 1.0e105,
-                    optimizer = quiet_lbfgs(50),
-                );
-                verbose = true,
-            )
-        catch e
-            caught = e
-        end
-    end
-    @test caught isa ErrorException
-    @test occursin("Sequential selection produced no basis functions", caught.msg)
+@testset "DynamicGVM stops with an error when every candidate fails" begin
+    # An absurdly large `scale` makes every quasi-random candidate's matrix
+    # elements non-finite, so no candidate at step 1 is admissible.
+    @test_throws "DynamicGVM step 1: all 5 candidates" solve(
+        ops,
+        DynamicGVM(basis = 5, candidates = 5, scale = 1.0e105, optimizer = quiet_lbfgs(50)),
+    )
 end
 
 @testset "NumericalPotential ForwardDiff compatibility" begin

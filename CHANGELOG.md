@@ -47,12 +47,13 @@ vectors). A warm start (`init`) from a solution for other masses throws an
 `ArgumentError`. `ManyBodyGaussianOperator` accepts a positive-semidefinite
 exponent matrix, which products of pair Gaussians can produce.
 
-### Faster first calls
+### Gradient solvers
 
-A PrecompileTools workload compiles the solvers at precompile time, and the
-gradient methods use a fixed ForwardDiff chunk size, so their compiled code is
-shared by all systems. The first `GVM` solve of a new three-body system takes
-about 1 s instead of about 8 s; `using FewBodyECG` takes about 0.3 s longer.
+`GVM` and `DynamicGVM` differentiate each Gaussian's row and column of the
+Hamiltonian and overlap matrices with ForwardDiff. Hamiltonians containing raw
+permutation terms or externally defined operator types use full-matrix
+differentiation. The PrecompileTools workload covers the two-body unprojected
+Rank0 layout.
 
 ### `scale = :adaptive` is the default
 

@@ -25,7 +25,8 @@ coulomb_system(masses, charges) = Kinetic(masses) + Coulomb(charges)
     @testset "warm starts measure the initial basis" begin
         ref = solve(H, Refine(1; candidates = 5); init = sol)
         @test any(n -> occursin("bohr of the initial basis", n), ref.convergence.notes)
-        dyn = solve(H, DynamicGVM(basis = 22, candidates = 2, optimizer = _adaptive_lbfgs(10)); init = sol)
+        dyn = solve(H, DynamicGVM(basis = 22, candidates = 5, optimizer = _adaptive_lbfgs(10)); init = sol)
+        @test length(dyn.basis) == 22
         @test any(n -> occursin("bohr of the initial basis", n), dyn.convergence.notes)
         gvm = solve(H, GVM(4; optimizer = _adaptive_lbfgs(20)))
         @test any(n -> occursin("pilot run", n), gvm.convergence.notes)

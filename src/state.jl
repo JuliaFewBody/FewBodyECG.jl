@@ -45,12 +45,12 @@ _survives_projection(cand, s_diag) = true
 _survives_projection(cand::ProjectedGaussian, s_diag) =
     s_diag > 1.0e-12 * _compute_matrix_element(cand.orbital, cand.orbital)
 
-# Basis-function type of a stochastic basis of the given rank and symmetry.
-_stochastic_type(rank, symmetry) = symmetry === nothing ? _rank_type(rank) : ProjectedGaussian
+# Basis-function type of a solver basis of the given rank and symmetry.
+_basis_type(rank, symmetry) = symmetry === nothing ? _rank_type(rank) : ProjectedGaussian
 function _rank_type(rank)
     rank == 0 && return Rank0Gaussian
     rank == 1 && return Rank1Gaussian
-    throw(ArgumentError("stochastic methods support rank 0 or 1, got $rank"))
+    throw(ArgumentError("solvers support rank 0 or 1, got $rank"))
 end
 
 # Draw the next quasi-random candidate; advances the stream counter.
@@ -93,9 +93,8 @@ end
 # Rebuild the eigensolver state from an explicit basis (O(k³) total).
 function BasisState(basis::Vector{G}, operators) where {G <: GaussianBase}
     bs = BasisSet(basis)
-    symmetry = _basis_symmetry(bs)
-    any(g -> g isa ProjectedGaussian, basis) && symmetry === nothing && throw(ArgumentError("all initial basis functions must share the same symmetry"))
-    st = BasisState(G; rank = _stochastic_rank(bs), symmetry)
+    symmetry = _shared_symmetry(bs)
+    st = BasisState(G; rank = _basis_rank(bs), symmetry)
     invariant = _hamiltonian_invariant(operators, symmetry)
     for g in basis
         cols = _candidate_columns(g, st.basis, operators; invariant)
@@ -126,14 +125,14 @@ end
 # resumes after the points `sol` already consumed, so no candidate is redrawn.
 function _solution_basis_state(sol::Solution, operators)
     fns = getfield(sol, :basis).functions
-    G = _stochastic_type(_stochastic_rank(sol.basis), _basis_symmetry(sol.basis))
+    G = _basis_type(_basis_rank(sol.basis), _basis_symmetry(sol.basis))
     st = BasisState(G[g for g in fns], operators)
     st.draw = getfield(sol, :draws)
     return st
 end
 
-function _stochastic_rank(basis::BasisSet)
+function _basis_rank(basis::BasisSet)
     all(g -> _unprojected(g) isa Rank0Gaussian, basis) && return 0
     all(g -> _unprojected(g) isa Rank1Gaussian, basis) && return 1
-    throw(ArgumentError("stochastic methods require a uniformly Rank0Gaussian or Rank1Gaussian basis"))
+    throw(ArgumentError("solvers require a uniformly Rank0Gaussian or Rank1Gaussian basis"))
 end

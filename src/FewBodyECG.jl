@@ -1,7 +1,7 @@
 module FewBodyECG
 
-using LinearAlgebra: Diagonal, Hermitian, I, Symmetric, UpperTriangular,
-    cholesky, cond, cross, det, diag, dot, eigen, eigmin, isposdef, issymmetric,
+using LinearAlgebra: Diagonal, Hermitian, I, RowMaximum, Symmetric, UpperTriangular,
+    cholesky, cond, cross, det, diag, dot, eigen, eigmin, eigvals, isposdef, issymmetric,
     norm, opnorm, pinv, tr
 import FewBodyHamiltonians
 using FewBodyHamiltonians: UnitSystem, Hamiltonian, Kinetic, Coulomb, Gaussian,
@@ -48,19 +48,18 @@ include("validation.jl")
 include("types.jl")
 include("coordinates.jl")
 include("matrix_elements.jl")
-include("numerical_matrix_elements.jl")
-include("polarized_elements.jl")
-include("permutation_contact.jl")
-include("spin_exchange.jl")
-include("multipoles.jl")
-include("relativistic.jl")
-include("symmetry.jl")
+include("physics/polarized_elements.jl")
+include("physics/permutation_contact.jl")
+include("physics/spin_exchange.jl")
+include("physics/multipoles.jl")
+include("physics/relativistic.jl")
+include("physics/symmetry.jl")
 include("jacobi_frame.jl")
 include("linalg.jl")
 include("eigen.jl")
 include("sampling.jl")
 include("methods.jl")
-include("solution.jl")
+include("utils/solution.jl")
 include("state.jl")
 include("solve.jl")
 include("gradient.jl")

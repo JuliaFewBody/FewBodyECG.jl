@@ -2,7 +2,7 @@ using Test
 using LinearAlgebra
 using FewBodyECG
 using OptimKit: LBFGS
-import FewBodyECG: jacobi_transform, _encode_basis, _decode_basis, _chol_to_params, _params_to_matrix
+import FewBodyECG: jacobi_transform, _encode_basis, _decode_basis, _gradient_layout, _chol_to_params, _params_to_matrix
 using FewBodyECG: Λ
 
 _variational_lbfgs(maxiter; gradtol = 1.0e-6) =
@@ -54,10 +54,11 @@ end
     g2 = Rank0Gaussian([5.0;;], [0.0])
     basis = BasisSet([g1, g2])
 
-    θ = _encode_basis(basis)
+    layout = _gradient_layout(basis)
+    θ = _encode_basis(basis, layout)
     @test length(θ) == 8   # 2 functions × (n_chol=1 + 3·n_dim=3)
 
-    basis2 = _decode_basis(θ, 2, 1)
+    basis2 = _decode_basis(θ, 2, 1, layout)
     @test length(basis2.functions) == 2
     for (orig, recon) in zip(basis.functions, basis2.functions)
         @test Matrix(orig.A) ≈ Matrix(recon.A) rtol = 1.0e-10
@@ -72,10 +73,11 @@ end
     g = Rank0Gaussian(A, [0.0, 0.0])
     basis = BasisSet([g])
 
-    θ = _encode_basis(basis)
+    layout = _gradient_layout(basis)
+    θ = _encode_basis(basis, layout)
     @test length(θ) == 9   # 1 function × (n_chol=3 + 3·n_dim=6)
 
-    basis2 = _decode_basis(θ, 1, 2)
+    basis2 = _decode_basis(θ, 1, 2, layout)
     @test Matrix(basis2.functions[1].A) ≈ A rtol = 1.0e-8
     @test basis2.functions[1].s ≈ g.s rtol = 1.0e-10
 end
@@ -87,10 +89,11 @@ end
     g = Rank0Gaussian(A, s)
     basis = BasisSet([g])
 
-    θ = _encode_basis(basis)
+    layout = _gradient_layout(basis)
+    θ = _encode_basis(basis, layout)
     @test length(θ) == 9
 
-    basis2 = _decode_basis(θ, 1, 2)
+    basis2 = _decode_basis(θ, 1, 2, layout)
     @test Matrix(basis2.functions[1].A) ≈ A rtol = 1.0e-8
     @test basis2.functions[1].s ≈ s rtol = 1.0e-10
 end
