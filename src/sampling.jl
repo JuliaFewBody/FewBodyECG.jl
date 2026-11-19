@@ -33,17 +33,18 @@ function generate_shift(method::Symbol, i::Int, dim::Int, scale::Real; qmc_sampl
 end
 
 function _generate_A_matrix(bij::AbstractVector{<:Real}, w_list::AbstractVector{<:AbstractVector{<:Real}})
+    Base.require_one_based_indexing(bij, w_list)
     b = Float64.(bij)
     m = length(b)
     m == length(w_list) || throw(ArgumentError("Length(bij) must equal number of w vectors"))
 
     d = length(w_list[1])
-    @inbounds for k in 2:m
+    for k in 2:m
         length(w_list[k]) == d || throw(ArgumentError("All w vectors must have same length"))
     end
 
     W = Matrix{Float64}(undef, d, m)
-    @inbounds for k in 1:m
+    for k in 1:m
         @views W[:, k] = Float64.(w_list[k])
     end
 

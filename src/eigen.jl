@@ -88,7 +88,7 @@ Value of the arrowhead secular function f(λ) = α − λ − Σᵢ b[i]²/(ε[i
 """
 @inline function arrowhead_secular(ε::AbstractVector, b::AbstractVector, α::Real, λ::Real)
     s = α - λ
-    @inbounds for i in eachindex(ε)
+    for i in eachindex(ε, b)
         s -= b[i]^2 / (ε[i] - λ)
     end
     return s
@@ -101,7 +101,7 @@ Derivative f'(λ) = −1 − Σᵢ b[i]²/(ε[i]−λ)² (strictly negative).
 """
 @inline function arrowhead_secular_deriv(ε::AbstractVector, b::AbstractVector, λ::Real)
     s = -1.0
-    @inbounds for i in eachindex(ε)
+    for i in eachindex(ε, b)
         d = ε[i] - λ
         s -= b[i]^2 / (d * d)
     end
@@ -158,6 +158,18 @@ function _deflatable(ε::AbstractVector, b::AbstractVector, α::Real, scale::Rea
     )
 end
 
+# The arrowhead routines index poles and border by position (`ε[i - 1]`,
+# `1:k`), so both vectors must be one-based and of equal length.
+function _check_arrowhead(ε::AbstractVector, b::AbstractVector)
+    Base.require_one_based_indexing(ε, b)
+    length(ε) == length(b) || throw(
+        DimensionMismatch(
+            "arrowhead poles ε and border b must have equal lengths, got $(length(ε)) and $(length(b))"
+        )
+    )
+    return nothing
+end
+
 """
     smallest_arrowhead_eigval(ε, b, α; tol = 1e-12) -> Float64
 
@@ -171,17 +183,13 @@ function smallest_arrowhead_eigval(
         ε::AbstractVector, b::AbstractVector, α::Real;
         tol::Float64 = 1.0e-12
     )
+    _check_arrowhead(ε, b)
     k = length(ε)
     scale = max(1.0, maximum(abs, ε; init = 0.0), abs(α))
     # Active (coupled) indices; deflated diagonals are themselves eigenvalues.
     defl = _deflatable(ε, b, α, scale, tol)
     active = [i for i in 1:k if !defl[i]]
-    deflated_min = Inf
-    @inbounds for i in 1:k
-        if defl[i]
-            deflated_min = min(deflated_min, ε[i])
-        end
-    end
+    deflated_min = minimum((ε[i] for i in 1:k if defl[i]); init = Inf)
     if isempty(active)
         return min(isempty(ε) ? Inf : minimum(ε), α)
     end
@@ -212,14 +220,13 @@ vectors orthogonal to working precision even when eigenvalues nearly coincide �
 the key to keeping `QᵀSQ = I` over many incremental steps.
 """
 function _lowner_border(d::AbstractVector, λ::AbstractVector, b_src::AbstractVector)
-    m = length(d)
-    b̂ = Vector{Float64}(undef, m)
-    @inbounds for i in 1:m
+    b̂ = similar(b_src, Float64)
+    for i in eachindex(d, b_src)
         logval = 0.0
         for j in eachindex(λ)
             logval += log(abs(d[i] - λ[j]))
         end
-        for l in 1:m
+        for l in eachindex(d)
             l == i && continue
             logval -= log(abs(d[i] - d[l]))
         end
@@ -243,6 +250,7 @@ function full_arrowhead_eigen(
         ε::AbstractVector{Float64}, b::AbstractVector{Float64}, α::Float64;
         tol::Float64 = 1.0e-12
     )
+    _check_arrowhead(ε, b)
     k = length(ε)
     n = k + 1
     scale = max(1.0, maximum(abs, ε; init = 0.0), abs(α))

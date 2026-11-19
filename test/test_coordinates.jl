@@ -1,6 +1,7 @@
 using Test
 using FewBodyECG
 using LinearAlgebra
+using OffsetArrays
 import FewBodyECG: jacobi_transform, _transform_coordinates, _inverse_transform_coordinates
 using FewBodyECG: Λ
 
@@ -27,7 +28,8 @@ using FewBodyECG: Λ
         @test size(U) == (2, 1)
         @test J * U ≈ [1.0] atol = 1.0e-10
 
-        @test_throws AssertionError jacobi_transform([1.0])
+        @test_throws ArgumentError jacobi_transform([1.0])
+        @test_throws "at least two masses are required" jacobi_transform([1.0])
     end
 
 
@@ -45,8 +47,10 @@ using FewBodyECG: Λ
         x_back = _transform_coordinates(J, r_back)
         @test x_back ≈ x atol = 1.0e-10
 
-        @test_throws AssertionError _transform_coordinates(J, [1.0, 2.0])
-        @test_throws AssertionError _inverse_transform_coordinates(U, [1.0])
+        @test_throws DimensionMismatch _transform_coordinates(J, [1.0, 2.0])
+        @test_throws "columns of J" _transform_coordinates(J, [1.0, 2.0])
+        @test_throws DimensionMismatch _inverse_transform_coordinates(U, [1.0])
+        @test_throws "columns of U" _inverse_transform_coordinates(U, [1.0])
     end
 end
 
@@ -123,20 +127,26 @@ end
 
 end
 
-@testset "Dispatch and Type Behaviour Tests" begin
-    @testset "Method signatures enforce Float64 matrices" begin
-        Jf32 = zeros(Float32, 2, 3)
-        r = [1.0, 2.0, 3.0]
-        @test_throws MethodError _transform_coordinates(Jf32, r)
+@testset "Argument types" begin
+    masses = [1.0, 2.0, 3.0]
+    J, U = jacobi_transform(masses)
 
-        Uf32 = zeros(Float32, 3, 2)
-        x = [1.0, 2.0]
-        @test_throws MethodError _inverse_transform_coordinates(Uf32, x)
+    @testset "jacobi_transform and Λ accept any real vector" begin
+        for m in ([1, 2, 3], Float32[1, 2, 3], 1:3, view([0.0, 1.0, 2.0, 3.0], 2:4))
+            Jm, Um = jacobi_transform(m)
+            @test Jm isa Matrix{Float64} && Um isa Matrix{Float64}
+            @test Jm ≈ J
+            @test Um ≈ U
+            @test Λ(m) ≈ Λ(masses)
+            @test KineticOperator(m).K ≈ Λ(masses)
+        end
+        @test_throws ArgumentError jacobi_transform(OffsetArray(masses, 0:2))
     end
 
-
-    @testset "Method errors on jacobi_transform with non-Float64 masses" begin
-        @test_throws MethodError jacobi_transform([1, 2, 3])             # Integer vector
-        @test_throws MethodError jacobi_transform([1.0f0, 2.0f0, 3.0f0]) # Float32 vector
+    @testset "coordinate transforms accept any real matrix" begin
+        r = [1.0, 2.0, 3.0]
+        @test _transform_coordinates(Float32.(J), r) ≈ J * r rtol = 1.0e-6
+        @test _inverse_transform_coordinates(Float32.(U), J * r) ≈ U * (J * r) rtol = 1.0e-6
+        @test_throws DimensionMismatch _transform_coordinates(J, OffsetArray(r, 0:2))
     end
 end
