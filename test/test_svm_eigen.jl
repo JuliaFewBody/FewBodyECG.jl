@@ -1,12 +1,14 @@
 using Test
 using LinearAlgebra
 using Random
+using OffsetArrays
 using FewBodyECG
 using FewBodyECG: build_hamiltonian_matrix, build_overlap_matrix, solve_generalized_eigenproblem, Λ, jacobi_transform
 
 # Internal (unexported) symbols under test.
 using FewBodyECG: SVMEigen, commit_candidate!, score_candidate,
-    full_arrowhead_eigen, smallest_arrowhead_eigval, coefficients
+    full_arrowhead_eigen, smallest_arrowhead_eigval, coefficients,
+    arrowhead_secular, arrowhead_secular_deriv, _lowner_border
 
 # Build the generalised eigendecomposition of (H, S) incrementally, one column
 # at a time, exactly as the SVM does.
@@ -187,4 +189,19 @@ end
         @test minimum(eig.ε) ≈ -0.5 atol = 5.0e-2             # sanity: near hydrogen E₀
     end
 
+end
+
+@testset "arrowhead argument checks" begin
+    ε = [1.0, 2.0, 3.0]
+    b = [0.1, 0.2]
+    @test_throws DimensionMismatch arrowhead_secular(ε, b, 0.5, 0.0)
+    @test_throws DimensionMismatch arrowhead_secular_deriv(ε, b, 0.0)
+    @test_throws DimensionMismatch smallest_arrowhead_eigval(ε, b, 0.5)
+    @test_throws "must have equal lengths, got 3 and 2" smallest_arrowhead_eigval(ε, b, 0.5)
+    @test_throws DimensionMismatch full_arrowhead_eigen(ε, b, 0.5)
+    @test_throws DimensionMismatch _lowner_border(ε, [0.0, 1.5, 2.5, 3.5], b)
+
+    bo = OffsetArray([0.1, 0.2, 0.3], 0:2)
+    @test_throws ArgumentError smallest_arrowhead_eigval(OffsetArray(ε, 0:2), bo, 0.5)
+    @test_throws ArgumentError full_arrowhead_eigen(OffsetArray(ε, 0:2), bo, 0.5)
 end

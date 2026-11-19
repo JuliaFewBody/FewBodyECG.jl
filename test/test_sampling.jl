@@ -1,6 +1,7 @@
 using Test
 using FewBodyECG
 using LinearAlgebra
+using OffsetArrays
 
 import FewBodyECG: _generate_A_matrix, build_rank0, generate_bij, generate_shift
 
@@ -55,6 +56,7 @@ import FewBodyECG: _generate_A_matrix, build_rank0, generate_bij, generate_shift
 
         @test_throws ArgumentError _generate_A_matrix([1.0, 2.0], [w1])                # length mismatch
         @test_throws ArgumentError _generate_A_matrix([1.0, 2.0], [w1, [1.0, 0.0]])   # differing dimensions
+        @test_throws ArgumentError _generate_A_matrix(OffsetArray(bij, 0:1), [w1, w2])  # offset axes
 
         svec = [0.1, 0.2, 0.3]
         rg = build_rank0([1.0, 2.0], [w1, w2], svec)
