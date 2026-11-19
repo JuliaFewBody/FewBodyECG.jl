@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Shared Hamiltonian construction
+
+- Use FewBodyHamiltonians 0.1 as the native owner of `Hamiltonian`, physical
+  construction terms, unit labels and algebra. ECG re-exports the exact shared
+  types; existing algebraic expressions and raw Jacobi-frame APIs remain valid.
+- Accept Hamiltonians built directly by FewBodyHamiltonians in solver and matrix
+  APIs. Particle/charge/unit validation now comes from the shared package.
+
 ### Hamiltonians are sums of particle-indexed terms
 
 `Operators`, its string and tuple forms, and `numerical` are removed. A

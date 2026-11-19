@@ -23,7 +23,7 @@ function _jacobi_operator(t::Gaussian, U, N)
         i, j, γ = only(t.factors)
         return GaussianOperator(t.coefficient, γ, _pair_weight(i, j, U, N))
     end
-    return ManyBodyGaussianOperator(t.coefficient, _jacobi_quadratic(_pair_matrix(t.factors, N), U))
+    return ManyBodyGaussianOperator(t.coefficient, _jacobi_quadratic(exponent_matrix(t, N), U))
 end
 function _jacobi_operator(t::ManyBodyGaussian, U, N)
     n = size(t.G, 1)
@@ -42,35 +42,12 @@ _jacobi_operator(t::Tensor, U, N) =
 _jacobi_operator(t::SpinOrbit, U, N) =
     GaussianSpinOrbitOperator(t.coefficient, t.exponent, _pair_weight(t.i, t.j, U, N), t.i, t.j)
 
-# Coulomb terms built from charges carry couplings qᵢqⱼ, which are the Coulomb
-# couplings only in atomic units.
-function _check_charges(t::Coulomb, N, units)
-    t.n_charges == N || throw(
-        ArgumentError("Coulomb(charges) has $(t.n_charges) charges but Kinetic has $N masses")
-    )
-    units == _UNIT_PRESETS.atomic || throw(
-        ArgumentError(
-            "Coulomb(charges) uses couplings qᵢqⱼ, which assumes atomic units " *
-                "(e²/4πε₀ = 1); this system uses $units. Write each pair as " *
-                "Coulomb(i, j; coefficient = k * qᵢ * qⱼ) with k = e²/4πε₀ in your " *
-                "units (k ≈ 1.44 MeV fm for :nuclear)."
-        )
-    )
-    return nothing
-end
-
 # (operators, masses, units) of `H`: its Jacobi-frame operators in the order
 # the terms were written, the masses of its `Kinetic` term, and their units.
 function _to_jacobi(H::Hamiltonian)
-    K = _kinetic(H)
-    K === nothing && throw(
-        ArgumentError("the Hamiltonian needs exactly one Kinetic(masses) term to define the particles; it has none")
-    )
+    K = kinetic(validate(H))
     N = length(K.masses)
     _, U = jacobi_transform(K.masses)
-    for t in H.terms
-        t isa Coulomb && t.n_charges > 0 && _check_charges(t, N, K.units)
-    end
     ops = FewBodyHamiltonians.Operator[_jacobi_operator(t, U, N) for t in H.terms]
     return ops, K.masses, K.units
 end

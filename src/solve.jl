@@ -20,14 +20,14 @@ _pairwise_weights(terms) = Vector{Float64}[
 
 function _ctx(terms, masses; state, tol, window, verbose, units, init, hamiltonian = nothing, symmetry::Union{Nothing, PermutationSymmetry} = nothing)
     state ≥ 1 || throw(ArgumentError("state must be ≥ 1, got $state"))
-    units = _unitsystem(units)
+    units = unit_system(units)
     init === nothing || init.units == units || throw(
         ArgumentError("init was solved in $(init.units), but this problem uses $units")
     )
     # A basis is defined in the Jacobi coordinates of its masses, so a warm
     # start for other masses would silently describe a different state.
     if init !== nothing && init.hamiltonian !== nothing && hamiltonian !== nothing
-        init_masses = _kinetic(init.hamiltonian).masses
+        init_masses = kinetic(init.hamiltonian).masses
         init_masses == masses || throw(
             ArgumentError("init was solved for masses $init_masses, but this problem has masses $masses")
         )

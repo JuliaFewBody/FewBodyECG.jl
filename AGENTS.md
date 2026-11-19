@@ -38,9 +38,10 @@ A matrix-level layer (`build_overlap_matrix`, `build_operator_matrix`, `build_ha
 #### Core (`src/`)
 
 - **types.jl** — `GaussianBase` → `Rank0Gaussian`, `Rank1Gaussian`, `Rank2Gaussian`, `SpinGaussian`; `BasisSet`; operator types (`KineticOperator`, `CoulombOperator`, `GaussianOperator`, `OscillatorOperator`, `ManyBodyGaussianOperator`, `NumericalPotential`, `GaussianTensorOperator`, `GaussianSpinOrbitOperator`); `SpinState`
+- **FewBodyHamiltonians** — shared `UnitSystem`, particle-indexed terms and Hamiltonian algebra; imported and re-exported without local copies
 - **coordinates.jl** — `jacobi_transform`, `Λ` (kinetic mass matrix)
 - **matrix_elements.jl** — analytic ⟨bra|op|ket⟩ formulas dispatched on Gaussian rank × operator type, plus 1-D radial QuadGK integrals for `NumericalPotential`
-- **hamiltonian.jl** — physical terms (`Kinetic`, `Coulomb`, `Gaussian`, `ManyBodyGaussian`, `Oscillator`, `Custom`, `Tensor`, `SpinOrbit`), `Hamiltonian`, and their algebra; no Jacobi coordinates, so it can move to FewBodyHamiltonians unchanged
+- **validation.jl** — backend-specific checks for raw Jacobi-frame operators
 - **jacobi_frame.jl** — `_to_jacobi(H)`: transform of a `Hamiltonian` to Jacobi-frame operators, masses and units
 - **linalg.jl** — overlap/Hamiltonian assembly, `solve_generalized_eigenproblem`, `default_scale`
 - **eigen.jl** — `SVMEigen`, the incremental whitened eigensolver that scores SVM candidates in O(k²)
@@ -52,7 +53,6 @@ A matrix-level layer (`build_overlap_matrix`, `build_operator_matrix`, `build_ha
 
 #### Physics (`src/physics/`)
 
-- **units.jl** — `UnitSystem` and the `:atomic`/`:nuclear` presets; labels only, nothing is converted
 - **polarized_elements.jl** — Rank1/Rank2 and cross-rank elements for any operator, as shift derivatives of the Rank0 element (nested ForwardDiff)
 - **permutation_contact.jl** — spatial `PermutationOperator`, radial-operator × permutation products, and `ContactDensityOperator` for three-dimensional pair densities
 - **symmetry.jl** — `PermutationSymmetry` and `ProjectedGaussian` for exchange-symmetry projection
@@ -71,7 +71,7 @@ A matrix-level layer (`build_overlap_matrix`, `build_operator_matrix`, `build_ha
 
 ### Key Design Patterns
 - **Multiple dispatch on Gaussian rank × operator type** for matrix elements.
-- **FewBodyHamiltonians dependency** supplies the `Operator`, `KineticTerm`, and `PotentialTerm` abstract types.
+- **FewBodyHamiltonians dependency** owns the physical construction types, units, algebra and validation; ECG only lowers shared Hamiltonians to its Jacobi-frame operators.
 - **Shifts are N×3 supervectors** (row = Jacobi coordinate, column = Cartesian component); a length-N vector is placed in the z component.
 - **Complex Hermitian assembly**: spin-dependent operators produce complex matrices; real-valued paths stay real.
 - **Convergence reports are explicit**: stochastic saturation is reported as such, not as convergence to the exact eigenvalue.

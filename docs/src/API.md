@@ -2,6 +2,9 @@
 
 ## System building
 
+Physical construction types below are re-exported from FewBodyHamiltonians; their
+docstrings are maintained in that package. Jacobi-frame operators remain ECG APIs.
+
 ```@docs
 Hamiltonian
 Kinetic

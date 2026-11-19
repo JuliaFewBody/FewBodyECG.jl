@@ -333,3 +333,22 @@ at the measured size, which combines both.
 lightest particle with mass below `1e10`. It ignores the interactions, so it
 can be far off (for Ps⁻ and tdμ in the table above); `:adaptive` starts its
 pilot from it.
+
+## Shared Hamiltonian construction
+
+The physical terms and their algebra are defined by FewBodyHamiltonians and
+re-exported by FewBodyECG. Use either namespace; the resulting types are identical.
+ECG owns the Jacobi-frame conversion and numerical matrix elements.
+
+```@example shared_hamiltonian
+import FewBodyHamiltonians as Hamiltonians
+using FewBodyECG
+H = Hamiltonians.Kinetic([1.0e15, 1.0]) + Hamiltonians.Coulomb([1, -1])
+sol = solve(H, SVM(8; candidates = 8, scale = 1.0))
+@assert -0.500000000001 ≤ sol.E₀ < -0.45
+```
+
+Other JuliaFewBody backends accept the same construction values for the terms
+they support. Their coordinate representation and solver capabilities may differ.
+Unit labels and charge-shorthand validation are shared; no backend should
+implicitly convert masses or couplings to another unit convention.
